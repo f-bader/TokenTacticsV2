@@ -6,7 +6,7 @@ function Forge-UserAgent {
     [cmdletbinding()]
     Param(
         [Parameter(Mandatory = $False)]
-        [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
+        [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone')]
         [String]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
@@ -61,8 +61,17 @@ function Forge-UserAgent {
             } else {
                 $UserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
             }
+        } elseif ($Device -eq 'Linux') {
+            if ($Browser -eq 'Chrome') {
+                $UserAgent = 'Mozilla/5.0 (M12; Linux X12-12) AppleWebKit/806.12 (KHTML, like Gecko) Ubuntu/23.04 Chrome/113.0.5672.63 Safari/16.4.1'
+            } elseif ($Browser -eq 'Firefox') {
+                $UserAgent = 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.14) Gecko/2009090217 Ubuntu/9.04 (jaunty) Firefox/52.7.3'
+            } elseif ($Browser -eq 'Edge') {
+                $UserAgent = 'Mozilla/5.0 (Wayland; Linux x86_64; Surface) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Ubuntu/23.04 Edg/114.0.1823.43'
+            } else {
+                $UserAgent = 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.14) Gecko/2009090217 Ubuntu/9.04 (jaunty) Firefox/52.7.3'
+            }
         } else {
-            #[ValidateSet('Android','IE','Chrome','Firefox','Edge','Safari')]
             if ($Browser -eq 'Android') {
                 $UserAgent = 'Mozilla/5.0 (Linux; U; Android 4.0.2; en-us; Galaxy Nexus Build/ICL53F) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
             } elseif ($Browser -eq 'IE') {

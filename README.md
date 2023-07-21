@@ -11,6 +11,7 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 * Added support for OneDrive and SharePoint
 * Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `Parse-JWTtoken` output in human readable format
 * Refactored the codebase to have less redudant code and make it easier to extend
+* Support for Linux as a device platform (2023-07-21)
 
 ## Azure JSON Web Token ("JWT") Manipulation Toolset
 
