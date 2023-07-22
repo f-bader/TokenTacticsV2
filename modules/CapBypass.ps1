@@ -1,4 +1,4 @@
-function Forge-UserAgent {
+function Get-ForgedUserAgent {
     <#
     .DESCRIPTION
         Forge the User-Agent when sending requests to the Microsoft API's. Useful for bypassing device specific Conditional Access Policies. Defaults to Windows Edge.

@@ -21,7 +21,7 @@ function Get-AzureToken {
             Mandatory = $True,
             ParameterSetName = 'Default'
         )]
-        [ValidateSet("Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate")]
+        [ValidateSet("Yammer", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate")]
         [String[]]$Client,
         [Parameter(
             Mandatory = $False,
@@ -44,15 +44,15 @@ function Get-AzureToken {
     )
     if ($Device) {
         if ($Browser) {
-            $UserAgent = Forge-UserAgent -Device $Device -Browser $Browser
+            $UserAgent = Get-ForgedUserAgent -Device $Device -Browser $Browser
         } else {
-            $UserAgent = Forge-UserAgent -Device $Device
+            $UserAgent = Get-ForgedUserAgent -Device $Device
         }
     } else {
         if ($Browser) {
-            $UserAgent = Forge-UserAgent -Browser $Browser
+            $UserAgent = Get-ForgedUserAgent -Browser $Browser
         } else {
-            $UserAgent = Forge-UserAgent
+            $UserAgent = Get-ForgedUserAgent
         }
     }
     $Headers = @{}
@@ -68,6 +68,12 @@ function Get-AzureToken {
         $body = @{
             "client_id" = "d3590ed6-52b3-4102-aeff-aad2292ab01c"
             "scope"     = "https://substrate.office.com/.default offline_access openid"
+        }
+    } elseif ($Client -eq "Yammer") {
+
+        $body = @{
+            "client_id" = "d3590ed6-52b3-4102-aeff-aad2292ab01c"
+            "resource"  = "https://www.yammer.com/.default offline_access openid"
         }
     } elseif ($Client -eq "Custom") {
 
@@ -192,7 +198,7 @@ function Get-AzureToken {
             Write-Output $response
             $jwt = $response.access_token
 
-            $output = Parse-JWTtoken -token $jwt
+            $output = ConvertFrom-JWTtoken -token $jwt
             $global:upn = $output.upn
             Write-Output $upn
             break
@@ -201,12 +207,12 @@ function Get-AzureToken {
 }
 
 # Refresh Token Functions
-function RefreshTo-SubstrateToken {
+function Invoke-RefreshToSubstrateToken {
     <#
     .DESCRIPTION
         Generate a Substrate token from a refresh token.
     .EXAMPLE
-        RefreshTo-SubstrateToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToSubstrateToken -domain myclient.org -refreshToken ey....
         $SubstrateToken.access_token
     #>
 
@@ -242,12 +248,12 @@ function RefreshTo-SubstrateToken {
     $SubstrateToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-MSManageToken {
+function Invoke-RefreshToMSManageToken {
     <#
     .DESCRIPTION
         Generate a manage token from a refresh token.
     .EXAMPLE
-        RefreshTo-MSManage -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToMSManage -domain myclient.org -refreshToken ey....
         $MSManageToken.access_token
     #>
     [cmdletbinding()]
@@ -282,12 +288,12 @@ function RefreshTo-MSManageToken {
     $MSManageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-MSTeamsToken {
+function Invoke-RefreshToMSTeamsToken {
     <#
     .DESCRIPTION
         Generate a Microsoft Teams token from a refresh token.
     .EXAMPLE
-        RefreshTo-MSTeamsToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToMSTeamsToken -domain myclient.org -refreshToken ey....
         $MSTeamsToken.access_token
     #>
     [cmdletbinding()]
@@ -322,12 +328,12 @@ function RefreshTo-MSTeamsToken {
     $MSTeamsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-OfficeManagementToken {
+function Invoke-RefreshToOfficeManagementToken {
     <#
     .DESCRIPTION
         Generate a Office Manage token from a refresh token.
     .EXAMPLE
-        RefreshTo-OfficeManagementToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToOfficeManagementToken -domain myclient.org -refreshToken ey....
         $OfficeManagement.access_token
     #>
     [cmdletbinding()]
@@ -362,12 +368,12 @@ function RefreshTo-OfficeManagementToken {
     $OfficeManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-OutlookToken {
+function Invoke-RefreshToOutlookToken {
     <#
     .DESCRIPTION
         Generate a Microsoft Outlook token from a refresh token.
     .EXAMPLE
-        RefreshTo-OutlookToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToOutlookToken -domain myclient.org -refreshToken ey....
         $OutlookToken.access_token
     #>
     [cmdletbinding()]
@@ -402,12 +408,12 @@ function RefreshTo-OutlookToken {
     $OutlookToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-MSGraphToken {
+function Invoke-RefreshToMSGraphToken {
     <#
     .DESCRIPTION
         Generate a Microsoft Graph token from a refresh token.
     .EXAMPLE
-        RefreshTo-MSGraphToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToMSGraphToken -domain myclient.org -refreshToken ey....
         $MSGraphToken.access_token
     #>
     [cmdletbinding()]
@@ -442,12 +448,12 @@ function RefreshTo-MSGraphToken {
     $MSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-GraphToken {
+function Invoke-RefreshToGraphToken {
     <#
     .DESCRIPTION
         Generate a windows graph token from a refresh token.
     .EXAMPLE
-        RefreshTo-GraphToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToGraphToken -domain myclient.org -refreshToken ey....
         $GraphToken.access_token
     #>
     [cmdletbinding()]
@@ -483,12 +489,12 @@ function RefreshTo-GraphToken {
     $GraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-OfficeAppsToken {
+function Invoke-RefreshToOfficeAppsToken {
     <#
     .DESCRIPTION
         Generate a Microsoft Office Apps token from a refresh token.
     .EXAMPLE
-        RefreshTo-OfficeAppsToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToOfficeAppsToken -domain myclient.org -refreshToken ey....
         $OfficeAppsToken.access_token
     #>
     [cmdletbinding()]
@@ -524,12 +530,12 @@ function RefreshTo-OfficeAppsToken {
     $OfficeAppsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-AzureCoreManagementToken {
+function Invoke-RefreshToAzureCoreManagementToken {
     <#
     .DESCRIPTION
         Generate a Microsoft Azure Core Mangement token from a refresh token.
     .EXAMPLE
-        RefreshTo-AzureCoreManagementToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToAzureCoreManagementToken -domain myclient.org -refreshToken ey....
         $AzureCoreManagementToken.access_token
     #>
     [cmdletbinding()]
@@ -565,12 +571,12 @@ function RefreshTo-AzureCoreManagementToken {
     $AzureCoreManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-AzureManagementToken {
+function Invoke-RefreshToAzureManagementToken {
     <#
     .DESCRIPTION
         Generate a Microsoft Azure Mangement token from a refresh token.
     .EXAMPLE
-        RefreshTo-AzureManagementToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToAzureManagementToken -domain myclient.org -refreshToken ey....
         $AzureManagementToken.access_token
     #>
     [cmdletbinding()]
@@ -606,12 +612,12 @@ function RefreshTo-AzureManagementToken {
     $AzureManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-MAMToken {
+function Invoke-RefreshToMAMToken {
     <#
     .DESCRIPTION
         Generate a Microsoft intune mam token from a refresh token.
     .EXAMPLE
-        RefreshTo-MAMToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToMAMToken -domain myclient.org -refreshToken ey....
         $MAMToken.access_token
     #>
     [cmdletbinding()]
@@ -647,12 +653,12 @@ function RefreshTo-MAMToken {
     $MamToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-DODMSGraphToken {
+function Invoke-RefreshToDODMSGraphToken {
     <#
     .DESCRIPTION
         Generate a Microsoft DOD Graph token from a refresh token.
     .EXAMPLE
-        RefreshTo-DODMSGraphToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToDODMSGraphToken -domain myclient.org -refreshToken ey....
         $DODMSGraphToken.access_token
     #>
     [cmdletbinding()]
@@ -689,12 +695,12 @@ function RefreshTo-DODMSGraphToken {
 }
 
 
-function RefreshTo-SharePointToken {
+function Invoke-RefreshToSharePointToken {
     <#
     .DESCRIPTION
         Generate a Microsoft SharePoint token from a refresh token.
     .EXAMPLE
-        RefreshTo-SharePointToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToSharePointToken -domain myclient.org -refreshToken ey....
         $SharePointToken.access_token
     #>
     [cmdletbinding()]
@@ -740,12 +746,12 @@ function RefreshTo-SharePointToken {
     $SharePointToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
-function RefreshTo-OneDriveToken {
+function Invoke-RefreshToOneDriveToken {
     <#
     .DESCRIPTION
         Generate a OneDrive token from a refresh token.
     .EXAMPLE
-        RefreshTo-OneDriveToken -domain myclient.org -refreshToken ey....
+        Invoke-RefreshToOneDriveToken -domain myclient.org -refreshToken ey....
         $OneDriveToken.access_token
     #>
     [cmdletbinding()]
@@ -781,6 +787,46 @@ function RefreshTo-OneDriveToken {
     $OneDriveToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
+function Invoke-RefreshToYammerToken {
+    <#
+    .DESCRIPTION
+        Generate a Microsoft Teams token from a refresh token.
+    .EXAMPLE
+        Invoke-RefreshToYammerToken -domain myclient.org -refreshToken ey....
+        $YammerToken.access_token
+    #>
+    [cmdletbinding()]
+    Param([Parameter(Mandatory = $true)]
+        [string]$Domain,
+        [Parameter(Mandatory = $false)]
+        [string]$RefreshToken = $response.refresh_token,
+        [Parameter(Mandatory = $false)]
+        $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
+        [String]$Device,
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
+        [String]$Browser,
+        [Parameter(Mandatory = $False)]
+        [Switch]$UseCAE
+    )
+
+    $Parameters = @{
+        Domain       = $Domain
+        refreshToken = $refreshToken
+        ClientID     = $ClientID
+        Device       = $Device
+        Browser      = $Browser
+        UseCAE       = $UseCAE
+        Scope        = "https://api.spaces.skype.com/.default offline_access openid"
+    }
+
+    $global:YammerToken = Invoke-RefreshToToken @Parameters
+    Write-Verbose "Token acquired and saved as `$YammerToken"
+    $YammerToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+}
+
 function Invoke-RefreshToToken {
     [CmdletBinding()]
     param (
@@ -804,15 +850,15 @@ function Invoke-RefreshToToken {
 
     if ($Device) {
         if ($Browser) {
-            $UserAgent = Forge-UserAgent -Device $Device -Browser $Browser
+            $UserAgent = Get-ForgedUserAgent -Device $Device -Browser $Browser
         } else {
-            $UserAgent = Forge-UserAgent -Device $Device
+            $UserAgent = Get-ForgedUserAgent -Device $Device
         }
     } else {
         if ($Browser) {
-            $UserAgent = Forge-UserAgent -Browser $Browser
+            $UserAgent = Get-ForgedUserAgent -Browser $Browser
         } else {
-            $UserAgent = Forge-UserAgent
+            $UserAgent = Get-ForgedUserAgent
         }
     }
 
@@ -860,7 +906,7 @@ function Clear-Token {
     #>
     [cmdletbinding()]
     Param([Parameter(Mandatory = $true)]
-        [ValidateSet("All", "Response", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "OfficeManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint", "OneDrive")]
+        [ValidateSet("All", "Response", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "OfficeManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint", "OneDrive", "Yammer")]
         [string]$Token
     )
     if ($Token -eq "All") {
@@ -877,6 +923,7 @@ function Clear-Token {
         Remove-Variable -Scope Global -Name SubstrateToken -ErrorAction 0
         Remove-Variable -Scope Global -Name CustomToken -ErrorAction 0
         Remove-Variable -Scope Global -Name SharePointToken -ErrorAction 0
+        Remove-Variable -Scope Global -Name YammerToken -ErrorAction 0
     } elseif ($Token -eq "Response") {
         Remove-Variable -Scope Global -Name response -ErrorAction 0
     } elseif ($Token -eq "Outlook") {
@@ -901,6 +948,8 @@ function Clear-Token {
         Remove-Variable -Scope Global -Name SharePointToken -ErrorAction 0
     } elseif ( $Token -eq "OneDrive") {
         Remove-Variable -Scope Global -Name OneDriveToken -ErrorAction 0
+    } elseif ( $Token -eq "Yammer") {
+        Remove-Variable -Scope Global -Name YammerToken -ErrorAction 0
     } else {
         Write-Error "Token $Token not found"
     }

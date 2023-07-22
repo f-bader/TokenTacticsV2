@@ -9,10 +9,18 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 * Made `ClientId` a parameter
 * Changed `client_id` for MSTeams
 * Added support for OneDrive and SharePoint
-* Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `Parse-JWTtoken` output in human readable format
+* Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
 * Refactored the codebase to have less redudant code and make it easier to extend
-* Support for Linux as a device platform (2023-07-21)
+
+### 0.2.1 (2023-07-21)
+
+* Support for Linux as a device platform
 * Support for OS/2 as a device platform (2023-07-21) :grin:
+
+### 0.2.2 (2023-07-22)
+
+* Backported [Yammer token support](https://github.com/rvrsh3ll/TokenTactics/commit/9b364e45e39c70cc3d0a0c5ca85d36e395df8930)
+* Backported [switch to allowed PowerShell verbs](https://github.com/rvrsh3ll/TokenTactics/commit/1e46bf26bcc799d4796b621e7f778fd0a24806ff), added alias for backward compatibility
 
 ## Azure JSON Web Token ("JWT") Manipulation Toolset
 
@@ -31,7 +39,7 @@ You may also use these tokens with [AAD Internals](https://o365blog.com/aadinter
 ```powershell
 Import-Module .\TokenTactics.psd1
 Get-Help Get-AzureToken
-RefreshTo-SubstrateToken -Domain "myclient.org"
+Invoke-RefreshToSubstrateToken -Domain "myclient.org"
 ```
 
 ### Get refresh token using Device Code flow
@@ -53,7 +61,7 @@ Get-AzureToken -Client DODMSGraph
 If you do not specify a refresh token the cmdlets will use `$response.refresh_token` as a default.
 
 ```powershell
-RefreshTo-OutlookToken -domain "myclient.org"
+Invoke-RefreshToOutlookToken -domain "myclient.org"
 
 $OutlookToken.access_token
 ```
@@ -67,7 +75,7 @@ Connect-AzureAD -AadAccessToken $response.access_token -AccountId user@myclient.
 ### Connect to MgGraph using access token
 
 ```powershell
-RefreshTo-MSGraphToken -Domain "myclient.org"
+Invoke-RefreshToMSGraphToken -Domain "myclient.org"
 Connect-MgGraph -AccessToken $MSGraphToken.access_token -Scopes "User.Read.All","Group.ReadWrite.All"
 ```
 
@@ -90,7 +98,7 @@ With [continuous access evaluation](https://docs.microsoft.com/en-us/azure/activ
 * High user risk detected by Azure AD Identity Protection (not in Teams and SharePoint Online)
 
 ```powershell
-RefreshTo-MSGraphToken -Domain "myclient.org" -UseCAE
+Invoke-RefreshToMSGraphToken -Domain "myclient.org" -UseCAE
 if ( $global:MSGraphTokenValidForHours -gt 23) { "MSGraph token is CAE capable" }
 ```
 
@@ -99,7 +107,7 @@ if ( $global:MSGraphTokenValidForHours -gt 23) { "MSGraph token is CAE capable" 
 If you have AADInternals installed as well you can use the created access tokens.
 
 ```powershell
-RefreshTo-MSTeamsToken -UseCAE -Domain "myclient.org"
+Invoke-RefreshToMSTeamsToken -UseCAE -Domain "myclient.org"
 Set-AADIntTeamsStatusMessage -Message "My cool status message" -AccessToken $MSTeamsToken.access_token -Verbose
 ```
 
@@ -110,25 +118,27 @@ Get-Command -Module TokenTactics
 
 CommandType     Name                                               Version    Source
 -----------     ----                                               -------    ------
-Function        Clear-Token                                        0.2.0      TokenTactics
-Function        Forge-UserAgent                                    0.2.0      TokenTactics
-Function        Get-AzureToken                                     0.2.0      TokenTactics
-Function        Get-TenantID                                       0.2.0      TokenTactics
-Function        Parse-JWTtoken                                     0.2.0      TokenTactics
-Function        RefreshTo-AzureCoreManagementToken                 0.2.0      TokenTactics
-Function        RefreshTo-AzureManagementToken                     0.2.0      TokenTactics
-Function        RefreshTo-DODMSGraphToken                          0.2.0      TokenTactics
-Function        RefreshTo-GraphToken                               0.2.0      TokenTactics
-Function        RefreshTo-MAMToken                                 0.2.0      TokenTactics
-Function        RefreshTo-MSGraphToken                             0.2.0      TokenTactics
-Function        RefreshTo-MSManageToken                            0.2.0      TokenTactics
-Function        RefreshTo-MSTeamsToken                             0.2.0      TokenTactics
-Function        RefreshTo-OfficeAppsToken                          0.2.0      TokenTactics
-Function        RefreshTo-OfficeManagementToken                    0.2.0      TokenTactics
-Function        RefreshTo-OneDriveToken                            0.2.0      TokenTactics
-Function        RefreshTo-OutlookToken                             0.2.0      TokenTactics
-Function        RefreshTo-SharePointToken                          0.2.0      TokenTactics
-Function        RefreshTo-SubstrateToken                           0.2.0      TokenTactics
+Function        Clear-Token                                        0.2.2      TokenTactics
+Function        ConvertFrom-JWTtoken                               0.2.2      TokenTactics
+Function        Get-AzureToken                                     0.2.2      TokenTactics
+Function        Get-ForgedUserAgent                                0.2.2      TokenTactics
+Function        Get-TenantID                                       0.2.2      TokenTactics
+Function        Invoke-RefreshToAzureCoreManagementToken           0.2.2      TokenTactics
+Function        Invoke-RefreshToAzureManagementToken               0.2.2      TokenTactics
+Function        Invoke-RefreshToDODMSGraphToken                    0.2.2      TokenTactics
+Function        Invoke-RefreshToGraphToken                         0.2.2      TokenTactics
+Function        Invoke-RefreshToMAMToken                           0.2.2      TokenTactics
+Function        Invoke-RefreshToMSGraphToken                       0.2.2      TokenTactics
+Function        Invoke-RefreshToMSManageToken                      0.2.2      TokenTactics
+Function        Invoke-RefreshToMSTeamsToken                       0.2.2      TokenTactics
+Function        Invoke-RefreshToOfficeAppsToken                    0.2.2      TokenTactics
+Function        Invoke-RefreshToOfficeManagementToken              0.2.2      TokenTactics
+Function        Invoke-RefreshToOneDriveToken                      0.2.2      TokenTactics
+Function        Invoke-RefreshToOutlookToken                       0.2.2      TokenTactics
+Function        Invoke-RefreshToSharePointToken                    0.2.2      TokenTactics
+Function        Invoke-RefreshToSubstrateToken                     0.2.2      TokenTactics
+Function        Invoke-RefreshToToken                              0.2.2      TokenTactics
+Function        Invoke-RefreshToYammerToken                        0.2.2      TokenTactics
 ```
 
 ## Authors and contributors
