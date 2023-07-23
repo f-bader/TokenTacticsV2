@@ -29,25 +29,26 @@ foreach ($script in $scripts) {
 }
 # Export functions
 $functions = @(
-    "ConvertFrom-JWTtoken"
-    "Get-TenantID"
-    "Get-AzureToken"
-    "Invoke-RefreshToAzureCoreManagementToken"
-    "Invoke-RefreshToAzureManagementToken"
-    "Invoke-RefreshToDODMSGraphToken"
-    "Invoke-RefreshToGraphToken"
-    "Invoke-RefreshToMAMToken"
-    "Invoke-RefreshToMSGraphToken"
-    "Invoke-RefreshToMSManageToken"
-    "Invoke-RefreshToMSTeamsToken"
-    "Invoke-RefreshToOfficeAppsToken"
-    "Invoke-RefreshToOfficeManagementToken"
-    "Invoke-RefreshToOneDriveToken"
-    "Invoke-RefreshToOutlookToken"
-    "Invoke-RefreshToSharePointToken"
     "Invoke-RefreshToSubstrateToken"
-    "Clear-Token"
+    "Invoke-RefreshToSharePointToken"
+    "Invoke-RefreshToOutlookToken"
+    "Invoke-RefreshToOneDriveToken"
+    "Invoke-RefreshToOfficeManagementToken"
+    "Invoke-RefreshToOfficeAppsToken"
+    "Invoke-RefreshToMSTeamsToken"
+    "Invoke-RefreshToMSManageToken"
+    "Invoke-RefreshToMSGraphToken"
+    "Invoke-RefreshToMAMToken"
+    "Invoke-RefreshToGraphToken"
+    "Invoke-RefreshToDODMSGraphToken"
+    "Invoke-RefreshToAzureManagementToken"
+    "Invoke-RefreshToAzureCoreManagementToken"
+    "Get-TenantID"
     "Get-ForgedUserAgent"
+    "Get-AzureToken"
+    "Get-AzureTokenFromESTSCookie"
+    "ConvertFrom-JWTtoken"
+    "Clear-Token"
 )
 
 $c = 0
@@ -73,5 +74,6 @@ New-Alias -Name RefreshTo-MAMToken -Value Invoke-RefreshToMAMToken
 New-Alias -Name RefreshTo-DODMSGraphToken -Value Invoke-RefreshToDODMSGraphToken
 New-Alias -Name RefreshTo-SharePointToken -Value Invoke-RefreshToSharePointToken
 New-Alias -Name RefreshTo-OneDriveToken -Value Invoke-RefreshToOneDriveToken
+New-Alias -Name RefreshTo-YammerToken -Value Invoke-RefreshToYammerToken
 
 Export-ModuleMember -Alias * -Function *
