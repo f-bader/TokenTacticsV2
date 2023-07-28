@@ -4,7 +4,7 @@ $version = $manifest.ModuleVersion
 $host.ui.RawUI.WindowTitle = "TokenTactics $version"
 
 $banner = @"
-_______    _                _______         _   _                 ___  
+ _______    _                _______         _   _                 ___  
 |__   __|  | |              |__   __|       | | (_)               |__ \ 
    | | ___ | | _____ _ __      | | __ _  ___| |_ _  ___ ___  __   __ ) |
    | |/ _ \| |/ / _ \ '_ \     | |/ _` |/ __| __| |/ __/ __| \ \ / // / 
