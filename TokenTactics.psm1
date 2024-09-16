@@ -43,6 +43,7 @@ $functions = @(
     "Invoke-RefreshToDODMSGraphToken"
     "Invoke-RefreshToAzureManagementToken"
     "Invoke-RefreshToAzureCoreManagementToken"
+    "Invoke-RefreshToStorageToken"
     "Get-TenantID"
     "Get-ForgedUserAgent"
     "Get-AzureToken"
