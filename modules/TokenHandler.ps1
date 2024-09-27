@@ -703,6 +703,88 @@ function Invoke-RefreshToAzureCoreManagementToken {
     $AzureCoreManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
+function Invoke-RefreshToAzureStorageToken {
+    <#
+    .DESCRIPTION
+        Generate a Microsoft Azure Storage token from a refresh token.
+    .EXAMPLE
+        Invoke-RefreshToAzureStorageToken -domain myclient.org -refreshToken ey....
+        $AzureStorageToken.access_token
+    #>
+    [cmdletbinding()]
+    Param(
+        [Parameter(Mandatory = $true)]
+        [string]$Domain,
+        [Parameter(Mandatory = $false)]
+        [string]$RefreshToken = $response.refresh_token,
+        [Parameter(Mandatory = $false)]
+        [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
+        [String]$Device,
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
+        [String]$Browser,
+        [Parameter(Mandatory = $False)]
+        [Switch]$UseCAE
+    )
+
+    $Parameters = @{
+        Domain       = $Domain
+        refreshToken = $refreshToken
+        ClientID     = $ClientID
+        Device       = $Device
+        Browser      = $Browser
+        UseCAE       = $UseCAE
+        Scope        = "https://storage.azure.com/.default offline_access openid"
+    }
+
+    $global:AzureStorageToken = Invoke-RefreshToToken @Parameters
+    Write-Verbose "Token acquired and saved as `$AzureStorageToken"
+    $AzureStorageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+}
+
+function Invoke-RefreshToAzureKeyVaultToken {
+    <#
+    .DESCRIPTION
+        Generate a Microsoft Azure Key Vault token from a refresh token.
+    .EXAMPLE
+        Invoke-RefreshToAzureKeyVaultToken -domain myclient.org -refreshToken ey....
+        $AzureKeyVaultToken.access_token
+    #>
+    [cmdletbinding()]
+    Param(
+        [Parameter(Mandatory = $true)]
+        [string]$Domain,
+        [Parameter(Mandatory = $false)]
+        [string]$RefreshToken = $response.refresh_token,
+        [Parameter(Mandatory = $false)]
+        [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
+        [String]$Device,
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
+        [String]$Browser,
+        [Parameter(Mandatory = $False)]
+        [Switch]$UseCAE
+    )
+
+    $Parameters = @{
+        Domain       = $Domain
+        refreshToken = $RefreshToken
+        ClientID     = $ClientID
+        Device       = $Device
+        Browser      = $Browser
+        UseCAE       = $UseCAE
+        Scope        = "https://vault.azure.net/.default offline_access openid"
+    }
+
+    $global:AzureKeyVaultToken = Invoke-RefreshToToken @Parameters
+    Write-Verbose "Token acquired and saved as `$AzureKeyVaultToken"
+    $AzureKeyVaultToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+}
+
 function Invoke-RefreshToAzureManagementToken {
     <#
     .DESCRIPTION
