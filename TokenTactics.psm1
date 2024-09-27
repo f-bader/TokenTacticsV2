@@ -77,5 +77,7 @@ New-Alias -Name RefreshTo-DODMSGraphToken -Value Invoke-RefreshToDODMSGraphToken
 New-Alias -Name RefreshTo-SharePointToken -Value Invoke-RefreshToSharePointToken
 New-Alias -Name RefreshTo-OneDriveToken -Value Invoke-RefreshToOneDriveToken
 New-Alias -Name RefreshTo-YammerToken -Value Invoke-RefreshToYammerToken
+New-Alias -Name RefreshTo-AzureStorageToken -Value Invoke-RefreshToAzureStorageToken
+New-Alias -Name RefreshTo-AzureKeyVaultToken -Value Invoke-RefreshToAzureKeyVaultToken
 
 Export-ModuleMember -Alias * -Function *
