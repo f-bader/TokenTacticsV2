@@ -1,3 +1,12 @@
+```
+ _______    _                _______         _   _                 ___  
+|__   __|  | |              |__   __|       | | (_)               |__ \ 
+   | | ___ | | _____ _ __      | | __ _  ___| |_ _  ___ ___  __   __ ) |
+   | |/ _ \| |/ / _ \ '_ \     | |/ _` |/ __| __| |/ __/ __| \ \ / // / 
+   | | (_) |   <  __/ | | |    | | (_| | (__| |_| | (__\__ \  \ V // /_ 
+   |_|\___/|_|\_\___|_| |_|    |_|\__,_|\___|\__|_|\___|___/   \_/|____|
+```
+
 # TokenTactics v2
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
