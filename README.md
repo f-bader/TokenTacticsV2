@@ -21,7 +21,7 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 * Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
 * Refactored the codebase to have less redudant code and make it easier to extend
 
-### 0.3.0 (2024-01-04)
+### 0.2.5 (2024-01-04)
 
 * Added new cmdlets `Get-AzureAuthorizationCode` and `Get-AzureTokenFromAuthorizationCode` \
   Those cmdlets are heavily inspired by [TokenSmith](https://github.com/JumpsecLabs/TokenSmith) maintained by [@gladstomych](https://github.com/gladstomych)
