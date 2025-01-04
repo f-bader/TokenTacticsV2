@@ -21,6 +21,13 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 * Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
 * Refactored the codebase to have less redudant code and make it easier to extend
 
+### 0.3.0 (2024-01-04)
+
+* Added new cmdlets `Get-AzureAuthorizationCode` and `Get-AzureTokenFromAuthorizationCode` \
+  Those cmdlets are heavily inspired by [TokenSmith](https://github.com/JumpsecLabs/TokenSmith) maintained by [@gladstomych](https://github.com/gladstomych)
+* Added new cmdlet `Invoke-RefreshToDeviceRegistrationToken` which is a TokenTactics version of the [AADInternals](https://github.com/Gerenios/AADInternals) cmdlet [`Get-AccessTokenForAADJoin`](https://github.com/Gerenios/AADInternals/blob/b23a7845f6dc5ea8c57b10351421a4d00466cd90/AccessToken.ps1#L877)
+* Added v1 endpoint support for `Invoke-RefreshToToken` with the `UseV1Endpoint`. This was required to add `Invoke-RefreshToDeviceRegistrationToken`
+
 ### 0.2.1 (2023-07-21)
 
 * Support for Linux as a device platform
@@ -145,32 +152,39 @@ Get-Command -Module TokenTactics
 
 CommandType     Name                                               Version    Source
 -----------     ----                                               -------    ------
-Function        Clear-Token                                        0.2.2      TokenTactics
-Function        ConvertFrom-JWTtoken                               0.2.2      TokenTactics
-Function        Get-AzureToken                                     0.2.2      TokenTactics
-Function        Get-ForgedUserAgent                                0.2.2      TokenTactics
-Function        Get-TenantID                                       0.2.2      TokenTactics
-Function        Invoke-RefreshToAzureCoreManagementToken           0.2.2      TokenTactics
-Function        Invoke-RefreshToAzureManagementToken               0.2.2      TokenTactics
-Function        Invoke-RefreshToDODMSGraphToken                    0.2.2      TokenTactics
-Function        Invoke-RefreshToGraphToken                         0.2.2      TokenTactics
-Function        Invoke-RefreshToMAMToken                           0.2.2      TokenTactics
-Function        Invoke-RefreshToMSGraphToken                       0.2.2      TokenTactics
-Function        Invoke-RefreshToMSManageToken                      0.2.2      TokenTactics
-Function        Invoke-RefreshToMSTeamsToken                       0.2.2      TokenTactics
-Function        Invoke-RefreshToOfficeAppsToken                    0.2.2      TokenTactics
-Function        Invoke-RefreshToOfficeManagementToken              0.2.2      TokenTactics
-Function        Invoke-RefreshToOneDriveToken                      0.2.2      TokenTactics
-Function        Invoke-RefreshToOutlookToken                       0.2.2      TokenTactics
-Function        Invoke-RefreshToSharePointToken                    0.2.2      TokenTactics
-Function        Invoke-RefreshToSubstrateToken                     0.2.2      TokenTactics
-Function        Invoke-RefreshToToken                              0.2.2      TokenTactics
-Function        Invoke-RefreshToYammerToken                        0.2.2      TokenTactics
+Function        Clear-Token                                        0.3.0      TokenTactics
+Function        ConvertFrom-JWTtoken                               0.3.0      TokenTactics
+Function        Get-AzureAuthorizationCode                         0.3.0      TokenTactics
+Function        Get-AzureToken                                     0.3.0      TokenTactics
+Function        Get-AzureTokenFromAuthorizationCode                0.3.0      TokenTactics
+Function        Get-AzureTokenFromESTSCookie                       0.3.0      TokenTactics
+Function        Get-ForgedUserAgent                                0.3.0      TokenTactics
+Function        Get-TenantID                                       0.3.0      TokenTactics
+Function        Invoke-RefreshToAzureCoreManagementToken           0.3.0      TokenTactics
+Function        Invoke-RefreshToAzureKeyVaultToken                 0.3.0      TokenTactics
+Function        Invoke-RefreshToAzureManagementToken               0.3.0      TokenTactics
+Function        Invoke-RefreshToAzureStorageToken                  0.3.0      TokenTactics
+Function        Invoke-RefreshToDeviceRegistrationToken            0.3.0      TokenTactics
+Function        Invoke-RefreshToDODMSGraphToken                    0.3.0      TokenTactics
+Function        Invoke-RefreshToGraphToken                         0.3.0      TokenTactics
+Function        Invoke-RefreshToMAMToken                           0.3.0      TokenTactics
+Function        Invoke-RefreshToMSGraphToken                       0.3.0      TokenTactics
+Function        Invoke-RefreshToMSManageToken                      0.3.0      TokenTactics
+Function        Invoke-RefreshToMSTeamsToken                       0.3.0      TokenTactics
+Function        Invoke-RefreshToOfficeAppsToken                    0.3.0      TokenTactics
+Function        Invoke-RefreshToOfficeManagementToken              0.3.0      TokenTactics
+Function        Invoke-RefreshToOneDriveToken                      0.3.0      TokenTactics
+Function        Invoke-RefreshToOutlookToken                       0.3.0      TokenTactics
+Function        Invoke-RefreshToSharePointToken                    0.3.0      TokenTactics
+Function        Invoke-RefreshToSubstrateToken                     0.3.0      TokenTactics
+Function        Invoke-RefreshToToken                              0.3.0      TokenTactics
+Function        Invoke-RefreshToYammerToken                        0.3.0      TokenTactics
 ```
 
 ## Authors and contributors
 - [@rvrsh3ll](https://github.com/rvrsh3ll)
 - [@0xBoku](https://github.com/boku7) co-author and researcher.
 - [@f-bader](https://github.com/f-bader) updated CAE capable version
+- [@Pri3st](https://github.com/Pri3st) added functions to fetch Storage and Key Vault access tokens
 
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
