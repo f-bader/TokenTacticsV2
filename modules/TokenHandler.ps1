@@ -488,6 +488,9 @@ function Get-AzureTokenFromAuthorizationCode {
     $body.Add("redirect_uri", $RedirectUrl)
     $body.Add("code", $AuthorizationCode)
 
+    if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
+        Write-Warning "Custom scope is set but client is not set to Custom. Ignoring scope."
+    }
     if ($Client -eq "Graph") {
         $body.Add("scope", "https://graph.windows.net/.default offline_access openid")
     } elseif ($Client -eq "MSGraph") {
@@ -535,7 +538,11 @@ function Get-AzureAuthorizationCode {
         
 
     .EXAMPLE
-        
+        # Use Windows based Redirect URL
+        Get-AzureAuthorizationCode -RedirectUrl "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113"
+
+        # Use Android based Redirect URL
+        Get-AzureAuthorizationCode -RedirectUrl "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
 
     .AUTHOR
         Adapted for TokenTactics from the original code by 
@@ -550,7 +557,7 @@ function Get-AzureAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [String]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
         [Parameter(Mandatory = $false)]
-        [String]$RedirectUrl = "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113",
+        [String]$RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE=",
         [Parameter(Mandatory = $False)]
         [string]$AuthorizationCodeState = "9gaPNizkzgtisKqA",
         [Parameter(Mandatory = $False)]
@@ -565,6 +572,9 @@ function Get-AzureAuthorizationCode {
     $BaseUrl += "&redirect_uri=$RedirectUrl"
     $BaseUrl += "&state=$AuthorizationCodeState"
 
+    if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
+        Write-Warning "Custom scope is set but client is not set to Custom. Ignoring scope."
+    }
     if ($Client -eq "Graph") {
         $BaseUrl += "&scope=https://graph.windows.net/.default offline_access openid"
     } elseif ($Client -eq "MSGraph") {
@@ -578,7 +588,7 @@ function Get-AzureAuthorizationCode {
             Write-Error "Scope must be provided for Custom client"
             return
         }
-        $body.Add("scope", $Scope)
+        $BaseUrl += "&scope=$($Scope)"
     }
     $BaseUrl += "&client_id=$ClientID"
     if ($UseCAE) {
