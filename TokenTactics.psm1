@@ -29,26 +29,29 @@ foreach ($script in $scripts) {
 }
 # Export functions
 $functions = @(
-    "Invoke-RefreshToSubstrateToken"
-    "Invoke-RefreshToSharePointToken"
-    "Invoke-RefreshToOutlookToken"
-    "Invoke-RefreshToOneDriveToken"
-    "Invoke-RefreshToOfficeManagementToken"
-    "Invoke-RefreshToOfficeAppsToken"
-    "Invoke-RefreshToMSTeamsToken"
-    "Invoke-RefreshToMSManageToken"
-    "Invoke-RefreshToMSGraphToken"
-    "Invoke-RefreshToMAMToken"
-    "Invoke-RefreshToGraphToken"
-    "Invoke-RefreshToDODMSGraphToken"
-    "Invoke-RefreshToAzureManagementToken"
     "Invoke-RefreshToAzureCoreManagementToken"
-    "Invoke-RefreshToAzureStorageToken"
     "Invoke-RefreshToAzureKeyVaultToken"
+    "Invoke-RefreshToAzureManagementToken"
+    "Invoke-RefreshToAzureStorageToken"
+    "Invoke-RefreshToDeviceRegistrationToken"
+    "Invoke-RefreshToDODMSGraphToken"
+    "Invoke-RefreshToGraphToken"
+    "Invoke-RefreshToMAMToken"
+    "Invoke-RefreshToMSGraphToken"
+    "Invoke-RefreshToMSManageToken"
+    "Invoke-RefreshToMSTeamsToken"
+    "Invoke-RefreshToOfficeAppsToken"
+    "Invoke-RefreshToOfficeManagementToken"
+    "Invoke-RefreshToOneDriveToken"
+    "Invoke-RefreshToOutlookToken"
+    "Invoke-RefreshToSharePointToken"
+    "Invoke-RefreshToSubstrateToken"
     "Get-TenantID"
     "Get-ForgedUserAgent"
     "Get-AzureToken"
     "Get-AzureTokenFromESTSCookie"
+    "Get-AzureTokenFromAuthorizationCode"
+    "Get-AzureAuthorizationCode"
     "ConvertFrom-JWTtoken"
     "Clear-Token"
 )
@@ -79,5 +82,6 @@ New-Alias -Name RefreshTo-OneDriveToken -Value Invoke-RefreshToOneDriveToken
 New-Alias -Name RefreshTo-YammerToken -Value Invoke-RefreshToYammerToken
 New-Alias -Name RefreshTo-AzureStorageToken -Value Invoke-RefreshToAzureStorageToken
 New-Alias -Name RefreshTo-AzureKeyVaultToken -Value Invoke-RefreshToAzureKeyVaultToken
+New-Alias -Name RefreshTo-DeviceRegistrationToken -Value Invoke-RefreshToDeviceRegistrationToken
 
 Export-ModuleMember -Alias * -Function *
