@@ -403,6 +403,8 @@ function Get-AzureTokenFromAuthorizationCode {
         Adapted for TokenTactics from the original code by 
         @gladstomych https://github.com/JumpsecLabs/TokenSmith and
         @zh54321 https://github.com/zh54321/PoCEntraDeviceComplianceBypass/blob/main/poc_entra_compliance_bypass.ps1
+
+        First published by @_dirkjan: https://bsky.app/profile/dirkjanm.io/post/3ld4nbbhqd222
     #>
 
     [cmdletbinding()]
