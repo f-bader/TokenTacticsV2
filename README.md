@@ -145,32 +145,36 @@ Get-Command -Module TokenTactics
 
 CommandType     Name                                               Version    Source
 -----------     ----                                               -------    ------
-Function        Clear-Token                                        0.2.2      TokenTactics
-Function        ConvertFrom-JWTtoken                               0.2.2      TokenTactics
-Function        Get-AzureToken                                     0.2.2      TokenTactics
-Function        Get-ForgedUserAgent                                0.2.2      TokenTactics
-Function        Get-TenantID                                       0.2.2      TokenTactics
-Function        Invoke-RefreshToAzureCoreManagementToken           0.2.2      TokenTactics
-Function        Invoke-RefreshToAzureManagementToken               0.2.2      TokenTactics
-Function        Invoke-RefreshToDODMSGraphToken                    0.2.2      TokenTactics
-Function        Invoke-RefreshToGraphToken                         0.2.2      TokenTactics
-Function        Invoke-RefreshToMAMToken                           0.2.2      TokenTactics
-Function        Invoke-RefreshToMSGraphToken                       0.2.2      TokenTactics
-Function        Invoke-RefreshToMSManageToken                      0.2.2      TokenTactics
-Function        Invoke-RefreshToMSTeamsToken                       0.2.2      TokenTactics
-Function        Invoke-RefreshToOfficeAppsToken                    0.2.2      TokenTactics
-Function        Invoke-RefreshToOfficeManagementToken              0.2.2      TokenTactics
-Function        Invoke-RefreshToOneDriveToken                      0.2.2      TokenTactics
-Function        Invoke-RefreshToOutlookToken                       0.2.2      TokenTactics
-Function        Invoke-RefreshToSharePointToken                    0.2.2      TokenTactics
-Function        Invoke-RefreshToSubstrateToken                     0.2.2      TokenTactics
-Function        Invoke-RefreshToToken                              0.2.2      TokenTactics
-Function        Invoke-RefreshToYammerToken                        0.2.2      TokenTactics
+Function        Clear-Token                                        0.0        TokenTactics
+Function        ConvertFrom-JWTtoken                               0.0        TokenTactics
+Function        Get-AzureToken                                     0.0        TokenTactics
+Function        Get-AzureTokenFromESTSCookie                       0.0        TokenTactics
+Function        Get-ForgedUserAgent                                0.0        TokenTactics
+Function        Get-TenantID                                       0.0        TokenTactics
+Function        Invoke-RefreshToAzureCoreManagementToken           0.0        TokenTactics
+Function        Invoke-RefreshToAzureKeyVaultToken                 0.0        TokenTactics
+Function        Invoke-RefreshToAzureManagementToken               0.0        TokenTactics
+Function        Invoke-RefreshToAzureStorageToken                  0.0        TokenTactics
+Function        Invoke-RefreshToDODMSGraphToken                    0.0        TokenTactics
+Function        Invoke-RefreshToGraphToken                         0.0        TokenTactics
+Function        Invoke-RefreshToMAMToken                           0.0        TokenTactics
+Function        Invoke-RefreshToMSGraphToken                       0.0        TokenTactics
+Function        Invoke-RefreshToMSManageToken                      0.0        TokenTactics
+Function        Invoke-RefreshToMSTeamsToken                       0.0        TokenTactics
+Function        Invoke-RefreshToOfficeAppsToken                    0.0        TokenTactics
+Function        Invoke-RefreshToOfficeManagementToken              0.0        TokenTactics
+Function        Invoke-RefreshToOneDriveToken                      0.0        TokenTactics
+Function        Invoke-RefreshToOutlookToken                       0.0        TokenTactics
+Function        Invoke-RefreshToSharePointToken                    0.0        TokenTactics
+Function        Invoke-RefreshToSubstrateToken                     0.0        TokenTactics
+Function        Invoke-RefreshToToken                              0.0        TokenTactics
+Function        Invoke-RefreshToYammerToken                        0.0        TokenTactics
 ```
 
 ## Authors and contributors
 - [@rvrsh3ll](https://github.com/rvrsh3ll)
 - [@0xBoku](https://github.com/boku7) co-author and researcher.
 - [@f-bader](https://github.com/f-bader) updated CAE capable version
+- [@Pri3st](https://github.com/Pri3st) added functions to fetch Storage and Key Vault access tokens
 
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
