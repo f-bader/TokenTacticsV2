@@ -1352,7 +1352,7 @@ function Invoke-RefreshToToken {
         [string]$ClientID,
         [Parameter(Mandatory = $true)]
         [string]$Scope,
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string]$Resource,
         [Parameter(Mandatory = $False)]
         [String]$Device,
