@@ -6,7 +6,13 @@ function ConvertFrom-JWTtoken {
         ConvertFrom-JWTtoken -Token ey....
     #>
     [cmdletbinding()]
-    param([Parameter(Mandatory = $true)][string]$token)
+    param(
+        [Alias("access_token", "id_token")]
+        [Parameter(Mandatory = $true,
+            ValueFromPipeline = $true,
+            ValueFromPipelineByPropertyName = $true)]
+        [string]$token
+    )
 
     if (!$token.Contains(".") -or !$token.StartsWith("eyJ")) { Write-Error "Invalid token" -ErrorAction Stop }
 
