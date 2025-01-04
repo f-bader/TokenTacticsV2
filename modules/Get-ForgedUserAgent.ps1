@@ -7,10 +7,10 @@ function Get-ForgedUserAgent {
     Param(
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [String]$Device = "Windows",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser
+        [String]$Browser = "Edge"
     )
     Process {
         if ($Device -eq 'Mac') {
