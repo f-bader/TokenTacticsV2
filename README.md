@@ -21,6 +21,11 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 * Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
 * Refactored the codebase to have less redudant code and make it easier to extend
 
+### 0.2.7 (2024-01-08) 
+
+* Expand `Get-AzureTokenFromESTSCookie` to support the **appverify** endpoint
+* Improve cookie management of `Get-AzureTokenFromESTSCookie`
+
 ### 0.2.6 (2024-01-04)
 
 * Fix bug custom scopes in `Get-AzureAuthorizationCode` and `Get-AzureTokenFromAuthorizationCode`

