@@ -65,29 +65,27 @@ function Invoke-EntraErrorHandling {
 
     #region Output nice error messages
     if ($AppConfig.sErrorCode -eq "50058") {
-        Write-Output "$([char]0x274C)  Error code $($AppConfig.sErrorCode) received from the authorize endpoint"
-        Write-Output "    Session information is not sufficient for single-sign-on."
-        Write-Output "    This means that a user is not signed in. This is a common error that's expected when a user is unauthenticated and"
-        Write-Output "    has not yet signed in. If this error is encountered in an SSO context where the user has previously signed in,"
-        Write-Output "    this means that the SSO session was either not found or invalid. This error may be returned to the application"
-        Write-Output "    if prompt=none is specified."
-        Write-Output "$([char]0x26A0)  TokenTactics does not support interactive logins. Please get a valid cookie from a signed-in session or use Get-AzureToken to get a token via the device code flow."
+        Write-Output "$([char]0x274C) Error code $($AppConfig.sErrorCode) received from the authorize endpoint"
+        Write-Output "   Session information is not sufficient for single-sign-on."
+        Write-Output "   This means that a user is not signed in. Either the cookie is invalid or keep me signed in is not enabled."
+        Write-Output "$([char]0x26A0)  TokenTactics does not support interactive logins."
+        Write-Output "   Please get a valid cookie from a signed-in session or use Get-AzureToken to get a token via the device code flow."
     } elseif ($AppConfig.sErrorCode -eq "53003") {
-        Write-Output "$([char]0x274C)  Error code $($AppConfig.sErrorCode) received from the authorize endpoint"
-        Write-Output "    Access has been blocked by Conditional Access policies. The access policy does not allow token issuance."
-        Write-Output "    If this is unexpected, see the conditional access policy that applied to this request in the Azure Portal."
+        Write-Output "$([char]0x274C) Error code $($AppConfig.sErrorCode) received from the authorize endpoint"
+        Write-Output "   Access has been blocked by Conditional Access policies. The access policy does not allow token issuance."
+        Write-Output "   If this is unexpected, see the conditional access policy that applied to this request in the Azure Portal."
         if ( -not [string]::IsNullOrWhiteSpace($AppConfig.urlTokenBindingLearnMore)) {
-            Write-Output "    Learn more about token binding - $($AppConfig.urlTokenBindingLearnMore)"
+            Write-Output "   Learn more about token binding - $($AppConfig.urlTokenBindingLearnMore)"
         }
     } elseif (-not [string]::IsNullOrWhiteSpace($AppConfig.sErrorCode)) {
         Write-Output "$([char]0x274C)  Error code $($AppConfig.sErrorCode) received from the authorize endpoint"
-        Write-Output "    $($ErrorTitle[$AppConfig.iErrorTitle - 1])"
-        Write-Output "    $($ErrorDescription[$AppConfig.iErrorDescription - 1])"
+        Write-Output "   $($ErrorTitle[$AppConfig.iErrorTitle - 1])"
+        Write-Output "   $($ErrorDescription[$AppConfig.iErrorDescription - 1])"
     } elseif ( -not [string]::IsNullOrWhiteSpace($AppConfig.strMainMessage) ) {
         Write-Output "$([char]0x274C)  $($AppConfig.strMainMessage)"
-        Write-Output "    $($AppConfig.strServiceExceptionMessage)"
+        Write-Output "   $($AppConfig.strServiceExceptionMessage)"
     } else {
-        Write-Output "$([char]0x274C)  ENo error code received from the authorize endpoint"
+        Write-Output "$([char]0x274C)  No error code received from the authorize endpoint"
     }
     if ( -not [string]::IsNullOrWhiteSpace($AppConfig.sDeviceId)) {
         Write-Output "$([char]0x2718)  Device Id:`t`t$($AppConfig.sDeviceId)"

