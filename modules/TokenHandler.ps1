@@ -275,7 +275,7 @@ function Get-AzureTokenFromCookie {
     Param(
         [Parameter(Mandatory = $True)]
         [String[]]
-        [ValidateSet("ESTSAUTHPERSISTENT", "x-ms-RefreshTokenCredential")]
+        [ValidateSet("ESTSAUTHPERSISTENT", "ESTSAUTH", "x-ms-RefreshTokenCredential")]
         $CookieType,
         [Parameter(Mandatory = $True)]
         [String[]]
@@ -484,12 +484,15 @@ function Get-AzureTokenFromESTSCookie {
 
     [cmdletbinding()]
     Param(
+        [Alias("ESTSAuthCookie")]
         [Parameter(Mandatory = $True)]
         [String[]]
-        $ESTSAuthCookie,
+        $CookieValue,
+        [ValidateSet("ESTSAUTHPERSISTENT", "ESTSAUTH")]
+        $ESTSCookieType = "ESTSAUTHPERSISTENT",
         [Parameter(Mandatory = $False)]
         [String[]]
-        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "DeviceComplianceBypass", "Custom")]
+        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "AzureManagement", "DeviceComplianceBypass", "Custom")]
         $Client = "MSTeams",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
@@ -517,6 +520,8 @@ function Get-AzureTokenFromESTSCookie {
     } elseif ($Client -eq "DeviceComplianceBypass") {
         $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
         $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
+    } elseif ($Client -eq "AzureManagement") {
+        $ClientID = "84070985-06ea-473d-82fe-eb82b4011c9d"
     } elseif ($Client -eq "Custom") {
         if ([string]::IsNullOrWhiteSpace($ClientID)) {
             Write-Error "ClientID must be provided for Custom client"
@@ -529,8 +534,8 @@ function Get-AzureTokenFromESTSCookie {
     }
 
     $Parameters = @{
-        "CookieType"  = "ESTSAUTHPERSISTENT"
-        "CookieValue" = $ESTSAuthCookie
+        "CookieType"  = $ESTSCookieType
+        "CookieValue" = $CookieValue
         "ClientID"    = $ClientID
         "Scope"       = $Scope
         "RedirectUrl" = $RedirectUrl
@@ -568,7 +573,7 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
         $RefreshTokenCredential,
         [Parameter(Mandatory = $False)]
         [String[]]
-        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "DeviceComplianceBypass", "Custom")]
+        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "AzureManagement", "DeviceComplianceBypass", "Custom")]
         $Client = "MSTeams",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
@@ -596,6 +601,8 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
     } elseif ($Client -eq "DeviceComplianceBypass") {
         $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
         $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
+    } elseif ($Client -eq "AzureManagement") {
+        $ClientID = "84070985-06ea-473d-82fe-eb82b4011c9d"
     } elseif ($Client -eq "Custom") {
         if ([string]::IsNullOrWhiteSpace($ClientID)) {
             Write-Error "ClientID must be provided for Custom client"
