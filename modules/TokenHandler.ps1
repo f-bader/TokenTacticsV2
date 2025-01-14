@@ -1089,9 +1089,15 @@ function Invoke-RefreshToMSGraphToken {
         Scope        = "https://graph.microsoft.com/.default offline_access openid"
     }
 
-    $global:MSGraphToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$MSGraphToken"
-    $MSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:MSGraphToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$MSGraphToken"
+        $MSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Bearer token could not be retrieved"
+        Write-Output "Error description: $($_.Exception.Message)"
+        throw 
+    }
 }
 
 function Invoke-RefreshToGraphToken {
