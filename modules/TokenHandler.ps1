@@ -850,6 +850,14 @@ function Get-AzureAuthorizationCode {
     Write-Output "2. Enable the developer tools and switch to the network tab"
     Write-Output "3. Authenticate using your credentials"
     Write-Output "4. Copy either the Request URL from the header tab or the code value from the payload tab"
+    Write-Output "5. Use the code value (-AuthorizationCode) or complete Request URL (-RequestURL) to get a token:"
+    Write-Output ""
+    Write-Output "   `$AuthCode = Get-Clipboard"
+    if ($Client -eq "Custom") {
+        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode"
+    } else {
+        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode"
+    }
 }
 
 # Refresh Token Functions
