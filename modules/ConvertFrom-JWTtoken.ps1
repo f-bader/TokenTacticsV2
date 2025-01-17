@@ -16,26 +16,34 @@ function ConvertFrom-JWTtoken {
 
     if (!$token.Contains(".") -or !$token.StartsWith("eyJ")) { Write-Error "Invalid token" -ErrorAction Stop }
 
-    $tokenheader = $token.Split(".")[0].Replace('-', '+').Replace('_', '/')
+    $TokenHeader = $token.Split(".")[0].Replace('-', '+').Replace('_', '/')
 
-    while ($tokenheader.Length % 4) {
-        $tokenheader += "="
+    while ($TokenHeader.Length % 4) {
+        $TokenHeader += "="
     }
-    $TokenHeaderObject = [System.Text.Encoding]::ASCII.GetString([system.convert]::FromBase64String($tokenheader)) | ConvertFrom-Json
+    $TokenHeaderObject = [System.Text.Encoding]::ASCII.GetString([system.convert]::FromBase64String($TokenHeader)) | ConvertFrom-Json
     Write-Verbose ( $TokenHeaderObject  | Out-String -Width 100 )
 
-    $tokenPayload = $token.Split(".")[1].Replace('-', '+').Replace('_', '/')
+    $TokenPayload = $token.Split(".")[1].Replace('-', '+').Replace('_', '/')
 
-    while ($tokenPayload.Length % 4) {
-        $tokenPayload += "="
+    while ($TokenPayload.Length % 4) {
+        $TokenPayload += "="
     }
 
-    $tokenArray = [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($tokenPayload))
+    $tokenArray = [System.Text.Encoding]::ASCII.GetString([System.Convert]::FromBase64String($TokenPayload))
 
-    $tokobj = $tokenArray | ConvertFrom-Json
-    $tokobj | Add-Member -NotePropertyName "IssuedAt" -NotePropertyValue (Get-Date "01.01.1970").AddSeconds($tokobj.iat)
-    $tokobj | Add-Member -NotePropertyName "NotBefore" -NotePropertyValue (Get-Date "01.01.1970").AddSeconds($tokobj.nbf)
-    $tokobj | Add-Member -NotePropertyName "ExpirationDate" -NotePropertyValue (Get-Date "01.01.1970").AddSeconds($tokobj.exp)
-    $tokobj | Add-Member -NotePropertyName "ValidForHours" -NotePropertyValue (New-TimeSpan -Start $tokobj.IssuedAt -End $tokobj.ExpirationDate | Select-Object -ExpandProperty TotalHours)
-    return $tokobj
+    $TokenObject = $tokenArray | ConvertFrom-Json
+    if (-not [string]::IsNullOrWhiteSpace($TokenObject.iat)) {
+        $TokenObject | Add-Member -NotePropertyName "IssuedAt" -NotePropertyValue (Get-Date "01.01.1970").AddSeconds($TokenObject.iat)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TokenObject.nbf)) {
+        $TokenObject | Add-Member -NotePropertyName "NotBefore" -NotePropertyValue (Get-Date "01.01.1970").AddSeconds($TokenObject.nbf)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TokenObject.exp)) {
+        $TokenObject | Add-Member -NotePropertyName "ExpirationDate" -NotePropertyValue (Get-Date "01.01.1970").AddSeconds($TokenObject.exp)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($TokenObject.IssuedAt)) {
+        $TokenObject | Add-Member -NotePropertyName "ValidForHours" -NotePropertyValue (New-TimeSpan -Start $TokenObject.IssuedAt -End $TokenObject.ExpirationDate | Select-Object -ExpandProperty TotalHours)
+    }
+    return $TokenObject
 }
