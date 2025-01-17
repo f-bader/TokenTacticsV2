@@ -1,30 +1,21 @@
 ```
- _______    _                _______         _   _                 ___  
-|__   __|  | |              |__   __|       | | (_)               |__ \ 
-   | | ___ | | _____ _ __      | | __ _  ___| |_ _  ___ ___  __   __ ) |
-   | |/ _ \| |/ / _ \ '_ \     | |/ _` |/ __| __| |/ __/ __| \ \ / // / 
-   | | (_) |   <  __/ | | |    | | (_| | (__| |_| | (__\__ \  \ V // /_ 
-   |_|\___/|_|\_\___|_| |_|    |_|\__,_|\___|\__|_|\___|___/   \_/|____|
+  ______      __                 __             __  _                     ___ 
+ /_  __/___  / /_____  ____     / /_____ ______/ /_(_)_________   _   __ |__ \
+  / / / __ \/ //_/ _ \/ __ \   / __/ __ `/ ___/ __/ / ___/ ___/  | | / / __/ /
+ / / / /_/ / ,< /  __/ / / /  / /_/ /_/ / /__/ /_/ / /__(__  )   | |/ / / __/ 
+/_/  \____/_/|_|\___/_/ /_/   \__/\__,_/\___/\__/_/\___/____/    |___(_)____/     
 ```
 
 # TokenTactics v2
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
-## New Features in v2
+### 0.2.8 (2025-01-18)
 
-* Switched to `v2.0` of the Azure AD OAuth2 endpoint
-* Support for [continuous access evaluation](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation) using the new `-UseCAE` switch
-* Made `ClientId` a parameter
-* Changed `client_id` for MSTeams
-* Added support for OneDrive and SharePoint
-* Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
-* Refactored the codebase to have less redudant code and make it easier to extend
-
-### 0.2.8 (2025-01-13)
-
-* Add `Get-AzureTokenFromRefreshTokenCredentialCookie` and modularize `Get-AzureTokenFromCookie`
-* Improved and more verbose error handling
+* Add `Get-AzureTokenFromRefreshTokenCredentialCookie` ("x-ms-RefreshTokenCredential") and add modularized `Get-AzureTokenFromCookie`
+* Add parameter to choose cookie type (ESTSAuth, ESTSAUTHPERSISTENT) to `Get-AzureTokenFromESTSCookie`
+* Add sample output for `Get-AzureTokenFromAuthorizationCode` to `Get-AzureAuthorizationCode` output
+* Improved output and more verbose error handling
 
 ### 0.2.7 (2025-01-08) 
 
@@ -58,6 +49,16 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 ### 0.2.3 (2023-07-23)
 
 * Backported [pull request](https://github.com/rvrsh3ll/TokenTactics/pull/9/) by [rotarydrone](https://github.com/rotarydrone) to convert ESTSAuth to access token
+
+## New Features in v2
+
+* Switched to `v2.0` of the Azure AD OAuth2 endpoint
+* Support for [continuous access evaluation](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation) using the new `-UseCAE` switch
+* Made `ClientId` a parameter
+* Changed `client_id` for MSTeams
+* Added support for OneDrive and SharePoint
+* Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
+* Refactored the codebase to for easier maintenance
 
 ## Azure JSON Web Token ("JWT") Manipulation Toolset
 

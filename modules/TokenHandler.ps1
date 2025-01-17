@@ -275,7 +275,6 @@ function Get-AzureTokenFromCookie {
     Param(
         [Parameter(Mandatory = $True)]
         [String[]]
-        [ValidateSet("ESTSAUTHPERSISTENT", "ESTSAUTH", "x-ms-RefreshTokenCredential")]
         $CookieType,
         [Parameter(Mandatory = $True)]
         [String[]]
