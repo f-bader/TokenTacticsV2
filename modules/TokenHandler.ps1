@@ -702,7 +702,7 @@ function Get-AzureTokenFromAuthorizationCode {
         $paramPairs = $query.Split('&')
 
         foreach ($pair in $paramPairs) {
-            $parts = $pair.Split('= ')
+            $parts = $pair.Split('=')
             $key = $parts[0]
             $value = $parts[1]
             $queryParams[$key] = $value
