@@ -605,7 +605,7 @@ function Get-AzureAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [String]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
         [Parameter(Mandatory = $false)]
-        [String]$RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE=",
+        [String]$RedirectUrl = "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113",
         [Parameter(Mandatory = $False)]
         [string]$AuthorizationCodeState = "9gaPNizkzgtisKqA",
         [Parameter(Mandatory = $False)]
