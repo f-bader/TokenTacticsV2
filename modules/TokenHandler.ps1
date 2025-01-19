@@ -292,7 +292,11 @@ function Get-AzureTokenFromCookie {
         [Parameter(Mandatory = $true)]
         [String]$Scope = "openid offline_access",
         [Parameter(Mandatory = $true)]
-        [String]$RedirectUrl
+        [String]$RedirectUrl,
+        [Parameter(Mandatory = $false)]
+        [string]$UseCodeVerifier,
+        [Parameter(Mandatory = $false)]
+        [switch]$UseV1Endpoint
     )
 
     if ($Device) {
@@ -333,7 +337,20 @@ function Get-AzureTokenFromCookie {
     $redirect_uri = ([System.Uri]::EscapeDataString($RedirectUrl))
 
     # Get the authorization code from the STS
-    $Uri = "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($ClientID)&resource=$($Resource)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
+    if ($UseV1Endpoint) {
+        $Uri = "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($ClientID)&resource=$($Resource)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
+    } else {
+        $Uri = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?response_type=code&client_id=$($ClientID)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
+    }
+    if ($UseCodeVerifier) {
+        $CodeVerifier = Get-TTCodeVerifier
+        $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
+        $BaseUrl += "&code_challenge=$CodeChallenge&code_challenge_method=S256"
+    }
+    if ($UseCAE -and ( $UseV1Endpoint -eq $false )) {
+        # Add 'cp1' as client claim to get a access token valid for 24 hours
+        $BaseUrl += "&claims=" + ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
+    }
     Write-Verbose "Requesting URL: $Uri"
     Write-Output "$([char]0x2718)  Calling authorization endpoint with $CookieType cookie"
     if ($PSVersionTable.PSEdition -ne "Core") {
@@ -411,22 +428,12 @@ function Get-AzureTokenFromCookie {
 
     if ($sts_response.StatusCode -eq 302) {
         if ($PSVersionTable.PSEdition -ne "Core") {
-            $uri = [System.Uri]$sts_response.Headers.Location
+            $uri = $sts_response.Headers.Location
         } else {
-            $uri = [System.Uri]$sts_response.Headers.Location[0]
+            $uri = $sts_response.Headers.Location[0]
         }
+        $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
 
-        # Get the parameters from the redirect URI and build a hashtable containing the different parameters
-        $query = $uri.Query.TrimStart('?')
-        $queryParams = @{}
-        $paramPairs = $query.Split('&')
-
-        foreach ($pair in $paramPairs) {
-            $parts = $pair.Split('=')
-            $key = $parts[0]
-            $value = $parts[1]
-            $queryParams[$key] = $value
-        }
         # When code is present, we have a valid refresh token and can use it to request a new token
         if ($queryParams.ContainsKey('code')) {
             $AuthorizationCode = $queryParams['code']
@@ -448,12 +455,22 @@ function Get-AzureTokenFromCookie {
 
     if ($AuthorizationCode) {
         $body = @{
-            "resource"     = $Resource
             "client_id"    = $ClientID
             "grant_type"   = "authorization_code"
             "redirect_uri" = $RedirectUrl
             "code"         = $AuthorizationCode
             "scope"        = "openid"
+        }
+        if ($UseV1Endpoint) {
+            $body.Add("resource", $Resource)
+        }
+        if ($UseCAE -and ( $UseV1Endpoint -eq $false )) {
+            # Add 'cp1' as client claim to get a access token valid for 24 hours
+            $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
+            $body.Add("claims", $Claims)
+        }
+        if ($CodeVerifier) {
+            $body.Add("code_verifier", $CodeVerifier)
         }
 
         try {
@@ -671,7 +688,9 @@ function Get-AzureTokenFromAuthorizationCode {
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [String]$Browser,
         [Parameter(Mandatory = $False)]
-        [Switch]$UseCAE
+        [switch]$UseCAE,
+        [Parameter(Mandatory = $False)]
+        [string]$CodeVerifier
     )
 
     #region Set Headers
@@ -694,18 +713,7 @@ function Get-AzureTokenFromAuthorizationCode {
 
     #region Extract values from RequestURL
     if ($RequestURL) {
-        $uri = [System.Uri]::new($RequestURL)
-        # Get the parameters from the redirect URI and build a hashtable containing the different parameters
-        $query = $uri.Query.TrimStart('?')
-        $queryParams = @{}
-        $paramPairs = $query.Split('&')
-
-        foreach ($pair in $paramPairs) {
-            $parts = $pair.Split('=')
-            $key = $parts[0]
-            $value = $parts[1]
-            $queryParams[$key] = $value
-        }
+        $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
         # When code is present, we have a valid authorization code and can use it to request a new token
         if ($queryParams.ContainsKey('code')) {
             $AuthorizationCode = $queryParams['code']
@@ -715,6 +723,7 @@ function Get-AzureTokenFromAuthorizationCode {
             Write-Warning "Code not found in redirected URL path. Aborting..."
             return
         }
+        $uri = [System.Uri]::new($RequestURL)
         $RedirectUrl = $uri.GetLeftPart([System.UriPartial]::Path)
         if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
             Write-Warning "Redirect URL not found in redirected URL path. Aborting..."
@@ -757,6 +766,9 @@ function Get-AzureTokenFromAuthorizationCode {
         # Add 'cp1' as client claim to get a access token valid for 24 hours
         $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
         $body.Add("claims", $Claims)
+    }
+    if ($CodeVerifier) {
+        $body.Add("code_verifier", $CodeVerifier)
     }
     Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     #endregion
@@ -808,12 +820,20 @@ function Get-AzureAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE,
         [Parameter(Mandatory = $False)]
-        [Switch]$OpenInBrowser
+        [switch]$UseCodeVerifier,
+        [Parameter(Mandatory = $False)]
+        [switch]$OpenInBrowser
     )
     $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
     $BaseUrl += "?response_type=code"
     $BaseUrl += "&redirect_uri=$RedirectUrl"
     $BaseUrl += "&state=$AuthorizationCodeState"
+    if ($UseCodeVerifier) {
+        $CodeVerifier = Get-TTCodeVerifier
+        $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
+        $BaseUrl += "&code_challenge=$CodeChallenge"
+        $BaseUrl += "&code_challenge_method=S256"
+    }
 
     if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
         Write-Warning "Custom scope is set but client is not set to Custom. Ignoring scope."
@@ -852,10 +872,13 @@ function Get-AzureAuthorizationCode {
     Write-Output "5. Use the code value (-AuthorizationCode) or complete Request URL (-RequestURL) to get a token:"
     Write-Output ""
     Write-Output "   `$AuthCode = Get-Clipboard"
+    if ($UseCodeVerifier) {
+        $CodeVerifierString = "`$CodeVerifier = '$CodeVerifier'"
+    }
     if ($Client -eq "Custom") {
-        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode"
+        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString"
     } else {
-        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode"
+        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode $CodeVerifierString"
     }
 }
 
