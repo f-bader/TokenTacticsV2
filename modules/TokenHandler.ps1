@@ -294,7 +294,7 @@ function Get-AzureTokenFromCookie {
         [Parameter(Mandatory = $true)]
         [String]$RedirectUrl,
         [Parameter(Mandatory = $false)]
-        [string]$UseCodeVerifier,
+        [switch]$UseCodeVerifier,
         [Parameter(Mandatory = $false)]
         [switch]$UseV1Endpoint
     )
@@ -313,9 +313,10 @@ function Get-AzureTokenFromCookie {
         }
     }
 
-    Write-Verbose "This function currently only supports the v1 endpoint and may not work for all applications."
     Write-Verbose "ClientID: $ClientID"
-    Write-Verbose "Resource: $Resource"
+    if ($Resource) {
+        Write-Verbose "Resource: $Resource"
+    }
     Write-Verbose "Scope: $Scope"
     Write-Verbose "RedirectUrl: $RedirectUrl"
     Write-Verbose "CookieType: $CookieType"
@@ -345,11 +346,11 @@ function Get-AzureTokenFromCookie {
     if ($UseCodeVerifier) {
         $CodeVerifier = Get-TTCodeVerifier
         $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
-        $BaseUrl += "&code_challenge=$CodeChallenge&code_challenge_method=S256"
+        $Uri += "&code_challenge=$CodeChallenge&code_challenge_method=S256"
     }
     if ($UseCAE -and ( $UseV1Endpoint -eq $false )) {
         # Add 'cp1' as client claim to get a access token valid for 24 hours
-        $BaseUrl += "&claims=" + ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
+        $Uri += "&claims=" + ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
     }
     Write-Verbose "Requesting URL: $Uri"
     Write-Output "$([char]0x2718)  Calling authorization endpoint with $CookieType cookie"
@@ -428,9 +429,9 @@ function Get-AzureTokenFromCookie {
 
     if ($sts_response.StatusCode -eq 302) {
         if ($PSVersionTable.PSEdition -ne "Core") {
-            $uri = $sts_response.Headers.Location
+            $RequestURL = $sts_response.Headers.Location
         } else {
-            $uri = $sts_response.Headers.Location[0]
+            $RequestURL = $sts_response.Headers.Location[0]
         }
         $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
 
@@ -440,7 +441,7 @@ function Get-AzureTokenFromCookie {
             Write-Verbose "Authorization Code: $($AuthorizationCode[0..10] -join '' )..."
         } else {
             Write-Output "$([char]0x2718)  Code not found in redirected URL path"
-            Write-Output "    Requested URL: $($Uri)"
+            Write-Output "    Requested URL: $($RequestURL)"
             Write-Output "    Response Code: $($sts_response.StatusCode)"
             Write-Output "    Response URI:  $($sts_response.Headers.Location)"
             return
@@ -459,7 +460,7 @@ function Get-AzureTokenFromCookie {
             "grant_type"   = "authorization_code"
             "redirect_uri" = $RedirectUrl
             "code"         = $AuthorizationCode
-            "scope"        = "openid"
+            "scope"        = $Scope
         }
         if ($UseV1Endpoint) {
             $body.Add("resource", $Resource)
@@ -472,9 +473,16 @@ function Get-AzureTokenFromCookie {
         if ($CodeVerifier) {
             $body.Add("code_verifier", $CodeVerifier)
         }
+        Write-Verbose "Calling token endpoint with Authorization Code"
+        Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
 
         try {
-            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://login.microsoftonline.com/common/oauth2/token" -Headers $Headers -Body $body
+            if ($UseV1Endpoint) {
+                $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/token"
+            } else {
+                $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+            }
+            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $TokenEndpointUri -Headers $Headers -Body $body
             $output = ConvertFrom-JWTtoken -token $response.access_token
             $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
             $global:TokenUpn = $output.upn
@@ -770,6 +778,7 @@ function Get-AzureTokenFromAuthorizationCode {
     if ($CodeVerifier) {
         $body.Add("code_verifier", $CodeVerifier)
     }
+    Write-Verbose "Calling token endpoint with Authorization Code"
     Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     #endregion
 
