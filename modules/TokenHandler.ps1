@@ -693,7 +693,9 @@ function Get-AzureTokenFromAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [string]$CodeVerifier,
         [Parameter(Mandatory = $False)]
-        [string]$UseV1Endpoint
+        [string]$UseV1Endpoint,
+        [Parameter(Mandatory = $False)]
+        [string]$Resource
     )
 
     #region Set Headers
@@ -776,6 +778,9 @@ function Get-AzureTokenFromAuthorizationCode {
     if ($CodeVerifier) {
         $body.Add("code_verifier", $CodeVerifier)
     }
+    if ($UseV1Endpoint) {
+        $body.Add("resource", $Resource)
+    }
     Write-Verbose "Calling token endpoint with Authorization Code"
     Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     #endregion
@@ -835,16 +840,21 @@ function Get-AzureAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [switch]$UseV1Endpoint,
         [Parameter(Mandatory = $False)]
+        [string]$Resource,
+        [Parameter(Mandatory = $False)]
         [switch]$OpenInBrowser
     )
     if ( $UseV1Endpoint ) {
-        $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
-    } else {
         $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/authorize"
+    } else {
+        $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
     }
     $BaseUrl += "?response_type=code"
     $BaseUrl += "&redirect_uri=$RedirectUrl"
     $BaseUrl += "&state=$AuthorizationCodeState"
+    if ($UseV1Endpoint) {
+        $BaseUrl += "&resource=$Resource"
+    }
     if ($UseCodeVerifier) {
         $CodeVerifier = Get-TTCodeVerifier
         $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
@@ -893,7 +903,7 @@ function Get-AzureAuthorizationCode {
         $CodeVerifierString = "-CodeVerifier `"$CodeVerifier`""
     }
     if ($UseV1Endpoint) {
-        $V1EndpointString = "-UseV1Endpoint `$$($UseV1Endpoint)"
+        $V1EndpointString = "-Resource $($Resource) -UseV1Endpoint `$$($UseV1Endpoint)"
     }
     if ($Client -eq "Custom") {
         Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
