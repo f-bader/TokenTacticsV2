@@ -206,7 +206,7 @@ function Get-AzureToken {
         "grant_type"  = "urn:ietf:params:oauth:grant-type:device_code"
         "device_code" = $authResponse.device_code
     }
-    Write-Verbose ($body | ConvertTo-Json -Depth 99 s)
+    Write-Verbose ($body | ConvertTo-Json -Depth 99 )
     if ($UseCAE) {
         # Add 'cp1' as client claim to get a access token valid for 24 hours
         $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
