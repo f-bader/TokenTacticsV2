@@ -1,12 +1,11 @@
 function Get-AzureToken {
-
     <#
     .DESCRIPTION
         Generate a device code to be used at https://www.microsoft.com/devicelogin. Once a user has successfully authenticated, you will be presented with a JSON Web Token JWT in the variable $response.
     .EXAMPLE
         Get-AzureToken -Client Substrate
     #>
-    [cmdletbinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     Param(
         [Parameter(
             Mandatory = $False,
@@ -40,7 +39,9 @@ function Get-AzureToken {
         [Parameter(
             Mandatory = $false,
             ParameterSetName = 'SharePoint')]
-        [switch]$UseAdmin
+        [switch]$UseAdmin,
+        [Alias("Domain")]
+        [string]$ResourceTenant = "common"
     )
     if ($Device) {
         if ($Browser) {
@@ -147,7 +148,7 @@ function Get-AzureToken {
         }
     } elseif ($Client -eq "AzureManagement") {
         if ([string]::IsNullOrWhiteSpace($ClientID)) {
-            $ClientID = "84070985-06ea-473d-82fe-eb82b4011c9d"
+            $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
             Write-Verbose "ClientID not provided, using default value: $ClientID"
         }
         $body = @{
@@ -192,7 +193,7 @@ function Get-AzureToken {
     # Login Process
     Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     try {
-        $authResponse = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/common/oauth2/v2.0/devicecode" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
+        $authResponse = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/$ResourceTenant/oauth2/v2.0/devicecode" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
     } catch {
         Write-Verbose ( $_.Exception.Message )
         throw $_.Exception.Message
@@ -206,7 +207,7 @@ function Get-AzureToken {
         "grant_type"  = "urn:ietf:params:oauth:grant-type:device_code"
         "device_code" = $authResponse.device_code
     }
-    Write-Verbose ($body | ConvertTo-Json -Depth 99 )
+    Write-Verbose ($body | ConvertTo-Json -Depth 99)
     if ($UseCAE) {
         # Add 'cp1' as client claim to get a access token valid for 24 hours
         $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
@@ -225,29 +226,26 @@ function Get-AzureToken {
         Remove-Variable -Name response -Scope global -ErrorAction SilentlyContinue
         # Try to get the response. Will give 40x while pending so we need to try&catch
         try {
-            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/common/oauth2/v2.0/token" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
+            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/$ResourceTenant/oauth2/v2.0/token" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
         } catch {
             # This is normal flow, always returns 40x unless successful
             $details = $_.ErrorDetails.Message | ConvertFrom-Json
+            Write-Verbose "Error: $($details.error)"
             $continue = $details.error -eq "authorization_pending"
-            Write-Output $details.error
-
-            if (!$continue) {
-                # Not pending so this is a real error
-                Write-Error $details.error_description
-                return
-            }
         }
 
         # If we got response, all okay!
         if ($response) {
             Write-Output "$([char]0x2713)  Token acquired and saved as `$response"
-            $jwt = $response.access_token
-
-            $output = ConvertFrom-JWTtoken -token $jwt
+            $output = ConvertFrom-JWTtoken -token $response.access_token
             $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
             $global:TokenUpn = $output.upn
             break
+        } elseif ($null -eq $response -and $continue) {
+            Write-Output "$([char]0x25CB)  Waiting for user to authenticate"
+        } else {
+            Write-Output "$([char]0x274C) Could not get tokens $($details.error_description)"
+            return
         }
     }
 }
@@ -271,7 +269,7 @@ function Get-AzureTokenFromCookie {
         Extended to support appverify endpoint, multiple cookie formats and full error handling by Fabian Bader
     #>
 
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $True)]
         [String[]]
@@ -292,7 +290,11 @@ function Get-AzureTokenFromCookie {
         [Parameter(Mandatory = $true)]
         [String]$Scope = "openid offline_access",
         [Parameter(Mandatory = $true)]
-        [String]$RedirectUrl
+        [String]$RedirectUrl,
+        [Parameter(Mandatory = $false)]
+        [switch]$UseCodeVerifier,
+        [Parameter(Mandatory = $false)]
+        [switch]$UseV1Endpoint
     )
 
     if ($Device) {
@@ -309,9 +311,10 @@ function Get-AzureTokenFromCookie {
         }
     }
 
-    Write-Verbose "This function currently only supports the v1 endpoint and may not work for all applications."
     Write-Verbose "ClientID: $ClientID"
-    Write-Verbose "Resource: $Resource"
+    if ($Resource) {
+        Write-Verbose "Resource: $Resource"
+    }
     Write-Verbose "Scope: $Scope"
     Write-Verbose "RedirectUrl: $RedirectUrl"
     Write-Verbose "CookieType: $CookieType"
@@ -333,7 +336,20 @@ function Get-AzureTokenFromCookie {
     $redirect_uri = ([System.Uri]::EscapeDataString($RedirectUrl))
 
     # Get the authorization code from the STS
-    $Uri = "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($ClientID)&resource=$($Resource)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
+    if ($UseV1Endpoint) {
+        $Uri = "https://login.microsoftonline.com/common/oauth2/authorize?response_type=code&client_id=$($ClientID)&resource=$($Resource)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
+    } else {
+        $Uri = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?response_type=code&client_id=$($ClientID)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
+    }
+    if ($UseCodeVerifier) {
+        $CodeVerifier = Get-TTCodeVerifier
+        $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
+        $Uri += "&code_challenge=$CodeChallenge&code_challenge_method=S256"
+    }
+    if ($UseCAE -and ( $UseV1Endpoint -eq $false )) {
+        # Add 'cp1' as client claim to get a access token valid for 24 hours
+        $Uri += "&claims=" + ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
+    }
     Write-Verbose "Requesting URL: $Uri"
     Write-Output "$([char]0x2718)  Calling authorization endpoint with $CookieType cookie"
     if ($PSVersionTable.PSEdition -ne "Core") {
@@ -411,29 +427,19 @@ function Get-AzureTokenFromCookie {
 
     if ($sts_response.StatusCode -eq 302) {
         if ($PSVersionTable.PSEdition -ne "Core") {
-            $uri = [System.Uri]$sts_response.Headers.Location
+            $RequestURL = $sts_response.Headers.Location
         } else {
-            $uri = [System.Uri]$sts_response.Headers.Location[0]
+            $RequestURL = $sts_response.Headers.Location[0]
         }
+        $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
 
-        # Get the parameters from the redirect URI and build a hashtable containing the different parameters
-        $query = $uri.Query.TrimStart('?')
-        $queryParams = @{}
-        $paramPairs = $query.Split('&')
-
-        foreach ($pair in $paramPairs) {
-            $parts = $pair.Split('=')
-            $key = $parts[0]
-            $value = $parts[1]
-            $queryParams[$key] = $value
-        }
         # When code is present, we have a valid refresh token and can use it to request a new token
         if ($queryParams.ContainsKey('code')) {
             $AuthorizationCode = $queryParams['code']
             Write-Verbose "Authorization Code: $($AuthorizationCode[0..10] -join '' )..."
         } else {
             Write-Output "$([char]0x2718)  Code not found in redirected URL path"
-            Write-Output "    Requested URL: $($Uri)"
+            Write-Output "    Requested URL: $($RequestURL)"
             Write-Output "    Response Code: $($sts_response.StatusCode)"
             Write-Output "    Response URI:  $($sts_response.Headers.Location)"
             return
@@ -448,16 +454,33 @@ function Get-AzureTokenFromCookie {
 
     if ($AuthorizationCode) {
         $body = @{
-            "resource"     = $Resource
             "client_id"    = $ClientID
             "grant_type"   = "authorization_code"
             "redirect_uri" = $RedirectUrl
             "code"         = $AuthorizationCode
-            "scope"        = "openid"
+            "scope"        = $Scope
         }
+        if ($UseV1Endpoint) {
+            $body.Add("resource", $Resource)
+        }
+        if ($UseCAE -and ( $UseV1Endpoint -eq $false )) {
+            # Add 'cp1' as client claim to get a access token valid for 24 hours
+            $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
+            $body.Add("claims", $Claims)
+        }
+        if ($CodeVerifier) {
+            $body.Add("code_verifier", $CodeVerifier)
+        }
+        Write-Verbose "Calling token endpoint with Authorization Code"
+        Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
 
         try {
-            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://login.microsoftonline.com/common/oauth2/token" -Headers $Headers -Body $body
+            if ($UseV1Endpoint) {
+                $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/token"
+            } else {
+                $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+            }
+            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $TokenEndpointUri -Headers $Headers -Body $body
             $output = ConvertFrom-JWTtoken -token $response.access_token
             $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
             $global:TokenUpn = $output.upn
@@ -481,7 +504,7 @@ function Get-AzureTokenFromESTSCookie {
         Fabian Bader
     #>
 
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
         [Alias("ESTSAuthCookie")]
         [Parameter(Mandatory = $True)]
@@ -553,7 +576,6 @@ function Get-AzureTokenFromESTSCookie {
 }
 
 function Get-AzureTokenFromRefreshTokenCredentialCookie {
-
     <#
     .DESCRIPTION
         Authenticate to an application (default graph.microsoft.com) using Authorization Code flow using an x-ms-RefreshTokenCredential cookie for authentication.
@@ -564,8 +586,7 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
     .AUTHOR
         Fabian Bader
     #>
-
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $True)]
         [String[]]
@@ -649,8 +670,7 @@ function Get-AzureTokenFromAuthorizationCode {
 
         First published by @_dirkjan: https://bsky.app/profile/dirkjanm.io/post/3ld4nbbhqd222
     #>
-
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
         [ValidateSet("MSGraph", "Graph", "DeviceRegistration", "Custom")]
         [string]$Client = "MSGraph",
@@ -671,7 +691,13 @@ function Get-AzureTokenFromAuthorizationCode {
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [String]$Browser,
         [Parameter(Mandatory = $False)]
-        [Switch]$UseCAE
+        [switch]$UseCAE,
+        [Parameter(Mandatory = $False)]
+        [string]$CodeVerifier,
+        [Parameter(Mandatory = $False)]
+        [string]$UseV1Endpoint,
+        [Parameter(Mandatory = $False)]
+        [string]$Resource
     )
 
     #region Set Headers
@@ -694,18 +720,7 @@ function Get-AzureTokenFromAuthorizationCode {
 
     #region Extract values from RequestURL
     if ($RequestURL) {
-        $uri = [System.Uri]::new($RequestURL)
-        # Get the parameters from the redirect URI and build a hashtable containing the different parameters
-        $query = $uri.Query.TrimStart('?')
-        $queryParams = @{}
-        $paramPairs = $query.Split('&')
-
-        foreach ($pair in $paramPairs) {
-            $parts = $pair.Split('=')
-            $key = $parts[0]
-            $value = $parts[1]
-            $queryParams[$key] = $value
-        }
+        $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
         # When code is present, we have a valid authorization code and can use it to request a new token
         if ($queryParams.ContainsKey('code')) {
             $AuthorizationCode = $queryParams['code']
@@ -715,6 +730,7 @@ function Get-AzureTokenFromAuthorizationCode {
             Write-Warning "Code not found in redirected URL path. Aborting..."
             return
         }
+        $uri = [System.Uri]::new($RequestURL)
         $RedirectUrl = $uri.GetLeftPart([System.UriPartial]::Path)
         if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
             Write-Warning "Redirect URL not found in redirected URL path. Aborting..."
@@ -726,10 +742,11 @@ function Get-AzureTokenFromAuthorizationCode {
     #endregion
 
     #region Create Body based on Client selected
-    $body = @{}
-    $body.Add("grant_type", "authorization_code")
-    $body.Add("redirect_uri", $RedirectUrl)
-    $body.Add("code", $AuthorizationCode)
+    $body = @{
+        "grant_type"   = "authorization_code"
+        "redirect_uri" = $RedirectUrl
+        "code"         = $AuthorizationCode
+    }
 
     if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
         Write-Warning "Custom scope is set but client is not set to Custom. Ignoring scope."
@@ -753,17 +770,31 @@ function Get-AzureTokenFromAuthorizationCode {
         $body.Add("scope", $Scope)
     }
     $body.Add("client_id", $ClientID)
-    if ($UseCAE) {
+
+    if ($UseCAE -and ( $UseV1Endpoint -eq $false )) {
         # Add 'cp1' as client claim to get a access token valid for 24 hours
         $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
         $body.Add("claims", $Claims)
     }
+
+    if ($CodeVerifier) {
+        $body.Add("code_verifier", $CodeVerifier)
+    }
+    if ($UseV1Endpoint) {
+        $body.Add("resource", $Resource)
+    }
+    Write-Verbose "Calling token endpoint with Authorization Code"
     Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     #endregion
 
     #region Exchange authorization code for tokens
     try {
-        $global:response = Invoke-RestMethod -UseBasicParsing  -Method Post 'https://login.microsoftonline.com/organizations/oauth2/v2.0/token' -Body $Body -Headers $Headers
+        if ( $UseV1Endpoint ) {
+            $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/token"
+        } else {
+            $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
+        }
+        $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $TokenEndpointUri -Headers $Headers -Body $body
         $output = ConvertFrom-JWTtoken -token $response.access_token
         $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
         $global:TokenUpn = $output.upn
@@ -772,7 +803,6 @@ function Get-AzureTokenFromAuthorizationCode {
         Write-Error "Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
     }
     #endregion
-
 }
 
 function Get-AzureAuthorizationCode {
@@ -793,7 +823,7 @@ function Get-AzureAuthorizationCode {
         @zh54321 https://github.com/zh54321/PoCEntraDeviceComplianceBypass/blob/main/poc_entra_compliance_bypass.ps1
     #>
 
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
         [ValidateSet("MSGraph", "Graph", "Custom")]
         [string]$Client = "MSGraph",
@@ -808,12 +838,31 @@ function Get-AzureAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE,
         [Parameter(Mandatory = $False)]
-        [Switch]$OpenInBrowser
+        [switch]$UseCodeVerifier,
+        [Parameter(Mandatory = $False)]
+        [switch]$UseV1Endpoint,
+        [Parameter(Mandatory = $False)]
+        [string]$Resource,
+        [Parameter(Mandatory = $False)]
+        [switch]$OpenInBrowser
     )
-    $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
+    if ( $UseV1Endpoint ) {
+        $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/authorize"
+    } else {
+        $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
+    }
     $BaseUrl += "?response_type=code"
     $BaseUrl += "&redirect_uri=$RedirectUrl"
     $BaseUrl += "&state=$AuthorizationCodeState"
+    if ($UseV1Endpoint) {
+        $BaseUrl += "&resource=$Resource"
+    }
+    if ($UseCodeVerifier) {
+        $CodeVerifier = Get-TTCodeVerifier
+        $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
+        $BaseUrl += "&code_challenge=$CodeChallenge"
+        $BaseUrl += "&code_challenge_method=S256"
+    }
 
     if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
         Write-Warning "Custom scope is set but client is not set to Custom. Ignoring scope."
@@ -852,10 +901,16 @@ function Get-AzureAuthorizationCode {
     Write-Output "5. Use the code value (-AuthorizationCode) or complete Request URL (-RequestURL) to get a token:"
     Write-Output ""
     Write-Output "   `$AuthCode = Get-Clipboard"
+    if ($UseCodeVerifier) {
+        $CodeVerifierString = "-CodeVerifier `"$CodeVerifier`""
+    }
+    if ($UseV1Endpoint) {
+        $V1EndpointString = "-Resource $($Resource) -UseV1Endpoint `$$($UseV1Endpoint)"
+    }
     if ($Client -eq "Custom") {
-        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode"
+        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
     } else {
-        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode"
+        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
     }
 }
 
@@ -869,8 +924,10 @@ function Invoke-RefreshToSubstrateToken {
         $SubstrateToken.access_token
     #>
 
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -883,7 +940,7 @@ function Invoke-RefreshToSubstrateToken {
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [String]$Browser,
         [Parameter(Mandatory = $False)]
-        [Switch]$UseCAE
+        [switch]$UseCAE
     )
 
     $Parameters = @{
@@ -896,9 +953,13 @@ function Invoke-RefreshToSubstrateToken {
         Scope        = "https://substrate.office.com/.default offline_access openid"
     }
 
-    $global:SubstrateToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$SubstrateToken"
-    $SubstrateToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:SubstrateToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$SubstrateToken"
+        $SubstrateToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToMSManageToken {
@@ -909,8 +970,10 @@ function Invoke-RefreshToMSManageToken {
         Invoke-RefreshToMSManage -domain myclient.org -refreshToken ey....
         $MSManageToken.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -936,9 +999,13 @@ function Invoke-RefreshToMSManageToken {
         Scope        = "https://enrollment.manage.microsoft.com/.default offline_access openid"
     }
 
-    $global:MSManageToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$MSManageToken"
-    $MSManageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:MSManageToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$MSManageToken"
+        $MSManageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToMSTeamsToken {
@@ -949,8 +1016,10 @@ function Invoke-RefreshToMSTeamsToken {
         Invoke-RefreshToMSTeamsToken -domain myclient.org -refreshToken ey....
         $MSTeamsToken.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -976,9 +1045,13 @@ function Invoke-RefreshToMSTeamsToken {
         Scope        = "https://api.spaces.skype.com/.default offline_access openid"
     }
 
-    $global:MSTeamsToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$MSTeamsToken"
-    $MSTeamsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:MSTeamsToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$MSTeamsToken"
+        $MSTeamsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToOfficeManagementToken {
@@ -989,8 +1062,10 @@ function Invoke-RefreshToOfficeManagementToken {
         Invoke-RefreshToOfficeManagementToken -domain myclient.org -refreshToken ey....
         $OfficeManagement.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1016,9 +1091,13 @@ function Invoke-RefreshToOfficeManagementToken {
         Scope        = "https://manage.office.com/.default offline_access openid"
     }
 
-    $global:OfficeManagementToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeManagementToken"
-    $OfficeManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:OfficeManagementToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeManagementToken"
+        $OfficeManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToOutlookToken {
@@ -1029,8 +1108,10 @@ function Invoke-RefreshToOutlookToken {
         Invoke-RefreshToOutlookToken -domain myclient.org -refreshToken ey....
         $OutlookToken.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1056,9 +1137,13 @@ function Invoke-RefreshToOutlookToken {
         Scope        = "https://outlook.office365.com/.default offline_access openid"
     }
 
-    $global:OutlookToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$OutlookToken"
-    $OutlookToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:OutlookToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$OutlookToken"
+        $OutlookToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToMSGraphToken {
@@ -1069,8 +1154,10 @@ function Invoke-RefreshToMSGraphToken {
         Invoke-RefreshToMSGraphToken -domain myclient.org -refreshToken ey....
         $MSGraphToken.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1101,9 +1188,7 @@ function Invoke-RefreshToMSGraphToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MSGraphToken"
         $MSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Bearer token could not be retrieved"
-        Write-Output "Error description: $($_.Exception.Message)"
-        throw 
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
     }
 }
 
@@ -1115,8 +1200,9 @@ function Invoke-RefreshToGraphToken {
         Invoke-RefreshToGraphToken -domain myclient.org -refreshToken ey....
         $GraphToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1143,9 +1229,13 @@ function Invoke-RefreshToGraphToken {
         Scope        = "https://graph.windows.net/.default offline_access openid"
     }
 
-    $global:GraphToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$GraphToken"
-    $GraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:GraphToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$GraphToken"
+        $GraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToOfficeAppsToken {
@@ -1156,8 +1246,9 @@ function Invoke-RefreshToOfficeAppsToken {
         Invoke-RefreshToOfficeAppsToken -domain myclient.org -refreshToken ey....
         $OfficeAppsToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1184,9 +1275,13 @@ function Invoke-RefreshToOfficeAppsToken {
         Scope        = "https://officeapps.live.com/.default offline_access openid"
     }
 
-    $global:OfficeAppsToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeAppsToken"
-    $OfficeAppsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:OfficeAppsToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeAppsToken"
+        $OfficeAppsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToAzureCoreManagementToken {
@@ -1197,8 +1292,9 @@ function Invoke-RefreshToAzureCoreManagementToken {
         Invoke-RefreshToAzureCoreManagementToken -domain myclient.org -refreshToken ey....
         $AzureCoreManagementToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1225,9 +1321,13 @@ function Invoke-RefreshToAzureCoreManagementToken {
         Scope        = "https://management.core.windows.net/.default offline_access openid"
     }
 
-    $global:AzureCoreManagementToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureCoreManagementToken"
-    $AzureCoreManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:AzureCoreManagementToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureCoreManagementToken"
+        $AzureCoreManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToAzureStorageToken {
@@ -1238,8 +1338,9 @@ function Invoke-RefreshToAzureStorageToken {
         Invoke-RefreshToAzureStorageToken -domain myclient.org -refreshToken ey....
         $AzureStorageToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1266,9 +1367,13 @@ function Invoke-RefreshToAzureStorageToken {
         Scope        = "https://storage.azure.com/.default offline_access openid"
     }
 
-    $global:AzureStorageToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureStorageToken"
-    $AzureStorageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:AzureStorageToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureStorageToken"
+        $AzureStorageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToAzureKeyVaultToken {
@@ -1279,8 +1384,9 @@ function Invoke-RefreshToAzureKeyVaultToken {
         Invoke-RefreshToAzureKeyVaultToken -domain myclient.org -refreshToken ey....
         $AzureKeyVaultToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1307,9 +1413,13 @@ function Invoke-RefreshToAzureKeyVaultToken {
         Scope        = "https://vault.azure.net/.default offline_access openid"
     }
 
-    $global:AzureKeyVaultToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureKeyVaultToken"
-    $AzureKeyVaultToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:AzureKeyVaultToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureKeyVaultToken"
+        $AzureKeyVaultToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToAzureManagementToken {
@@ -1320,8 +1430,9 @@ function Invoke-RefreshToAzureManagementToken {
         Invoke-RefreshToAzureManagementToken -domain myclient.org -refreshToken ey....
         $AzureManagementToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1348,9 +1459,13 @@ function Invoke-RefreshToAzureManagementToken {
         Scope        = "https://management.azure.com/.default offline_access openid"
     }
 
-    $global:AzureManagementToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureManagementToken"
-    $AzureManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:AzureManagementToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureManagementToken"
+        $AzureManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToMAMToken {
@@ -1361,8 +1476,9 @@ function Invoke-RefreshToMAMToken {
         Invoke-RefreshToMAMToken -domain myclient.org -refreshToken ey....
         $MAMToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1389,9 +1505,13 @@ function Invoke-RefreshToMAMToken {
         Scope        = "https://intunemam.microsoftonline.com/.default offline_access openid"
     }
 
-    $global:MAMToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$MamToken"
-    $MamToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:MAMToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$MamToken"
+        $MamToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToDODMSGraphToken {
@@ -1402,8 +1522,10 @@ function Invoke-RefreshToDODMSGraphToken {
         Invoke-RefreshToDODMSGraphToken -domain myclient.org -refreshToken ey....
         $DODMSGraphToken.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1430,9 +1552,13 @@ function Invoke-RefreshToDODMSGraphToken {
         Scope        = "https://dod-graph.microsoft.us/.default offline_access openid"
     }
 
-    $global:DODMSGraphToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$DODMSGraphToken"
-    $DODMSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:DODMSGraphToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$DODMSGraphToken"
+        $DODMSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToSharePointToken {
@@ -1443,8 +1569,9 @@ function Invoke-RefreshToSharePointToken {
         Invoke-RefreshToSharePointToken -domain myclient.org -refreshToken ey....
         $SharePointToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $true)]
@@ -1481,9 +1608,13 @@ function Invoke-RefreshToSharePointToken {
         Scope        = "https://$SharePointTenantName$AdminSuffix.sharepoint.com/Sites.FullControl.All offline_access openid"
     }
 
-    $global:SharePointToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$SharePointToken"
-    $SharePointToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:SharePointToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$SharePointToken"
+        $SharePointToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 function Invoke-RefreshToOneDriveToken {
     <#
@@ -1493,8 +1624,9 @@ function Invoke-RefreshToOneDriveToken {
         Invoke-RefreshToOneDriveToken -domain myclient.org -refreshToken ey....
         $OneDriveToken.access_token
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1521,9 +1653,13 @@ function Invoke-RefreshToOneDriveToken {
         Scope        = "https://officeapps.live.com/.default offline_access openid"
     }
 
-    $global:OneDriveToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$OneDriveToken"
-    $OneDriveToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:OneDriveToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$OneDriveToken"
+        $OneDriveToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToYammerToken {
@@ -1534,8 +1670,10 @@ function Invoke-RefreshToYammerToken {
         Invoke-RefreshToYammerToken -domain myclient.org -refreshToken ey....
         $YammerToken.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1561,9 +1699,13 @@ function Invoke-RefreshToYammerToken {
         Scope        = "https://api.spaces.skype.com/.default offline_access openid"
     }
 
-    $global:YammerToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$YammerToken"
-    $YammerToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:YammerToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$YammerToken"
+        $YammerToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToDeviceRegistrationToken {
@@ -1574,8 +1716,10 @@ function Invoke-RefreshToDeviceRegistrationToken {
         Invoke-RefreshToDeviceRegistrationToken -domain myclient.org -refreshToken ey....
         $DeviceRegistrationToken.access_token
     #>
-    [cmdletbinding()]
-    Param([Parameter(Mandatory = $true)]
+    [CmdletBinding()]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1603,14 +1747,19 @@ function Invoke-RefreshToDeviceRegistrationToken {
         UseV1Endpoint = $true
     }
 
-    $global:DeviceRegistrationToken = Invoke-RefreshToToken @Parameters
-    Write-Output "$([char]0x2713)  Token acquired and saved as `$DeviceRegistrationToken"
-    $DeviceRegistrationToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    try {
+        $global:DeviceRegistrationToken = Invoke-RefreshToToken @Parameters
+        Write-Output "$([char]0x2713)  Token acquired and saved as `$DeviceRegistrationToken"
+        $DeviceRegistrationToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
+    } catch {
+        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+    }
 }
 
 function Invoke-RefreshToToken {
     [CmdletBinding()]
     param (
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $true)]
@@ -1631,6 +1780,7 @@ function Invoke-RefreshToToken {
         [Switch]$UseDoD,
         [Parameter(Mandatory = $False)]
         [Switch]$UseV1Endpoint
+
     )
 
     if ($Device) {
@@ -1699,7 +1849,7 @@ function Clear-Token {
         Clear-Token -Token All
         Clear-Token -Token Substrate
     #>
-    [cmdletbinding()]
+    [CmdletBinding()]
     Param([Parameter(Mandatory = $true)]
         [ValidateSet("All", "Response", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "OfficeManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint", "OneDrive", "Yammer")]
         [string]$Token
