@@ -39,7 +39,9 @@ function Get-AzureToken {
         [Parameter(
             Mandatory = $false,
             ParameterSetName = 'SharePoint')]
-        [switch]$UseAdmin
+        [switch]$UseAdmin,
+        [Alias("Domain")]
+        [string]$ResourceTenant = "common"
     )
     if ($Device) {
         if ($Browser) {
@@ -146,7 +148,7 @@ function Get-AzureToken {
         }
     } elseif ($Client -eq "AzureManagement") {
         if ([string]::IsNullOrWhiteSpace($ClientID)) {
-            $ClientID = "84070985-06ea-473d-82fe-eb82b4011c9d"
+            $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
             Write-Verbose "ClientID not provided, using default value: $ClientID"
         }
         $body = @{
@@ -191,7 +193,7 @@ function Get-AzureToken {
     # Login Process
     Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
     try {
-        $authResponse = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/common/oauth2/v2.0/devicecode" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
+        $authResponse = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/$ResourceTenant/oauth2/v2.0/devicecode" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
     } catch {
         Write-Verbose ( $_.Exception.Message )
         throw $_.Exception.Message
@@ -224,7 +226,7 @@ function Get-AzureToken {
         Remove-Variable -Name response -Scope global -ErrorAction SilentlyContinue
         # Try to get the response. Will give 40x while pending so we need to try&catch
         try {
-            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/common/oauth2/v2.0/token" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
+            $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$BaseUrl/$ResourceTenant/oauth2/v2.0/token" -Headers $Headers -Body $body -ErrorAction SilentlyContinue
         } catch {
             # This is normal flow, always returns 40x unless successful
             $details = $_.ErrorDetails.Message | ConvertFrom-Json
@@ -923,7 +925,9 @@ function Invoke-RefreshToSubstrateToken {
     #>
 
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -936,7 +940,7 @@ function Invoke-RefreshToSubstrateToken {
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [String]$Browser,
         [Parameter(Mandatory = $False)]
-        [Switch]$UseCAE
+        [switch]$UseCAE
     )
 
     $Parameters = @{
@@ -967,7 +971,9 @@ function Invoke-RefreshToMSManageToken {
         $MSManageToken.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1011,7 +1017,9 @@ function Invoke-RefreshToMSTeamsToken {
         $MSTeamsToken.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1055,7 +1063,9 @@ function Invoke-RefreshToOfficeManagementToken {
         $OfficeManagement.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1099,7 +1109,9 @@ function Invoke-RefreshToOutlookToken {
         $OutlookToken.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1143,7 +1155,9 @@ function Invoke-RefreshToMSGraphToken {
         $MSGraphToken.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1188,6 +1202,7 @@ function Invoke-RefreshToGraphToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1233,6 +1248,7 @@ function Invoke-RefreshToOfficeAppsToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1278,6 +1294,7 @@ function Invoke-RefreshToAzureCoreManagementToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1323,6 +1340,7 @@ function Invoke-RefreshToAzureStorageToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1368,6 +1386,7 @@ function Invoke-RefreshToAzureKeyVaultToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1413,6 +1432,7 @@ function Invoke-RefreshToAzureManagementToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1458,6 +1478,7 @@ function Invoke-RefreshToMAMToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1502,7 +1523,9 @@ function Invoke-RefreshToDODMSGraphToken {
         $DODMSGraphToken.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1548,6 +1571,7 @@ function Invoke-RefreshToSharePointToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $true)]
@@ -1602,6 +1626,7 @@ function Invoke-RefreshToOneDriveToken {
     #>
     [CmdletBinding()]
     Param(
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
@@ -1646,7 +1671,9 @@ function Invoke-RefreshToYammerToken {
         $YammerToken.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1690,7 +1717,9 @@ function Invoke-RefreshToDeviceRegistrationToken {
         $DeviceRegistrationToken.access_token
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    Param(
+        [Alias("ResourceTenant")]
+        [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
@@ -1730,6 +1759,7 @@ function Invoke-RefreshToDeviceRegistrationToken {
 function Invoke-RefreshToToken {
     [CmdletBinding()]
     param (
+        [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
         [Parameter(Mandatory = $true)]
@@ -1750,6 +1780,7 @@ function Invoke-RefreshToToken {
         [Switch]$UseDoD,
         [Parameter(Mandatory = $False)]
         [Switch]$UseV1Endpoint
+
     )
 
     if ($Device) {
