@@ -10,6 +10,13 @@
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
+### 0.2.9 (2025-02-17)
+
+* Add `ResourceTenant` for `Get-AzureToken` to support B2B device code phishing
+* Switch out Azure Management client id
+* Add `UseCodeVerifier` to support Proof Key for Code Exchange (PKCE)
+* Add `UseV1Endpoint` to some functions to support a broader variety of endpoint tests
+
 ### 0.2.8 (2025-01-18)
 
 * Add `Get-AzureTokenFromRefreshTokenCredentialCookie` ("x-ms-RefreshTokenCredential") and add modularized `Get-AzureTokenFromCookie`
