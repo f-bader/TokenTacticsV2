@@ -12,23 +12,23 @@ function Get-AzureToken {
             ParameterSetName = 'Default'
         )]
         [ValidateSet("Yammer", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint")]
-        [String[]]$Client = "MSGraph",
+        [string]$Client = "MSGraph",
         [Parameter(
             Mandatory = $False,
             ParameterSetName = 'Default'
         )]
-        [String]$ClientID,
+        [string]$ClientID,
         [Parameter(
             Mandatory = $False,
             ParameterSetName = 'Default'
         )]
-        [String]$Scope,
+        [string]$Scope,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE,
         [Parameter(
@@ -272,25 +272,23 @@ function Get-AzureTokenFromCookie {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $True)]
-        [String[]]
-        $CookieType,
+        [string]$CookieType,
         [Parameter(Mandatory = $True)]
-        [String[]]
-        $CookieValue,
+        [string]$CookieValue,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $true)]
-        [String]$ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264", # Microsoft Teams
+        [string]$ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264", # Microsoft Teams
         [Parameter(Mandatory = $False)]
-        [String]$Resource = "https://graph.microsoft.com",
+        [string]$Resource = "https://graph.microsoft.com",
         [Parameter(Mandatory = $true)]
-        [String]$Scope = "openid offline_access",
+        [string]$Scope = "openid offline_access",
         [Parameter(Mandatory = $true)]
-        [String]$RedirectUrl,
+        [string]$RedirectUrl,
         [Parameter(Mandatory = $false)]
         [switch]$UseCodeVerifier,
         [Parameter(Mandatory = $false)]
@@ -508,28 +506,26 @@ function Get-AzureTokenFromESTSCookie {
     Param(
         [Alias("ESTSAuthCookie")]
         [Parameter(Mandatory = $True)]
-        [String[]]
-        $CookieValue,
+        [string]$CookieValue,
         [ValidateSet("ESTSAUTHPERSISTENT", "ESTSAUTH")]
         $ESTSCookieType = "ESTSAUTHPERSISTENT",
         [Parameter(Mandatory = $False)]
-        [String[]]
         [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "AzureManagement", "DeviceComplianceBypass", "Custom")]
-        $Client = "MSTeams",
+        [string]$Client = "MSTeams",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
-        [String]$ClientID,
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
-        [String]$Resource = "https://graph.microsoft.com",
+        [string]$Resource = "https://graph.microsoft.com",
         [Parameter(Mandatory = $False)]
-        [String]$Scope = "openid offline_access",
+        [string]$Scope = "openid offline_access",
         [Parameter(Mandatory = $False)]
-        [String]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
     )
 
 
@@ -589,26 +585,24 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $True)]
-        [String[]]
-        $RefreshTokenCredential,
+        [string]$RefreshTokenCredential,
         [Parameter(Mandatory = $False)]
-        [String[]]
         [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "AzureManagement", "DeviceComplianceBypass", "Custom")]
-        $Client = "MSTeams",
+        [string]$Client = "MSTeams",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
-        [String]$ClientID,
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
-        [String]$Resource = "https://graph.microsoft.com",
+        [string]$Resource = "https://graph.microsoft.com",
         [Parameter(Mandatory = $False)]
-        [String]$Scope = "openid offline_access",
+        [string]$Scope = "openid offline_access",
         [Parameter(Mandatory = $False)]
-        [String]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
     )
 
 
@@ -677,19 +671,19 @@ function Get-AzureTokenFromAuthorizationCode {
         [Parameter(Mandatory = $True, ParameterSetName = 'Default')]
         [string]$AuthorizationCode,
         [Parameter(ParameterSetName = 'Default')]
-        [String]$RedirectUrl = "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113",
+        [string]$RedirectUrl = "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113",
         [Parameter(Mandatory = $True, ParameterSetName = 'RequestURL')]
-        [string[]]$RequestURL,
+        [string]$RequestURL,
         [Parameter(Mandatory = $False)]
-        [String]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
+        [string]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
         [Parameter(Mandatory = $False)]
-        [String]$Scope,
+        [string]$Scope,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [switch]$UseCAE,
         [Parameter(Mandatory = $False)]
@@ -828,13 +822,13 @@ function Get-AzureAuthorizationCode {
         [ValidateSet("MSGraph", "Graph", "Custom")]
         [string]$Client = "MSGraph",
         [Parameter(Mandatory = $False)]
-        [String]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
+        [string]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
         [Parameter(Mandatory = $false)]
-        [String]$RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE=",
+        [string]$RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE=",
         [Parameter(Mandatory = $False)]
         [string]$AuthorizationCodeState = "9gaPNizkzgtisKqA",
         [Parameter(Mandatory = $False)]
-        [String]$Scope,
+        [string]$Scope,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE,
         [Parameter(Mandatory = $False)]
@@ -935,10 +929,10 @@ function Invoke-RefreshToSubstrateToken {
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [switch]$UseCAE
     )
@@ -981,10 +975,10 @@ function Invoke-RefreshToMSManageToken {
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1027,10 +1021,10 @@ function Invoke-RefreshToMSTeamsToken {
         $ClientId = "1fec8e78-bce4-4aaf-ab1b-5451cc387264",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1073,10 +1067,10 @@ function Invoke-RefreshToOfficeManagementToken {
         $ClientId = "00b41c95-dab0-4487-9791-b9d2c32c80f2",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1119,10 +1113,10 @@ function Invoke-RefreshToOutlookToken {
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1165,10 +1159,10 @@ function Invoke-RefreshToMSGraphToken {
         [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1211,10 +1205,10 @@ function Invoke-RefreshToGraphToken {
         [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1257,10 +1251,10 @@ function Invoke-RefreshToOfficeAppsToken {
         [string]$ClientID = "ab9b8c07-8f02-4f72-87fa-80105867a763",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1303,10 +1297,10 @@ function Invoke-RefreshToAzureCoreManagementToken {
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1349,10 +1343,10 @@ function Invoke-RefreshToAzureStorageToken {
         [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1395,10 +1389,10 @@ function Invoke-RefreshToAzureKeyVaultToken {
         [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1441,10 +1435,10 @@ function Invoke-RefreshToAzureManagementToken {
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1487,10 +1481,10 @@ function Invoke-RefreshToMAMToken {
         $ClientId = "6c7e8096-f593-4d72-807f-a5f86dcc9c77",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1533,10 +1527,10 @@ function Invoke-RefreshToDODMSGraphToken {
         [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1584,10 +1578,10 @@ function Invoke-RefreshToSharePointToken {
         [string]$ClientID = "9bc3ab49-b65d-410a-85ad-de819febfddc",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1635,10 +1629,10 @@ function Invoke-RefreshToOneDriveToken {
         [string]$ClientID = "ab9b8c07-8f02-4f72-87fa-80105867a763",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1681,10 +1675,10 @@ function Invoke-RefreshToYammerToken {
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1727,10 +1721,10 @@ function Invoke-RefreshToDeviceRegistrationToken {
         $ClientId = "1b730954-1685-4b74-9bfd-dac224a7b894",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE
     )
@@ -1771,9 +1765,9 @@ function Invoke-RefreshToToken {
         [Parameter(Mandatory = $false)]
         [string]$Resource,
         [Parameter(Mandatory = $False)]
-        [String]$Device,
+        [string]$Device,
         [Parameter(Mandatory = $False)]
-        [String]$Browser,
+        [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE,
         [Parameter(Mandatory = $False)]

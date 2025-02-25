@@ -8,8 +8,7 @@ function Get-TTCodeChallenge {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory)]
-        [string]
-        $codeVerifier
+        [string]$codeVerifier
     )
     # Hash the code verifier using SHA-256 and then base64url encode it to generate the code challenge
     $sha256 = [System.Security.Cryptography.SHA256]::Create()

@@ -10,6 +10,10 @@
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
+### 0.2.10 (2025-02-25)
+
+* Bugfix: Wrong type initialization
+
 ### 0.2.9 (2025-02-17)
 
 * Add `ResourceTenant` for `Get-AzureToken` to support B2B device code phishing
