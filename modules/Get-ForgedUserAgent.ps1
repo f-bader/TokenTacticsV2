@@ -10,7 +10,7 @@ function Get-ForgedUserAgent {
         [string]$Device = "Windows",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [string]$Browser = "Edge"
+        [string]$Browser = "Edge",
         [Parameter(Mandatory = $false)]
         [string]$CustomUserAgent
     )
