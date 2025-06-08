@@ -11,7 +11,6 @@ function Get-ForgedUserAgent {
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [string]$Browser = "Edge",
-        [Parameter(Mandatory = $false)]
         [string]$CustomUserAgent
     )
     Process {
@@ -28,7 +27,7 @@ function Get-ForgedUserAgent {
             } elseif ($Browser -eq 'Safari') {
                 $UserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15'
             } else {
-                Write-Warning "Device platform not found, defaulting to macos/Safari"
+                Write-Warning "Browser $($Browser) not valid for device platform $($Device), defaulting to macOS/Safari"
                 $UserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Safari/605.1.15'
             }
         } elseif ($Device -eq 'Windows') {
@@ -41,7 +40,7 @@ function Get-ForgedUserAgent {
             } elseif ($Browser -eq 'Edge') {
                 $UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.19042'
             } else {
-                Write-Warning "Device platform not found, defaulting to Windows/Edge"
+                Write-Warning "Browser $($Browser) not valid for device platform $($Device), defaulting to Windows/Edge"
                 $UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/70.0.3538.102 Safari/537.36 Edge/18.19042'
             }
         } elseif ($Device -eq 'AndroidMobile') {
@@ -54,7 +53,7 @@ function Get-ForgedUserAgent {
             } elseif ($Browser -eq 'Edge') {
                 $UserAgent = 'Mozilla/5.0 (Linux; Android 12; Pixel 6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.134 Mobile Safari/537.36 EdgA/103.0.1264.71'
             } else {
-                Write-Warning "Device platform not found, defaulting to Android/Chrome"
+                Write-Warning "Browser $($Browser) not valid for device platform $($Device), defaulting to Android/Chrome"
                 $UserAgent = 'Mozilla/5.0 (Linux; U; Android 4.0.2; en-us; Galaxy Nexus Build/ICL53F) AppleWebKit/534.30 (KHTML, like Gecko) Version/4.0 Mobile Safari/534.30'
             }
         } elseif ($Device -eq 'iPhone') {
@@ -67,7 +66,7 @@ function Get-ForgedUserAgent {
             } elseif ($Browser -eq 'Safari') {
                 $UserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
             } else {
-                Write-Warning "Device platform not found, defaulting to iPhone/Safari"
+                Write-Warning "Browser $($Browser) not valid for device platform $($Device), defaulting to iPhone/Safari"
                 $UserAgent = 'Mozilla/5.0 (iPhone; CPU iPhone OS 13_2_3 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/13.0.3 Mobile/15E148 Safari/604.1'
             }
         } elseif ($Device -eq 'Linux') {
@@ -78,14 +77,14 @@ function Get-ForgedUserAgent {
             } elseif ($Browser -eq 'Edge') {
                 $UserAgent = 'Mozilla/5.0 (Wayland; Linux x86_64; Surface) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.0.0 Safari/537.36 Ubuntu/23.04 Edg/114.0.1823.43'
             } else {
-                Write-Warning "Device platform not found, defaulting to Linux/Firefox"
+                Write-Warning "Browser $($Browser) not valid for device platform $($Device), defaulting to Linux/Firefox"
                 $UserAgent = 'Mozilla/5.0 (X11; U; Linux x86_64; en-US; rv:1.9.0.14) Gecko/2009090217 Ubuntu/9.04 (jaunty) Firefox/52.7.3'
             }
         } elseif ($Device -eq 'OS/2') {
             if ($Browser -eq 'Firefox') {
                 $UserAgent = 'Mozilla/5.0 (OS/2; U; Warp 4.5; en-US; rv:80.7.12) Gecko/20050922 Firefox/80.0.7'
             } else {
-                Write-Warning "Device platform not found, defaulting to OS/2 Firefox"
+                Write-Warning "Browser $($Browser) not valid for device platform $($Device), defaulting to OS/2 Firefox"
                 $UserAgent = 'Mozilla/5.0 (OS/2; U; Warp 4.5; en-US; rv:80.7.12) Gecko/20050922 Firefox/80.0.7'
             }
         } else {
