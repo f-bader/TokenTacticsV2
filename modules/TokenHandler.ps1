@@ -5,43 +5,38 @@ function Get-AzureToken {
     .EXAMPLE
         Get-AzureToken -Client Substrate
     #>
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
     Param(
-        [Parameter(
-            Mandatory = $False,
-            ParameterSetName = 'Default'
-        )]
+        [Parameter(Mandatory = $False)]
         [ValidateSet("Yammer", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint")]
         [string]$Client = "MSGraph",
-        [Parameter(
-            Mandatory = $False,
-            ParameterSetName = 'Default'
-        )]
+        [Parameter(Mandatory = $False)]
         [string]$ClientID,
+        [Parameter(Mandatory = $False)]
+        [string]$Scope,
         [Parameter(
             Mandatory = $False,
-            ParameterSetName = 'Default'
+            ParameterSetName = 'CustomUserAgent'
         )]
-        [string]$Scope,
-        [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
-        [Parameter(Mandatory = $False)]
+        [Parameter(
+            Mandatory = $False,
+            ParameterSetName = 'PredefinedUserAgent'
+        )]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
-        [Parameter(Mandatory = $False)]
+        [Parameter(
+            Mandatory = $False,
+            ParameterSetName = 'PredefinedUserAgent'
+        )]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [string]$Browser,
         [Parameter(Mandatory = $False)]
         [Switch]$UseCAE,
-        [Parameter(
-            Mandatory = $false,
-            ParameterSetName = 'SharePoint'
-        )]
+        [Parameter(Mandatory = $false)]
         [string]$SharePointTenantName,
-        [Parameter(
-            Mandatory = $false,
-            ParameterSetName = 'SharePoint')]
-        [switch]$UseAdmin,
+        [Alias('UseAdmin')]
+        [Parameter(Mandatory = $false)]
+        [switch]$SharePointUseAdmin,
         [Alias("Domain")]
         [string]$ResourceTenant = "common"
     )
@@ -168,7 +163,7 @@ function Get-AzureToken {
         }
     }
 
-    if ($UseAdmin) {
+    if ($SharePointUseAdmin) {
         $AdminSuffix = "-admin"
     } else {
         $AdminSuffix = ""
@@ -976,14 +971,14 @@ function Invoke-RefreshToSubstrateToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://substrate.office.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://substrate.office.com/.default offline_access openid"
     }
 
     try {
@@ -1025,14 +1020,14 @@ function Invoke-RefreshToMSManageToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://enrollment.manage.microsoft.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://enrollment.manage.microsoft.com/.default offline_access openid"
     }
 
     try {
@@ -1074,14 +1069,14 @@ function Invoke-RefreshToMSTeamsToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://api.spaces.skype.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://api.spaces.skype.com/.default offline_access openid"
     }
 
     try {
@@ -1123,14 +1118,14 @@ function Invoke-RefreshToOfficeManagementToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://manage.office.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://manage.office.com/.default offline_access openid"
     }
 
     try {
@@ -1172,14 +1167,14 @@ function Invoke-RefreshToOutlookToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://outlook.office365.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://outlook.office365.com/.default offline_access openid"
     }
 
     try {
@@ -1221,14 +1216,14 @@ function Invoke-RefreshToMSGraphToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://graph.microsoft.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://graph.microsoft.com/.default offline_access openid"
     }
 
     try {
@@ -1270,14 +1265,14 @@ function Invoke-RefreshToGraphToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://graph.windows.net/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://graph.windows.net/.default offline_access openid"
     }
 
     try {
@@ -1319,14 +1314,14 @@ function Invoke-RefreshToOfficeAppsToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://officeapps.live.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://officeapps.live.com/.default offline_access openid"
     }
 
     try {
@@ -1368,14 +1363,14 @@ function Invoke-RefreshToAzureCoreManagementToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://management.core.windows.net/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://management.core.windows.net/.default offline_access openid"
     }
 
     try {
@@ -1417,14 +1412,14 @@ function Invoke-RefreshToAzureStorageToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://storage.azure.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://storage.azure.com/.default offline_access openid"
     }
 
     try {
@@ -1466,14 +1461,14 @@ function Invoke-RefreshToAzureKeyVaultToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $RefreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $RefreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://vault.azure.net/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://vault.azure.net/.default offline_access openid"
     }
 
     try {
@@ -1515,14 +1510,14 @@ function Invoke-RefreshToAzureManagementToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://management.azure.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://management.azure.com/.default offline_access openid"
     }
 
     try {
@@ -1564,14 +1559,14 @@ function Invoke-RefreshToMAMToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://intunemam.microsoftonline.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://intunemam.microsoftonline.com/.default offline_access openid"
     }
 
     try {
@@ -1613,15 +1608,15 @@ function Invoke-RefreshToDODMSGraphToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        UseDoD       = $true
-        Scope        = "https://dod-graph.microsoft.us/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        UseDoD          = $true
+        Scope           = "https://dod-graph.microsoft.us/.default offline_access openid"
     }
 
     try {
@@ -1648,8 +1643,9 @@ function Invoke-RefreshToSharePointToken {
         [string]$Domain,
         [Parameter(Mandatory = $true)]
         [string]$SharePointTenantName,
+        [Alias('UseAdmin')]
         [Parameter(Mandatory = $false)]
-        [switch]$UseAdmin,
+        [switch]$SharePointUseAdmin,
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
@@ -1666,21 +1662,21 @@ function Invoke-RefreshToSharePointToken {
         [Switch]$UseCAE
     )
 
-    if ($UseAdmin) {
+    if ($SharePointUseAdmin) {
         $AdminSuffix = "-admin"
     } else {
         $AdminSuffix = ""
     }
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://$SharePointTenantName$AdminSuffix.sharepoint.com/Sites.FullControl.All offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://$SharePointTenantName$AdminSuffix.sharepoint.com/Sites.FullControl.All offline_access openid"
     }
 
     try {
@@ -1721,14 +1717,14 @@ function Invoke-RefreshToOneDriveToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://officeapps.live.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://officeapps.live.com/.default offline_access openid"
     }
 
     try {
@@ -1770,14 +1766,14 @@ function Invoke-RefreshToYammerToken {
     )
 
     $Parameters = @{
-        Domain       = $Domain
-        refreshToken = $refreshToken
-        ClientID     = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device       = $Device
-        Browser      = $Browser
-        UseCAE       = $UseCAE
-        Scope        = "https://api.spaces.skype.com/.default offline_access openid"
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "https://api.spaces.skype.com/.default offline_access openid"
     }
 
     try {
@@ -1819,16 +1815,16 @@ function Invoke-RefreshToDeviceRegistrationToken {
     )
 
     $Parameters = @{
-        Domain        = $Domain
-        refreshToken  = $refreshToken
-        ClientID      = $ClientID
+        Domain          = $Domain
+        refreshToken    = $refreshToken
+        ClientID        = $ClientID
         CustomUserAgent = $CustomUserAgent
-        Device        = $Device
-        Browser       = $Browser
-        UseCAE        = $UseCAE
-        Scope         = "openid"
-        Resource      = "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9"
-        UseV1Endpoint = $true
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+        Scope           = "openid"
+        Resource        = "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9"
+        UseV1Endpoint   = $true
     }
 
     try {
