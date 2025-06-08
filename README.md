@@ -178,7 +178,7 @@ With [continuous access evaluation](https://docs.microsoft.com/en-us/azure/activ
 
 ```powershell
 Invoke-RefreshToMSGraphToken -Domain "myclient.org" -UseCAE
-if ( $global:MSGraphTokenValidForHours -gt 23) { "MSGraph token is CAE capable" }
+if ((Parse-JWTtoken $MSGraphToken.access_token).ValidForHours -gt 23) { "MSGraph token is CAE capable" }
 ```
 
 ### Use with AAD Internals
