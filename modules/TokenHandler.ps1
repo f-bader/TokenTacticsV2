@@ -24,6 +24,8 @@ function Get-AzureToken {
         )]
         [string]$Scope,
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -43,18 +45,18 @@ function Get-AzureToken {
         [Alias("Domain")]
         [string]$ResourceTenant = "common"
     )
-    if ($Device) {
+    if ($CustomUserAgent) {
+        $UserAgent = $CustomUserAgent
+    } elseif ($Device) {
         if ($Browser) {
             $UserAgent = Get-ForgedUserAgent -Device $Device -Browser $Browser
         } else {
             $UserAgent = Get-ForgedUserAgent -Device $Device
         }
+    } elseif ($Browser) {
+        $UserAgent = Get-ForgedUserAgent -Browser $Browser
     } else {
-        if ($Browser) {
-            $UserAgent = Get-ForgedUserAgent -Browser $Browser
-        } else {
-            $UserAgent = Get-ForgedUserAgent
-        }
+        $UserAgent = Get-ForgedUserAgent
     }
     # Set Headers
     $Headers = @{}
@@ -276,6 +278,8 @@ function Get-AzureTokenFromCookie {
         [Parameter(Mandatory = $True)]
         [string]$CookieValue,
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -295,18 +299,18 @@ function Get-AzureTokenFromCookie {
         [switch]$UseV1Endpoint
     )
 
-    if ($Device) {
+    if ($CustomUserAgent) {
+        $UserAgent = $CustomUserAgent
+    } elseif ($Device) {
         if ($Browser) {
             $UserAgent = Get-ForgedUserAgent -Device $Device -Browser $Browser
         } else {
             $UserAgent = Get-ForgedUserAgent -Device $Device
         }
+    } elseif ($Browser) {
+        $UserAgent = Get-ForgedUserAgent -Browser $Browser
     } else {
-        if ($Browser) {
-            $UserAgent = Get-ForgedUserAgent -Browser $Browser
-        } else {
-            $UserAgent = Get-ForgedUserAgent
-        }
+        $UserAgent = Get-ForgedUserAgent
     }
 
     Write-Verbose "ClientID: $ClientID"
@@ -513,6 +517,8 @@ function Get-AzureTokenFromESTSCookie {
         [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "AzureManagement", "DeviceComplianceBypass", "Custom")]
         [string]$Client = "MSTeams",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -559,6 +565,19 @@ function Get-AzureTokenFromESTSCookie {
         "RedirectUrl" = $RedirectUrl
         "Verbose"     = $VerbosePreference
     }
+    if ($CustomUserAgent) {
+        $Parameters.Add("UserAgent", $CustomUserAgent)
+    } elseif ($Device) {
+        if ($Browser) {
+            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device -Browser $Browser))
+        } else {
+            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device))
+        }
+    } elseif ($Browser) {
+        $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Browser $Browser))
+    } else {
+        $Parameters.Add("UserAgent", (Get-ForgedUserAgent))
+    }
     if ($Device) {
         $Parameters.Add("Device", $Device)
     }
@@ -589,6 +608,8 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
         [Parameter(Mandatory = $False)]
         [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "AzureManagement", "DeviceComplianceBypass", "Custom")]
         [string]$Client = "MSTeams",
+        [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
         [string]$Device,
@@ -635,6 +656,19 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
         "RedirectUrl" = $RedirectUrl
         "Verbose"     = $VerbosePreference
     }
+    if ($CustomUserAgent) {
+        $Parameters.Add("UserAgent", $CustomUserAgent)
+    } elseif ($Device) {
+        if ($Browser) {
+            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device -Browser $Browser))
+        } else {
+            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device))
+        }
+    } elseif ($Browser) {
+        $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Browser $Browser))
+    } else {
+        $Parameters.Add("UserAgent", (Get-ForgedUserAgent))
+    }
     if ($Device) {
         $Parameters.Add("Device", $Device)
     }
@@ -679,6 +713,8 @@ function Get-AzureTokenFromAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [string]$Scope,
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'AndroidMobile', 'iPhone')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -695,18 +731,18 @@ function Get-AzureTokenFromAuthorizationCode {
     )
 
     #region Set Headers
-    if ($Device) {
+    if ($CustomUserAgent) {
+        $UserAgent = $CustomUserAgent
+    } elseif ($Device) {
         if ($Browser) {
             $UserAgent = Get-ForgedUserAgent -Device $Device -Browser $Browser
         } else {
             $UserAgent = Get-ForgedUserAgent -Device $Device
         }
+    } elseif ($Browser) {
+        $UserAgent = Get-ForgedUserAgent -Browser $Browser
     } else {
-        if ($Browser) {
-            $UserAgent = Get-ForgedUserAgent -Browser $Browser
-        } else {
-            $UserAgent = Get-ForgedUserAgent
-        }
+        $UserAgent = Get-ForgedUserAgent
     }
     $Headers = @{}
     $Headers["User-Agent"] = $UserAgent
@@ -928,6 +964,8 @@ function Invoke-RefreshToSubstrateToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -941,6 +979,7 @@ function Invoke-RefreshToSubstrateToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -974,6 +1013,8 @@ function Invoke-RefreshToMSManageToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -987,6 +1028,7 @@ function Invoke-RefreshToMSManageToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1020,6 +1062,8 @@ function Invoke-RefreshToMSTeamsToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "1fec8e78-bce4-4aaf-ab1b-5451cc387264",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1033,6 +1077,7 @@ function Invoke-RefreshToMSTeamsToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1066,6 +1111,8 @@ function Invoke-RefreshToOfficeManagementToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "00b41c95-dab0-4487-9791-b9d2c32c80f2",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1079,6 +1126,7 @@ function Invoke-RefreshToOfficeManagementToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1112,6 +1160,8 @@ function Invoke-RefreshToOutlookToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1125,6 +1175,7 @@ function Invoke-RefreshToOutlookToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1158,6 +1209,8 @@ function Invoke-RefreshToMSGraphToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1171,6 +1224,7 @@ function Invoke-RefreshToMSGraphToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1204,6 +1258,8 @@ function Invoke-RefreshToGraphToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1217,6 +1273,7 @@ function Invoke-RefreshToGraphToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1250,6 +1307,8 @@ function Invoke-RefreshToOfficeAppsToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientID = "ab9b8c07-8f02-4f72-87fa-80105867a763",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1263,6 +1322,7 @@ function Invoke-RefreshToOfficeAppsToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1296,6 +1356,8 @@ function Invoke-RefreshToAzureCoreManagementToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1309,6 +1371,7 @@ function Invoke-RefreshToAzureCoreManagementToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1342,6 +1405,8 @@ function Invoke-RefreshToAzureStorageToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1355,6 +1420,7 @@ function Invoke-RefreshToAzureStorageToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1388,6 +1454,8 @@ function Invoke-RefreshToAzureKeyVaultToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1401,6 +1469,7 @@ function Invoke-RefreshToAzureKeyVaultToken {
         Domain       = $Domain
         refreshToken = $RefreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1434,6 +1503,8 @@ function Invoke-RefreshToAzureManagementToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1447,6 +1518,7 @@ function Invoke-RefreshToAzureManagementToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1480,6 +1552,8 @@ function Invoke-RefreshToMAMToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "6c7e8096-f593-4d72-807f-a5f86dcc9c77",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1493,6 +1567,7 @@ function Invoke-RefreshToMAMToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1526,6 +1601,8 @@ function Invoke-RefreshToDODMSGraphToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1539,6 +1616,7 @@ function Invoke-RefreshToDODMSGraphToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1577,6 +1655,8 @@ function Invoke-RefreshToSharePointToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientID = "9bc3ab49-b65d-410a-85ad-de819febfddc",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1596,6 +1676,7 @@ function Invoke-RefreshToSharePointToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1628,6 +1709,8 @@ function Invoke-RefreshToOneDriveToken {
         [Parameter(Mandatory = $false)]
         [string]$ClientID = "ab9b8c07-8f02-4f72-87fa-80105867a763",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1641,6 +1724,7 @@ function Invoke-RefreshToOneDriveToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1674,6 +1758,8 @@ function Invoke-RefreshToYammerToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1687,6 +1773,7 @@ function Invoke-RefreshToYammerToken {
         Domain       = $Domain
         refreshToken = $refreshToken
         ClientID     = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device       = $Device
         Browser      = $Browser
         UseCAE       = $UseCAE
@@ -1720,6 +1807,8 @@ function Invoke-RefreshToDeviceRegistrationToken {
         [Parameter(Mandatory = $false)]
         $ClientId = "1b730954-1685-4b74-9bfd-dac224a7b894",
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Mac', 'Windows', 'Linux', 'AndroidMobile', 'iPhone', 'OS/2')]
         [string]$Device,
         [Parameter(Mandatory = $False)]
@@ -1733,6 +1822,7 @@ function Invoke-RefreshToDeviceRegistrationToken {
         Domain        = $Domain
         refreshToken  = $refreshToken
         ClientID      = $ClientID
+        CustomUserAgent = $CustomUserAgent
         Device        = $Device
         Browser       = $Browser
         UseCAE        = $UseCAE
@@ -1765,6 +1855,8 @@ function Invoke-RefreshToToken {
         [Parameter(Mandatory = $false)]
         [string]$Resource,
         [Parameter(Mandatory = $False)]
+        [string]$CustomUserAgent,
+        [Parameter(Mandatory = $False)]
         [string]$Device,
         [Parameter(Mandatory = $False)]
         [string]$Browser,
@@ -1777,18 +1869,18 @@ function Invoke-RefreshToToken {
 
     )
 
-    if ($Device) {
+    if ($CustomUserAgent) {
+        $UserAgent = $CustomUserAgent
+    } elseif ($Device) {
         if ($Browser) {
             $UserAgent = Get-ForgedUserAgent -Device $Device -Browser $Browser
         } else {
             $UserAgent = Get-ForgedUserAgent -Device $Device
         }
+    } elseif ($Browser) {
+        $UserAgent = Get-ForgedUserAgent -Browser $Browser
     } else {
-        if ($Browser) {
-            $UserAgent = Get-ForgedUserAgent -Browser $Browser
-        } else {
-            $UserAgent = Get-ForgedUserAgent
-        }
+        $UserAgent = Get-ForgedUserAgent
     }
 
     Write-Verbose "UserAgent: $UserAgent"

@@ -10,9 +10,14 @@ function Get-ForgedUserAgent {
         [string]$Device = "Windows",
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
-        [string]$Browser = "Edge"
+        [string]$Browser = "Edge",
+        [Parameter(Mandatory = $false)]
+        [string]$CustomUserAgent
     )
     Process {
+        if ($PSBoundParameters.ContainsKey('CustomUserAgent') -and $CustomUserAgent) {
+            return $CustomUserAgent
+        }
         if ($Device -eq 'Mac') {
             if ($Browser -eq 'Chrome') {
                 $UserAgent = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_14_6) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.114 Safari/537.36'
