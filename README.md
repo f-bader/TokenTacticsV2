@@ -10,6 +10,10 @@
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
+### 0.2.11 (2025-06-08)
+
+* Add the ability to freely define any UserAgent using the new `-CustomUserAgent` property. Thanks to [Pri3st](https://github.com/Pri3st)
+
 ### 0.2.10 (2025-02-25)
 
 * Bugfix: Wrong type initialization
@@ -227,9 +231,9 @@ Function        Invoke-RefreshToYammerToken                        0.3.0      To
 ```
 
 ## Authors and contributors
-- [@rvrsh3ll](https://github.com/rvrsh3ll)
-- [@0xBoku](https://github.com/boku7) co-author and researcher.
-- [@f-bader](https://github.com/f-bader) updated CAE capable version
-- [@Pri3st](https://github.com/Pri3st) added functions to fetch Storage and Key Vault access tokens
+- [@rvrsh3ll](https://github.com/rvrsh3ll) Author of TokenTactics (original)
+- [@0xBoku](https://github.com/boku7) co-author of TokenTactics (original) and researcher.
+- [@f-bader](https://github.com/f-bader) updated TokenTactics to support V2 endpoint and additional features like CAE. Maintainer of TokenTacticsV2
+- [@Pri3st](https://github.com/Pri3st) added functions to fetch Storage and Key Vault access tokens and a custom user agent
 
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
