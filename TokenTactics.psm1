@@ -1,24 +1,35 @@
-# Print the welcome message
-$manifest = Import-PowerShellDataFile "$PSScriptRoot\TokenTactics.psd1"
-$version = $manifest.ModuleVersion
-$host.ui.RawUI.WindowTitle = "TokenTactics $version"
+if ( [System.Management.Automation.Runspaces.Runspace]::DefaultRunspace.Name -match "^PSTask" ) {
+    # Skip all information messages when running in a task
+    $OutputMessages = $false
+} else {
+    # Set the default behavior to show information messages
+    $OutputMessages = $true
+}
+if ( $OutputMessages ) {
+    # Print the welcome message
+    $manifest = Import-PowerShellDataFile "$PSScriptRoot\TokenTactics.psd1"
+    $version = $manifest.ModuleVersion
+    $host.ui.RawUI.WindowTitle = "TokenTactics $version"
 
-# Font. Slant
-$banner = @"
+    # Font. Slant
+    $banner = @"
   ______      __                 __             __  _                     ___ 
  /_  __/___  / /_____  ____     / /_____ ______/ /_(_)_________   _   __ |__ \
   / / / __ \/ //_/ _ \/ __ \   / __/ __ ``/ ___/ __/ / ___/ ___/  | | / / __/ /
  / / / /_/ / ,< /  __/ / / /  / /_/ /_/ / /__/ /_/ / /__(__  )   | |/ / / __/ 
 /_/  \____/_/|_|\___/_/ /_/   \__/\__,_/\___/\__/_/\___/____/    |___(_)____/                                                               
 "@
-Write-Host $banner -ForegroundColor Red
+    Write-Host $banner -ForegroundColor Red
+}
 
 # Load the .ps1 scripts
 #$scripts = @(Get-ChildItem -Path $PSScriptRoot\*.ps1 -ErrorAction SilentlyContinue)
 $scripts = @(Get-ChildItem -Path $PSScriptRoot\modules\*.ps1 -ErrorAction SilentlyContinue)
 $c = 0
 foreach ($script in $scripts) {
-    Write-Progress -Activity "Importing script" -Status $script -PercentComplete (($c++ / $scripts.count) * 100) 
+    if ( $OutputMessages ) {
+        Write-Progress -Activity "Importing script" -Status $script -PercentComplete (($c++ / $scripts.count) * 100) 
+    }
     try {
         . $script.FullName
     } catch {
@@ -56,7 +67,9 @@ $functions = @(
 
 $c = 0
 foreach ($function in $functions) {
-    Write-Progress -Activity "Exporting function" -Status $function -PercentComplete (($c++ / $functions.count) * 100)
+    if ( $OutputMessages ) {
+        Write-Progress -Activity "Exporting function" -Status $function -PercentComplete (($c++ / $functions.count) * 100)
+    }
     Export-ModuleMember -Function $function
 }
 

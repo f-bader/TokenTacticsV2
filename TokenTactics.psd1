@@ -3,8 +3,8 @@
     RootModule        = 'TokenTactics.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.2.11'
-
+    ModuleVersion     = '0.2.12'
+    
     # ID used to uniquely identify this module
     GUID              = '6194f0f0-8b91-4c32-b1b1-bc46c9d7a95c'
 
@@ -22,15 +22,10 @@
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData       = @{
-
         PSData = @{
-
             Tags       = @('security', 'pentesting', 'red team', 'offense', 'jwt', 'token', 'azure')
             LicenseUri = 'https://github.com/f-bader/TokenTacticsv2/blob/main/LICENSE'
             ProjectUri = 'https://github.com/f-bader/TokenTacticsv2'
-
-        } # End of PSData hashtable
-
-    } # End of PrivateData hashtable
-
+        }
+    }
 }
