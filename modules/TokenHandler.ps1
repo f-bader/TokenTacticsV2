@@ -5,7 +5,7 @@ function Get-AzureToken {
     .EXAMPLE
         Get-AzureToken -Client Substrate
     #>
-    Param(
+    param(
         [Parameter(Mandatory = $False)]
         [ValidateSet("Yammer", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint")]
         [string]$Client = "MSGraph",
@@ -267,7 +267,7 @@ function Get-AzureTokenFromCookie {
     #>
 
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $True)]
         [string]$CookieType,
         [Parameter(Mandatory = $True)]
@@ -502,7 +502,7 @@ function Get-AzureTokenFromESTSCookie {
     #>
 
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ESTSAuthCookie")]
         [Parameter(Mandatory = $True)]
         [string]$CookieValue,
@@ -561,17 +561,17 @@ function Get-AzureTokenFromESTSCookie {
         "Verbose"     = $VerbosePreference
     }
     if ($CustomUserAgent) {
-        $Parameters.Add("UserAgent", $CustomUserAgent)
+        $Parameters.Add("CustomUserAgent", $CustomUserAgent)
     } elseif ($Device) {
         if ($Browser) {
-            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device -Browser $Browser))
+            $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent -Device $Device -Browser $Browser))
         } else {
-            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device))
+            $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent -Device $Device))
         }
     } elseif ($Browser) {
-        $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Browser $Browser))
+        $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent -Browser $Browser))
     } else {
-        $Parameters.Add("UserAgent", (Get-ForgedUserAgent))
+        $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent))
     }
     if ($Device) {
         $Parameters.Add("Device", $Device)
@@ -597,7 +597,7 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
         Fabian Bader
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Parameter(Mandatory = $True)]
         [string]$RefreshTokenCredential,
         [Parameter(Mandatory = $False)]
@@ -652,17 +652,17 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
         "Verbose"     = $VerbosePreference
     }
     if ($CustomUserAgent) {
-        $Parameters.Add("UserAgent", $CustomUserAgent)
+        $Parameters.Add("CustomUserAgent", $CustomUserAgent)
     } elseif ($Device) {
         if ($Browser) {
-            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device -Browser $Browser))
+            $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent -Device $Device -Browser $Browser))
         } else {
-            $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Device $Device))
+            $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent -Device $Device))
         }
     } elseif ($Browser) {
-        $Parameters.Add("UserAgent", (Get-ForgedUserAgent -Browser $Browser))
+        $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent -Browser $Browser))
     } else {
-        $Parameters.Add("UserAgent", (Get-ForgedUserAgent))
+        $Parameters.Add("CustomUserAgent", (Get-ForgedUserAgent))
     }
     if ($Device) {
         $Parameters.Add("Device", $Device)
@@ -694,7 +694,7 @@ function Get-AzureTokenFromAuthorizationCode {
         First published by @_dirkjan: https://bsky.app/profile/dirkjanm.io/post/3ld4nbbhqd222
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [ValidateSet("MSGraph", "Graph", "DeviceRegistration", "Custom")]
         [string]$Client = "MSGraph",
         [Parameter(Mandatory = $True, ParameterSetName = 'Default')]
@@ -849,7 +849,7 @@ function Get-AzureAuthorizationCode {
     #>
 
     [CmdletBinding()]
-    Param(
+    param(
         [ValidateSet("MSGraph", "Graph", "Custom")]
         [string]$Client = "MSGraph",
         [Parameter(Mandatory = $False)]
@@ -950,7 +950,7 @@ function Invoke-RefreshToSubstrateToken {
     #>
 
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -999,7 +999,7 @@ function Invoke-RefreshToMSManageToken {
         $MSManageToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1048,7 +1048,7 @@ function Invoke-RefreshToMSTeamsToken {
         $MSTeamsToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1097,7 +1097,7 @@ function Invoke-RefreshToOfficeManagementToken {
         $OfficeManagement.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1146,7 +1146,7 @@ function Invoke-RefreshToOutlookToken {
         $OutlookToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1195,7 +1195,7 @@ function Invoke-RefreshToMSGraphToken {
         $MSGraphToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1244,7 +1244,7 @@ function Invoke-RefreshToGraphToken {
         $GraphToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1293,7 +1293,7 @@ function Invoke-RefreshToOfficeAppsToken {
         $OfficeAppsToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1342,7 +1342,7 @@ function Invoke-RefreshToAzureCoreManagementToken {
         $AzureCoreManagementToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1391,7 +1391,7 @@ function Invoke-RefreshToAzureStorageToken {
         $AzureStorageToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1440,7 +1440,7 @@ function Invoke-RefreshToAzureKeyVaultToken {
         $AzureKeyVaultToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1489,7 +1489,7 @@ function Invoke-RefreshToAzureManagementToken {
         $AzureManagementToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1538,7 +1538,7 @@ function Invoke-RefreshToMAMToken {
         $MAMToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1587,7 +1587,7 @@ function Invoke-RefreshToDODMSGraphToken {
         $DODMSGraphToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1637,7 +1637,7 @@ function Invoke-RefreshToSharePointToken {
         $SharePointToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1696,7 +1696,7 @@ function Invoke-RefreshToOneDriveToken {
         $OneDriveToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1745,7 +1745,7 @@ function Invoke-RefreshToYammerToken {
         $YammerToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1794,7 +1794,7 @@ function Invoke-RefreshToDeviceRegistrationToken {
         $DeviceRegistrationToken.access_token
     #>
     [CmdletBinding()]
-    Param(
+    param(
         [Alias("ResourceTenant")]
         [Parameter(Mandatory = $true)]
         [string]$Domain,
@@ -1920,7 +1920,7 @@ function Invoke-RefreshToToken {
     }
 
     $Token = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $uri -Headers $Headers -Body $body
-    Return $Token
+    return $Token
 }
 
 function Clear-Token {
@@ -1932,7 +1932,7 @@ function Clear-Token {
         Clear-Token -Token Substrate
     #>
     [CmdletBinding()]
-    Param([Parameter(Mandatory = $true)]
+    param([Parameter(Mandatory = $true)]
         [ValidateSet("All", "Response", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "OfficeManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint", "OneDrive", "Yammer")]
         [string]$Token
     )

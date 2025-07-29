@@ -10,6 +10,10 @@
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
+### 0.2.13 (2025-07-29)
+
+* Fix for Custom User Agent parameter
+
 ### 0.2.12 (2025-06-22)
 
 * Add awareness for current runspace and minimize output if run as PSTask (e.g. if run in `Foreach-Object -parallel`)
