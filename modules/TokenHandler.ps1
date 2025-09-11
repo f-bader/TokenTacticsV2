@@ -869,6 +869,8 @@ function Get-AzureAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [string]$Resource,
         [Parameter(Mandatory = $False)]
+        [string]$Username,
+        [Parameter(Mandatory = $False)]
         [switch]$OpenInBrowser
     )
     if ( $UseV1Endpoint ) {
@@ -887,6 +889,9 @@ function Get-AzureAuthorizationCode {
         $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
         $BaseUrl += "&code_challenge=$CodeChallenge"
         $BaseUrl += "&code_challenge_method=S256"
+    }
+    if ($Username) {
+        $BaseUrl += "&login_hint=$Username"
     }
 
     if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
