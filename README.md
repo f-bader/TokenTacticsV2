@@ -10,6 +10,10 @@
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
+### 0.2.14 (2025-09-11)
+
+* Add parameter `-Username` to prefill the **login_hint** parameter in cmdlet `Get-AzureAuthorizationCode`
+
 ### 0.2.13 (2025-07-29)
 
 * Fix for Custom User Agent parameter
