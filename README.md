@@ -13,6 +13,7 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 ### 0.2.14 (2025-09-11)
 
 * Add parameter `-Username` to prefill the **login_hint** parameter in cmdlet `Get-AzureAuthorizationCode`
+* Add parameter `-CopyToClipboard` in cmdlet `Get-AzureAuthorizationCode`
 
 ### 0.2.13 (2025-07-29)
 

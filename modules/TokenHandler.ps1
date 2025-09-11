@@ -871,6 +871,8 @@ function Get-AzureAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [string]$Username,
         [Parameter(Mandatory = $False)]
+        [switch]$CopyToClipboard,
+        [Parameter(Mandatory = $False)]
         [switch]$OpenInBrowser
     )
     if ( $UseV1Endpoint ) {
@@ -941,6 +943,11 @@ function Get-AzureAuthorizationCode {
         Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
     } else {
         Write-Output "   Get-AzureTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
+    }
+
+    if ($CopyToClipboard) {
+        $BaseUrl | Set-Clipboard
+        Write-Output "   The URL has been copied to your clipboard"
     }
 }
 
