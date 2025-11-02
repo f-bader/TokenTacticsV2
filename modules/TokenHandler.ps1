@@ -6,12 +6,12 @@ function Get-AzureToken {
         Get-AzureToken -Client Substrate
     #>
     param(
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [ValidateSet("Yammer", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint")]
         [string]$Client = "MSGraph",
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [string]$ClientID,
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [string]$Scope,
         [Parameter(
             Mandatory = $False,
@@ -30,14 +30,15 @@ function Get-AzureToken {
         )]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [string]$Browser,
-        [Parameter(Mandatory = $False)]
+        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [Switch]$UseCAE,
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [string]$SharePointTenantName,
         [Alias('UseAdmin')]
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [switch]$SharePointUseAdmin,
         [Alias("Domain")]
+        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [string]$ResourceTenant = "common"
     )
     if ($CustomUserAgent) {
