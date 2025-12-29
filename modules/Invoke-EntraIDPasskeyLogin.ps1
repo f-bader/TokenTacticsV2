@@ -29,7 +29,7 @@ function Invoke-EntraIDPasskeyLogin {
     )
 
     if ($PSVersionTable.PSVersion.Major -lt 7) {
-        Write-Error "This script requires PowerShell 7 (Core) for ECDSA PEM support."
+        Write-Error "This function requires PowerShell 7 (Core) for ECDsa PEM support."
         exit 1
     }
 
