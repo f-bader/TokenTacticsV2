@@ -1,9 +1,9 @@
-function Get-AzureToken {
+function Get-EntraIDToken {
     <#
     .DESCRIPTION
         Generate a device code to be used at https://www.microsoft.com/devicelogin. Once a user has successfully authenticated, you will be presented with a JSON Web Token JWT in the variable $response.
     .EXAMPLE
-        Get-AzureToken -Client Substrate
+        Get-EntraIDToken -Client Substrate
     #>
     param(
         [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
@@ -248,7 +248,7 @@ function Get-AzureToken {
     }
 }
 
-function Get-AzureTokenFromCookie {
+function Get-EntraIDTokenFromCookie {
 
     <#
     .DESCRIPTION
@@ -257,7 +257,7 @@ function Get-AzureTokenFromCookie {
         https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
 
     .EXAMPLE
-        Get-AzureTokenFromCookie -CookieType ESTSAUTHPERSISTENT -CookieValue "0.AbcAp.."
+        Get-EntraIDTokenFromCookie -CookieType ESTSAUTHPERSISTENT -CookieValue "0.AbcAp.."
 
     .AUTHOR
         Adapted for PowerShell by https://github.com/rotarydrone from ROADtools by https://github.com/dirkjanm
@@ -292,8 +292,19 @@ function Get-AzureTokenFromCookie {
         [Parameter(Mandatory = $false)]
         [switch]$UseCodeVerifier,
         [Parameter(Mandatory = $false)]
-        [switch]$UseV1Endpoint
+        [switch]$UseV1Endpoint,
+        [Parameter(Mandatory = $false)]
+        [string]$Proxy
     )
+
+    # Configure Default Parameters
+    $PSDefaultParameterValues = @{}
+    $PSDefaultParameterValues.Add('Invoke-WebRequest:Verbose', $false)
+
+    if ($Proxy) {
+        Write-Verbose "$([char]0x2718) Setting proxy to $Proxy"
+        $PSDefaultParameterValues.Add('Invoke-WebRequest:Proxy', $Proxy)
+    }
 
     if ($CustomUserAgent) {
         $UserAgent = $CustomUserAgent
@@ -361,6 +372,25 @@ function Get-AzureTokenFromCookie {
         Write-Verbose "AppConfig found in initial response"
         $AppConfig = $Matches[1] | ConvertFrom-Json
         Write-Debug "AppConfig: $($AppConfig | ConvertTo-Json -Depth 99)"
+
+        # Handle ConvergedSignIn flow
+        if ($AppConfig.pgid -eq "ConvergedSignIn") {
+            Write-Output "$([char]0x2718)  ConvergedSignIn - Attempting to continue sign-in flow"
+            $Uri = $AppConfig.urlLogin + "&sessionid=$($AppConfig.arrSessions[0].id)"
+            if ($PSVersionTable.PSEdition -ne "Core") {
+                $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
+            } else {
+                $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
+            }
+            Remove-Variable -Name AppConfig -ErrorAction SilentlyContinue
+        }
+
+        if ($sts_response.RawContent -match "\`$Config=(.*);") {
+            Write-Verbose "AppConfig found in initial response"
+            $AppConfig = $Matches[1] | ConvertFrom-Json
+            Write-Debug "AppConfig: $($AppConfig | ConvertTo-Json -Depth 99)"
+        }
+
         #region error handling
         if ( -not [string]::IsNullOrWhiteSpace( $AppConfig.sErrorCode ) ) {
             Invoke-EntraErrorHandling -AppConfig $AppConfig
@@ -489,14 +519,14 @@ function Get-AzureTokenFromCookie {
     }
 }
 
-function Get-AzureTokenFromESTSCookie {
+function Get-EntraIDTokenFromESTSCookie {
 
     <#
     .DESCRIPTION
         Authenticate to an application (default graph.microsoft.com) using Authorization Code flow using an ESTS cookie for authentication.
 
     .EXAMPLE
-        Get-AzureTokenFromESTSCookie -Client MSTeams -ESTSAuthCookie "0.AbcAp.."
+        Get-EntraIDTokenFromESTSCookie -Client MSTeams -ESTSAuthCookie "0.AbcAp.."
 
     .AUTHOR
         Fabian Bader
@@ -527,9 +557,10 @@ function Get-AzureTokenFromESTSCookie {
         [Parameter(Mandatory = $False)]
         [string]$Scope = "openid offline_access",
         [Parameter(Mandatory = $False)]
-        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient",
+        [Parameter(Mandatory = $false)]
+        [string]$Proxy
     )
-
 
     if ($Client -eq "MSTeams") {
         $ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
@@ -561,6 +592,9 @@ function Get-AzureTokenFromESTSCookie {
         "RedirectUrl" = $RedirectUrl
         "Verbose"     = $VerbosePreference
     }
+    if ($Proxy) {
+        $Parameters.Add("Proxy", $Proxy)
+    }
     if ($CustomUserAgent) {
         $Parameters.Add("CustomUserAgent", $CustomUserAgent)
     } elseif ($Device) {
@@ -583,16 +617,16 @@ function Get-AzureTokenFromESTSCookie {
     if ($Resource) {
         $Parameters.Add("Resource", $Resource)
     }
-    Get-AzureTokenFromCookie @Parameters
+    Get-EntraIDTokenFromCookie @Parameters
 }
 
-function Get-AzureTokenFromRefreshTokenCredentialCookie {
+function Get-EntraIDTokenFromRefreshTokenCredentialCookie {
     <#
     .DESCRIPTION
         Authenticate to an application (default graph.microsoft.com) using Authorization Code flow using an x-ms-RefreshTokenCredential cookie for authentication.
 
     .EXAMPLE
-        Get-AzureTokenFromRefreshTokenCredentialCookie -Client MSTeams -RefreshTokenCredential "eyJhbGciOiJ..."
+        Get-EntraIDTokenFromRefreshTokenCredentialCookie -Client MSTeams -RefreshTokenCredential "eyJhbGciOiJ..."
 
     .AUTHOR
         Fabian Bader
@@ -674,10 +708,10 @@ function Get-AzureTokenFromRefreshTokenCredentialCookie {
     if ($Resource) {
         $Parameters.Add("Resource", $Resource)
     }
-    Get-AzureTokenFromCookie @Parameters
+    Get-EntraIDTokenFromCookie @Parameters
 }
 
-function Get-AzureTokenFromAuthorizationCode {
+function Get-EntraIDTokenFromAuthorizationCode {
     <#
     .DESCRIPTION
         Authenticate to an application (default graph.microsoft.com) using Authorization Code flow.
@@ -685,7 +719,7 @@ function Get-AzureTokenFromAuthorizationCode {
         https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
 
     .EXAMPLE
-        Get-AzureTokenFromAuthorizationCode -Client MSGraph -AuthorizationCode "1.AXkAT2xo4yev..."
+        Get-EntraIDTokenFromAuthorizationCode -Client MSGraph -AuthorizationCode "1.AXkAT2xo4yev..."
 
     .AUTHOR
         Adapted for TokenTactics from the original code by
@@ -831,17 +865,17 @@ function Get-AzureTokenFromAuthorizationCode {
     #endregion
 }
 
-function Get-AzureAuthorizationCode {
+function Get-EntraIDAuthorizationCode {
     <#
     .DESCRIPTION
 
 
     .EXAMPLE
         # Use Windows based Redirect URL
-        Get-AzureAuthorizationCode -RedirectUrl "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113"
+        Get-EntraIDAuthorizationCode -RedirectUrl "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113"
 
         # Use Android based Redirect URL
-        Get-AzureAuthorizationCode -RedirectUrl "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
+        Get-EntraIDAuthorizationCode -RedirectUrl "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
 
     .AUTHOR
         Adapted for TokenTactics from the original code by
@@ -941,9 +975,9 @@ function Get-AzureAuthorizationCode {
         $V1EndpointString = "-Resource $($Resource) -UseV1Endpoint `$$($UseV1Endpoint)"
     }
     if ($Client -eq "Custom") {
-        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
+        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
     } else {
-        Write-Output "   Get-AzureTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
+        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
     }
 
     if ($CopyToClipboard) {
