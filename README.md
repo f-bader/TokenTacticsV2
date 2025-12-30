@@ -10,84 +10,6 @@
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
-### 0.2.14 (2025-09-11)
-
-* Add parameter `-Username` to prefill the **login_hint** parameter in cmdlet `Get-AzureAuthorizationCode`
-* Add parameter `-CopyToClipboard` in cmdlet `Get-AzureAuthorizationCode`
-
-### 0.2.13 (2025-07-29)
-
-* Fix for Custom User Agent parameter
-
-### 0.2.12 (2025-06-22)
-
-* Add awareness for current runspace and minimize output if run as PSTask (e.g. if run in `Foreach-Object -parallel`)
-
-### 0.2.11 (2025-06-08)
-
-* Add the ability to freely define any UserAgent using the new `-CustomUserAgent` property. Thanks to [Pri3st](https://github.com/Pri3st)
-
-### 0.2.10 (2025-02-25)
-
-* Bugfix: Wrong type initialization
-
-### 0.2.9 (2025-02-17)
-
-* Add `ResourceTenant` for `Get-AzureToken` to support B2B device code phishing
-* Switch out Azure Management client id
-* Add `UseCodeVerifier` to support Proof Key for Code Exchange (PKCE)
-* Add `UseV1Endpoint` to some functions to support a broader variety of endpoint tests
-
-### 0.2.8 (2025-01-18)
-
-* Add `Get-AzureTokenFromRefreshTokenCredentialCookie` ("x-ms-RefreshTokenCredential") and add modularized `Get-AzureTokenFromCookie`
-* Add parameter to choose cookie type (ESTSAuth, ESTSAUTHPERSISTENT) to `Get-AzureTokenFromESTSCookie`
-* Add sample output for `Get-AzureTokenFromAuthorizationCode` to `Get-AzureAuthorizationCode` output
-* Improved output and more verbose error handling
-
-### 0.2.7 (2025-01-08) 
-
-* Expand `Get-AzureTokenFromESTSCookie` to support the **appverify** endpoint
-* Improve cookie management of `Get-AzureTokenFromESTSCookie`
-
-### 0.2.6 (2025-01-04)
-
-* Fix bug custom scopes in `Get-AzureAuthorizationCode` and `Get-AzureTokenFromAuthorizationCode`
-* Change default redirect Uri for `Get-AzureAuthorizationCode`
-
-### 0.2.5 (2025-01-04)
-
-* Added new cmdlets `Get-AzureAuthorizationCode` and `Get-AzureTokenFromAuthorizationCode` \
-  Those cmdlets are heavily inspired by [TokenSmith](https://github.com/JumpsecLabs/TokenSmith) maintained by [@gladstomych](https://github.com/gladstomych)
-* Added new cmdlet `Invoke-RefreshToDeviceRegistrationToken` which is a TokenTactics version of the [AADInternals](https://github.com/Gerenios/AADInternals) cmdlet [`Get-AccessTokenForAADJoin`](https://github.com/Gerenios/AADInternals/blob/b23a7845f6dc5ea8c57b10351421a4d00466cd90/AccessToken.ps1#L877)
-* Added v1 endpoint support for `Invoke-RefreshToToken` with the `UseV1Endpoint`. This was required to add `Invoke-RefreshToDeviceRegistrationToken`
-* Added pipeline support for `ConvertFrom-JWTtoken`
-* Add default values to `Get-ForgedUserAgent`
-
-### 0.2.1 (2023-07-21)
-
-* Support for Linux as a device platform
-* Support for OS/2 as a device platform :grin:
-
-### 0.2.2 (2023-07-22)
-
-* Backported [Yammer token support](https://github.com/rvrsh3ll/TokenTactics/commit/9b364e45e39c70cc3d0a0c5ca85d36e395df8930)
-* Backported [switch to allowed PowerShell verbs](https://github.com/rvrsh3ll/TokenTactics/commit/1e46bf26bcc799d4796b621e7f778fd0a24806ff), added alias for backward compatibility
-
-### 0.2.3 (2023-07-23)
-
-* Backported [pull request](https://github.com/rvrsh3ll/TokenTactics/pull/9/) by [rotarydrone](https://github.com/rotarydrone) to convert ESTSAuth to access token
-
-## New Features in v2
-
-* Switched to `v2.0` of the Azure AD OAuth2 endpoint
-* Support for [continuous access evaluation](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation) using the new `-UseCAE` switch
-* Made `ClientId` a parameter
-* Changed `client_id` for MSTeams
-* Added support for OneDrive and SharePoint
-* Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
-* Refactored the codebase to for easier maintenance
-
 ## Azure JSON Web Token ("JWT") Manipulation Toolset
 
 Azure access tokens allow you to authenticate to certain endpoints as a user who signs in with a device code. If you are in possesion of a [FOCI (Family of Client IDs)](https://github.com/secureworks/family-of-client-ids-research) capable refresh token you can use it to get access tokens to all known [FOCI capable endpoints](https://github.com/secureworks/family-of-client-ids-research/blob/main/known-foci-clients.csv). Since the refresh-token also contains the information if the user has done multi-factor authentication you can use this. Once you have a user's access token, it may be possible to access certain apps such as Outlook, SharePoint, OneDrive, MSTeams and more.
@@ -104,14 +26,14 @@ You may also use these tokens with [AAD Internals](https://o365blog.com/aadinter
 
 ```powershell
 Import-Module .\TokenTactics.psd1
-Get-Help Get-AzureToken
+Get-Help Get-EntraIDToken
 Invoke-RefreshToSubstrateToken -Domain "myclient.org"
 ```
 
 ### Get refresh token using Device Code flow
 
 ```powershell
-Get-AzureToken -Client MSGraph
+Get-EntraIDToken -Client MSGraph
 ```
 
 Once the user has logged in, you'll be presented with the JWT and it will be saved in the `$response` variable. To access the access token use ```$response.access_token``` from your PowerShell window to display the token. You may also display the refresh token with ```$response.refresh_token```. Hint: You'll want the refresh token to keep refreshing to new tokens!
@@ -119,13 +41,39 @@ Once the user has logged in, you'll be presented with the JWT and it will be sav
 #### DOD/Mil Device Code
 
 ```powershell
-Get-AzureToken -Client DODMSGraph
+Get-EntraIDToken -Client DODMSGraph
+```
+
+### Sign-in using a passkey
+
+> [!IMPORTANT]
+> This feature was introduced in v0.2.20 and required PowerShell 7.0
+
+If you have created a passkey in a third party provider like KeePassXC, Bitwarden, 1Password, or similar you can export the private key material.
+
+> [!CAUTION]
+> Exporting you private key material is extremely dangerous. Make sure you understand the risk before your move on.
+
+The KeePassXC passkey file format is natively supported and you can point the cmdlet to the file directly. The initial sign-in procedure will only get the required ESTSAUTH cookie and you have to use `Get-EntraIDTokenFromESTSCookie` to exchange this cookie for a bearer token (access token, refresh token, and id token).
+
+```powershell
+# Retrieve the ESTSAUTH cookie value
+Invoke-EntraIDPasskeyLogin -Verbose -KeyFilePath "C:\Users\Fabian\Microsoft.passkey"
+# Exchange the ESTSAUTH cookie for bearer tokens
+Get-EntraIDTokenFromESTSCookie -CookieValue $Global:ESTSAUTH
+```
+
+If you have an unsupported file format you can specify the required values manually and achieve the same goal.
+
+```powershell
+Invoke-EntraIDPasskeyLogin -Verbose -UserPrincipalName "myUserName@example.com" -UserHandle "XYZ" -CredentialId "9e9c8297-0cde-4726-8852-16c141e15bd3" -PrivateKey $PrivateKey
+Get-EntraIDTokenFromESTSCookie -CookieValue $Global:ESTSAUTH
 ```
 
 ### Get a Refresh Token from ESTSAuth* Cookie
 
 ```powershell
-Get-AzureTokenFromESTSCookie -ESTSAuthCookie "0.AbcApTk..."
+Get-EntraIDTokenFromESTSCookie -ESTSAuthCookie "0.AbcApTk..."
 ```
 
 This module uses authorization code flow to obtain an access token and refresh token using ESTSAuth (or ESTSAuthPersistent) cookie. Useful if you have phished a session via Evilginx or have otherwise obtained this cookie.
@@ -148,7 +96,7 @@ Now the same capabilities are available in TokenTacticsV2.
 
 `Get-AzureAuthorizationCode` will create a URL you can then use to authenticate to.
 
-`Get-AzureTokenFromAuthorizationCode` uses wither the full URL or can be used with the parameters `AuthorizationCode` and `RedirectUrl` to exchange the auth code to an access and refresh token. After that you can try to get access to other resources as always.
+`Get-EntraIDTokenFromAuthorizationCode` uses wither the full URL or can be used with the parameters `AuthorizationCode` and `RedirectUrl` to exchange the auth code to an access and refresh token. After that you can try to get access to other resources as always.
 
 ![How to use the new cmdlets](./images/EntraIDAuthorizationCodeFlow.gif)
 
@@ -214,33 +162,70 @@ Get-Command -Module TokenTactics
 
 CommandType     Name                                               Version    Source
 -----------     ----                                               -------    ------
-Function        Clear-Token                                        0.3.0      TokenTactics
-Function        ConvertFrom-JWTtoken                               0.3.0      TokenTactics
-Function        Get-AzureAuthorizationCode                         0.3.0      TokenTactics
-Function        Get-AzureToken                                     0.3.0      TokenTactics
-Function        Get-AzureTokenFromAuthorizationCode                0.3.0      TokenTactics
-Function        Get-AzureTokenFromESTSCookie                       0.3.0      TokenTactics
-Function        Get-ForgedUserAgent                                0.3.0      TokenTactics
-Function        Get-TenantID                                       0.3.0      TokenTactics
-Function        Invoke-RefreshToAzureCoreManagementToken           0.3.0      TokenTactics
-Function        Invoke-RefreshToAzureKeyVaultToken                 0.3.0      TokenTactics
-Function        Invoke-RefreshToAzureManagementToken               0.3.0      TokenTactics
-Function        Invoke-RefreshToAzureStorageToken                  0.3.0      TokenTactics
-Function        Invoke-RefreshToDeviceRegistrationToken            0.3.0      TokenTactics
-Function        Invoke-RefreshToDODMSGraphToken                    0.3.0      TokenTactics
-Function        Invoke-RefreshToGraphToken                         0.3.0      TokenTactics
-Function        Invoke-RefreshToMAMToken                           0.3.0      TokenTactics
-Function        Invoke-RefreshToMSGraphToken                       0.3.0      TokenTactics
-Function        Invoke-RefreshToMSManageToken                      0.3.0      TokenTactics
-Function        Invoke-RefreshToMSTeamsToken                       0.3.0      TokenTactics
-Function        Invoke-RefreshToOfficeAppsToken                    0.3.0      TokenTactics
-Function        Invoke-RefreshToOfficeManagementToken              0.3.0      TokenTactics
-Function        Invoke-RefreshToOneDriveToken                      0.3.0      TokenTactics
-Function        Invoke-RefreshToOutlookToken                       0.3.0      TokenTactics
-Function        Invoke-RefreshToSharePointToken                    0.3.0      TokenTactics
-Function        Invoke-RefreshToSubstrateToken                     0.3.0      TokenTactics
-Function        Invoke-RefreshToToken                              0.3.0      TokenTactics
-Function        Invoke-RefreshToYammerToken                        0.3.0      TokenTactics
+Alias           Forge-UserAgent                                    0.2.20     TokenTactics
+Alias           Get-AzureAuthorizationCode                         0.2.20     TokenTactics
+Alias           Get-AzureToken                                     0.2.20     TokenTactics
+Alias           Get-AzureTokenFromAuthorizationCode                0.2.20     TokenTactics
+Alias           Get-AzureTokenFromCookie                           0.2.20     TokenTactics
+Alias           Get-AzureTokenFromESTSCookie                       0.2.20     TokenTactics
+Alias           Get-AzureTokenFromRefreshTokenCredentialCookie     0.2.20     TokenTactics
+Alias           Parse-JWTtoken                                     0.2.20     TokenTactics
+Alias           RefreshTo-AzureCoreManagementToken                 0.2.20     TokenTactics
+Alias           RefreshTo-AzureKeyVaultToken                       0.2.20     TokenTactics
+Alias           RefreshTo-AzureManagementToken                     0.2.20     TokenTactics
+Alias           RefreshTo-AzureStorageToken                        0.2.20     TokenTactics
+Alias           RefreshTo-DeviceRegistrationToken                  0.2.20     TokenTactics
+Alias           RefreshTo-DODMSGraphToken                          0.2.20     TokenTactics
+Alias           RefreshTo-GraphToken                               0.2.20     TokenTactics
+Alias           RefreshTo-MAMToken                                 0.2.20     TokenTactics
+Alias           RefreshTo-MSGraphToken                             0.2.20     TokenTactics
+Alias           RefreshTo-MSManageToken                            0.2.20     TokenTactics
+Alias           RefreshTo-MSTeamsToken                             0.2.20     TokenTactics
+Alias           RefreshTo-OfficeAppsToken                          0.2.20     TokenTactics
+Alias           RefreshTo-OfficeManagementToken                    0.2.20     TokenTactics
+Alias           RefreshTo-OneDriveToken                            0.2.20     TokenTactics
+Alias           RefreshTo-OutlookToken                             0.2.20     TokenTactics
+Alias           RefreshTo-SharePointToken                          0.2.20     TokenTactics
+Alias           RefreshTo-SubstrateToken                           0.2.20     TokenTactics
+Alias           RefreshTo-YammerToken                              0.2.20     TokenTactics
+Function        Clear-Token                                        0.2.20     TokenTactics
+Function        ConvertFrom-JWTtoken                               0.2.20     TokenTactics
+Function        ConvertTo-Base64Url                                0.2.20     TokenTactics
+Function        ConvertTo-PEMPrivateKey                            0.2.20     TokenTactics
+Function        ConvertTo-URLParameters                            0.2.20     TokenTactics
+Function        Get-EntraIDAuthorizationCode                       0.2.20     TokenTactics
+Function        Get-EntraIDToken                                   0.2.20     TokenTactics
+Function        Get-EntraIDTokenFromAuthorizationCode              0.2.20     TokenTactics
+Function        Get-EntraIDTokenFromCookie                         0.2.20     TokenTactics
+Function        Get-EntraIDTokenFromESTSCookie                     0.2.20     TokenTactics
+Function        Get-EntraIDTokenFromRefreshTokenCredentialCookie   0.2.20     TokenTactics
+Function        Get-ForgedUserAgent                                0.2.20     TokenTactics
+Function        Get-TenantID                                       0.2.20     TokenTactics
+Function        Get-TTCodeChallenge                                0.2.20     TokenTactics
+Function        Get-TTCodeVerifier                                 0.2.20     TokenTactics
+Function        Invoke-EntraErrorHandling                          0.2.20     TokenTactics
+Function        Invoke-EntraIDPasskeyLogin                         0.2.20     TokenTactics
+Function        Invoke-RefreshToAzureCoreManagementToken           0.2.20     TokenTactics
+Function        Invoke-RefreshToAzureKeyVaultToken                 0.2.20     TokenTactics
+Function        Invoke-RefreshToAzureManagementToken               0.2.20     TokenTactics
+Function        Invoke-RefreshToAzureStorageToken                  0.2.20     TokenTactics
+Function        Invoke-RefreshToDeviceRegistrationToken            0.2.20     TokenTactics
+Function        Invoke-RefreshToDODMSGraphToken                    0.2.20     TokenTactics
+Function        Invoke-RefreshToGraphToken                         0.2.20     TokenTactics
+Function        Invoke-RefreshToMAMToken                           0.2.20     TokenTactics
+Function        Invoke-RefreshToMSGraphToken                       0.2.20     TokenTactics
+Function        Invoke-RefreshToMSManageToken                      0.2.20     TokenTactics
+Function        Invoke-RefreshToMSTeamsToken                       0.2.20     TokenTactics
+Function        Invoke-RefreshToOfficeAppsToken                    0.2.20     TokenTactics
+Function        Invoke-RefreshToOfficeManagementToken              0.2.20     TokenTactics
+Function        Invoke-RefreshToOneDriveToken                      0.2.20     TokenTactics
+Function        Invoke-RefreshToOutlookToken                       0.2.20     TokenTactics
+Function        Invoke-RefreshToSharePointToken                    0.2.20     TokenTactics
+Function        Invoke-RefreshToSubstrateToken                     0.2.20     TokenTactics
+Function        Invoke-RefreshToToken                              0.2.20     TokenTactics
+Function        Invoke-RefreshToYammerToken                        0.2.20     TokenTactics
+Function        New-FidoAuthenticatorData                          0.2.20     TokenTactics
+Function        New-FidoSignature                                  0.2.20     TokenTactics
 ```
 
 ## Authors and contributors
@@ -250,3 +235,92 @@ Function        Invoke-RefreshToYammerToken                        0.3.0      To
 - [@Pri3st](https://github.com/Pri3st) added functions to fetch Storage and Key Vault access tokens and a custom user agent
 
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
+
+## Changelog
+
+### 0.2.20 (2026-01-01)
+
+* Renamed all `Get-Azure` cmdlets to `Get-EntraID`
+* Add aliases for backwards compatibility
+* Add improved error handling for ConvergedSignIn interrupts
+* Add `Invoke-EntraIDPasskeyLogin` to automate Passkey sign-in flows. This will save the ESTSAUTH cookie and websession as global variables for reuse in other cmdlets like `Get-EntraIDTokenFromESTSCookie`
+* Add proxy support for `Invoke-EntraIDPasskeyLogin`, `Get-EntraIDTokenFromCookie`, `Get-EntraIDTokenFromRefreshTokenCredentialCookie` and `Get-EntraIDTokenFromESTSCookie`
+
+### 0.2.14 (2025-09-11)
+
+* Add parameter `-Username` to prefill the **login_hint** parameter in cmdlet `Get-AzureAuthorizationCode`
+* Add parameter `-CopyToClipboard` in cmdlet `Get-AzureAuthorizationCode`
+
+### 0.2.13 (2025-07-29)
+
+* Fix for Custom User Agent parameter
+
+### 0.2.12 (2025-06-22)
+
+* Add awareness for current runspace and minimize output if run as PSTask (e.g. if run in `Foreach-Object -parallel`)
+
+### 0.2.11 (2025-06-08)
+
+* Add the ability to freely define any UserAgent using the new `-CustomUserAgent` property. Thanks to [Pri3st](https://github.com/Pri3st)
+
+### 0.2.10 (2025-02-25)
+
+* Bugfix: Wrong type initialization
+
+### 0.2.9 (2025-02-17)
+
+* Add `ResourceTenant` for `Get-EntraIDToken` to support B2B device code phishing
+* Switch out Azure Management client id
+* Add `UseCodeVerifier` to support Proof Key for Code Exchange (PKCE)
+* Add `UseV1Endpoint` to some functions to support a broader variety of endpoint tests
+
+### 0.2.8 (2025-01-18)
+
+* Add `Get-AzureTokenFromRefreshTokenCredentialCookie` ("x-ms-RefreshTokenCredential") and add modularized `Get-AzureTokenFromCookie`
+* Add parameter to choose cookie type (ESTSAuth, ESTSAUTHPERSISTENT) to `Get-AzureTokenFromESTSCookie`
+* Add sample output for `Get-AzureTokenFromAuthorizationCode` to `Get-AzureAuthorizationCode` output
+* Improved output and more verbose error handling
+
+### 0.2.7 (2025-01-08) 
+
+* Expand `Get-AzureTokenFromESTSCookie` to support the **appverify** endpoint
+* Improve cookie management of `Get-AzureTokenFromESTSCookie`
+
+### 0.2.6 (2025-01-04)
+
+* Fix bug custom scopes in `Get-AzureAuthorizationCode` and `Get-AzureTokenFromAuthorizationCode`
+* Change default redirect Uri for `Get-AzureAuthorizationCode`
+
+### 0.2.5 (2025-01-04)
+
+* Added new cmdlets `Get-AzureAuthorizationCode` and `Get-AzureTokenFromAuthorizationCode` \
+  Those cmdlets are heavily inspired by [TokenSmith](https://github.com/JumpsecLabs/TokenSmith) maintained by [@gladstomych](https://github.com/gladstomych)
+* Added new cmdlet `Invoke-RefreshToDeviceRegistrationToken` which is a TokenTactics version of the [AADInternals](https://github.com/Gerenios/AADInternals) cmdlet [`Get-AccessTokenForAADJoin`](https://github.com/Gerenios/AADInternals/blob/b23a7845f6dc5ea8c57b10351421a4d00466cd90/AccessToken.ps1#L877)
+* Added v1 endpoint support for `Invoke-RefreshToToken` with the `UseV1Endpoint`. This was required to add `Invoke-RefreshToDeviceRegistrationToken`
+* Added pipeline support for `ConvertFrom-JWTtoken`
+* Add default values to `Get-ForgedUserAgent`
+
+### 0.2.1 (2023-07-21)
+
+* Support for Linux as a device platform
+* Support for OS/2 as a device platform :grin:
+
+### 0.2.2 (2023-07-22)
+
+* Backported [Yammer token support](https://github.com/rvrsh3ll/TokenTactics/commit/9b364e45e39c70cc3d0a0c5ca85d36e395df8930)
+* Backported [switch to allowed PowerShell verbs](https://github.com/rvrsh3ll/TokenTactics/commit/1e46bf26bcc799d4796b621e7f778fd0a24806ff), added alias for backward compatibility
+
+### 0.2.3 (2023-07-23)
+
+* Backported [pull request](https://github.com/rvrsh3ll/TokenTactics/pull/9/) by [rotarydrone](https://github.com/rotarydrone) to convert ESTSAuth to access token
+
+## New Features in v2
+
+* Switched to `v2.0` of the Azure AD OAuth2 endpoint
+* Support for [continuous access evaluation](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation) using the new `-UseCAE` switch
+* Made `ClientId` a parameter
+* Changed `client_id` for MSTeams
+* Added support for OneDrive and SharePoint
+* Added `IssuedAt`, `NotBefore`, `ExpirationDate` and `ValidForHours` in `ConvertFrom-JWTtoken` output in human readable format
+* Passkey sign-in support
+* Refactored the codebase to for easier maintenance
