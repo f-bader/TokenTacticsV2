@@ -404,9 +404,9 @@ function Invoke-EntraIDPasskeyLogin {
         # Get  ESTS cookie with longest value (usually ESTSAUTH or ESTSAUTHPERSISTENT)
         $ests = @($ESTSAUTH, $ESTSAUTHPERSISTENT, $ESTSAUTHLIGHT) | Sort-Object { $_.Value.Length } -Descending | Select-Object -First 1
         if ($ests) {
-            Write-Host "$([char]0x26BF)  ESTSAUTH Cookie: $($ests.Value.Substring(0, 20))... saved as `$global:ESTSAUTH" -ForegroundColor Gray
+            Write-Host "$([char]0x26BF) ESTSAUTH Cookie: $($ests.Value.Substring(0, 20))... saved as `$global:ESTSAUTH" -ForegroundColor Gray
             $global:ESTSAUTH = $ests.Value
-            Write-Host "$([char]0x26BF)  Session saved as `$global:webSession for reuse in other functions." -ForegroundColor Gray
+            Write-Host "$([char]0x26BF) Session saved as `$global:webSession for reuse in other functions." -ForegroundColor Gray
             $global:webSession = $session
         }
     } else {
