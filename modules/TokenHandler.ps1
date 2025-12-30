@@ -653,7 +653,9 @@ function Get-EntraIDTokenFromRefreshTokenCredentialCookie {
         [Parameter(Mandatory = $False)]
         [string]$Scope = "openid offline_access",
         [Parameter(Mandatory = $False)]
-        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient"
+        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient",
+        [Parameter(Mandatory = $false)]
+        [string]$Proxy
     )
 
 
@@ -685,6 +687,9 @@ function Get-EntraIDTokenFromRefreshTokenCredentialCookie {
         "Scope"       = $Scope
         "RedirectUrl" = $RedirectUrl
         "Verbose"     = $VerbosePreference
+    }
+    if ($Proxy) {
+        $Parameters.Add("Proxy", $Proxy)
     }
     if ($CustomUserAgent) {
         $Parameters.Add("CustomUserAgent", $CustomUserAgent)

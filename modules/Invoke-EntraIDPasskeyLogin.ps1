@@ -22,6 +22,9 @@ function Invoke-EntraIDPasskeyLogin {
         $RelyingParty = "login.microsoft.com",
 
         [Parameter(Mandatory = $false)]
+        $authUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?response_type=code&redirect_uri=msauth.com.msauth.unsignedapp://auth&scope=https://graph.microsoft.com/.default&client_id=04b07795-8ddb-461a-bbee-02f9e1bf7b46",
+
+        [Parameter(Mandatory = $false)]
         $UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0',
 
         [Parameter(Mandatory = $false)]
@@ -67,7 +70,7 @@ function Invoke-EntraIDPasskeyLogin {
 
     # Determine FIDO Parameters from JSON (Critical for the HAR flow)
     $rpId = $keyData.relyingParty ?? $RelyingParty
-    $origin = $keyData.url ?? $rpId
+    $origin = $keyData.url ?? "https://$($rpId)"
     # Make sure origin is just scheme + host
     $origin = [uri]"$origin" | Select-Object -ExpandProperty Host
     $origin = "https://$($origin)"
@@ -98,19 +101,49 @@ function Invoke-EntraIDPasskeyLogin {
         exit 1
     }
 
-    # -----------------------------------------------------------------------------
-    # AUTHENTICATION FLOW
-    # -----------------------------------------------------------------------------
-
+    #region Authentication Flow
     # Configure Session
     $session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
     $session.UserAgent = $UserAgent
 
-    # A. Warm-up (Authorize) - Extracted from HAR Page 3
+    # Add mandatory fields to URI
+    # Get all existing query parameters
+    try {
+        $uriBuilder = [System.UriBuilder]$authUrl
+        $query = [System.Web.HttpUtility]::ParseQueryString($uriBuilder.Query)
+    } catch {
+        Write-Error "Invalid auth URL format. $($_.Exception.Message)"
+        exit 1
+    }
+    if ( $authUrl -notmatch "^https://login.microsoftonline.com/" ) {
+        Write-Error "Auth URL must start with 'https://login.microsoftonline.com/'"
+        exit 1
+    }
+    # Check if required parameters are already present
+    # scope
+    # client_id
+    # response_type
+    # redirect_uri
+    $RequiredParams = @("client_id", "response_type", "redirect_uri")
+    foreach ($param in $RequiredParams) {
+        if (-not $query.Get($param)) {
+            Write-Error "$([char]0x2718) Missing required parameter '$param' in auth URL."
+            exit 1
+        }
+    }
+    # Add additional required parameters if missing
+    # sso_reload=true
+    # login_hint=$targetUser
+    if (-not $query.Get("sso_reload")) {
+        $authUrl = "$authUrl&sso_reload=true"
+    }
+    if (-not $query.Get("login_hint")) {
+        $authUrl = "$authUrl&login_hint=$targetUser"
+    }
+    Write-Verbose "$([char]0x2718) Auth URL: $authUrl"
+
     # This sets the initial ESTS cookies and flow state.
     Write-Host "$([char]0x2718) Warming up session on login.microsoftonline.com (Authorize)..." -ForegroundColor Cyan
-    $authUrl = "https://login.microsoftonline.com/common/oauth2/authorize?client_id=80ccca67-54bd-44ab-8625-4b79c4dc7775&response_type=code%20id_token&scope=openid%20profile&redirect_uri=https%3A%2F%2Fsecurity.microsoft.com%2F&sso_reload=true&login_hint=$targetUser"
-    Write-Verbose "$([char]0x2718) Auth URL: $authUrl"
     try {
         $InitialResponse = Invoke-WebRequest -UseBasicParsing -Uri $authUrl -Method Get -WebSession $session
         $InitialResponse.Content -match '{(.*)}' | Out-Null
@@ -163,7 +196,6 @@ function Invoke-EntraIDPasskeyLogin {
         exit 1
     }
 
-    # D. Verify (Reprocess)
     Write-Host "$([char]0x2718) Get required pre-information from microsoft.com..." -ForegroundColor Cyan
     $verifyUrl = "https://login.microsoft.com/common/fido/get?uiflavor=Web"
 
@@ -212,12 +244,13 @@ function Invoke-EntraIDPasskeyLogin {
     try {
         Write-Host "$([char]0x2718) Submitting FIDO2 assertion to microsoftonline.com ..." -ForegroundColor Cyan
         Write-Debug ($Payload | ConvertTo-Json -Depth 10)
-        $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $LoginUri -Method Post -Body $Payload -WebSession $session
+        $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $LoginUri -Method Post -Body $Payload -WebSession $session -MaximumRedirection 0 -SkipHttpErrorCheck
         $respFinalize.Content -match '{(.*)}' | Out-Null
         $Debug = $Matches[0] | ConvertFrom-Json | ConvertTo-Json -Depth 10
         Write-Debug "$([char]0x2718) Finalization Response: $Debug"
     } catch {
         Write-Warning "Finalization request failed; checking previous response for success. Error: $($_.Exception.Message)"
+        Write-Debug "$([char]0x2718) Last Response: $($respFinalize | ConvertTo-Json -Depth 10 )"
         exit 1
     }
 
@@ -235,9 +268,10 @@ function Invoke-EntraIDPasskeyLogin {
 
     try {
         Write-Host "$([char]0x2718) Submitting FIDO2 assertion to microsoftonline.com with sso_reload=true ..." -ForegroundColor Cyan
-        $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $LoginUri -Method Post -Body $Payload -WebSession $session
+        $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $LoginUri -Method Post -Body $Payload -WebSession $session -MaximumRedirection 0 -SkipHttpErrorCheck
     } catch {
         Write-Warning "Finalization request failed; checking previous response for success. Error: $($_.Exception.Message)"
+        Write-Debug "$([char]0x2718) Last Response: $($respFinalize)"
         exit 1
     }
 
@@ -252,6 +286,8 @@ function Invoke-EntraIDPasskeyLogin {
     # Interrupt Handling
     $LoopCount = 0
     while ($Debug.pgid -in @("CmsiInterrupt", "KmsiInterrupt", "ConvergedSignIn")) {
+        # Cleanup variables
+        Remove-Variable -Name respFinalize -ErrorAction SilentlyContinue
         # Prevent infinite loops
         if ($CurrentPageId -eq $LastPageId) {
             Write-Warning "Stuck in interrupt loop on PageID: $($Debug.pgid). Exiting."
@@ -299,7 +335,7 @@ function Invoke-EntraIDPasskeyLogin {
 
             try {
                 Write-Host "$([char]0x2718) Submitting CMSI response to microsoftonline.com ..." -ForegroundColor Cyan
-                $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $Uri -Method Post -Body $Payload -WebSession $session
+                $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $Uri -Method Post -Body $Payload -WebSession $session -SkipHttpErrorCheck -MaximumRedirection 10
             } catch {
                 Write-Warning "CMSI request failed; checking previous response for success. Error: $($_.Exception.Message)"
             }
@@ -322,6 +358,7 @@ function Invoke-EntraIDPasskeyLogin {
                 $Uri = "https://login.microsoftonline.com/kmsi"
                 Write-Host "$([char]0x2718) Submitting KMSI response to microsoftonline.com ..." -ForegroundColor Cyan
                 $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $Uri -Method Post -Body $PayloadKMSI -WebSession $session
+                Write-Debug "$([char]0x2718) KMSI Response: $($respFinalize | Out-String )"
             } catch {
                 Write-Warning "KMSI request failed; checking previous response for success. Error: $($_.Exception.Message)"
             }
@@ -342,13 +379,18 @@ function Invoke-EntraIDPasskeyLogin {
         }
 
         Remove-Variable -Name Debug -ErrorAction SilentlyContinue
-        $respFinalize.Content -match '{(.*)}' | Out-Null
-        $Debug = $Matches[0] | ConvertFrom-Json
-        if ($Debug.pgid) {
-            Write-Host "$([char]0x2718) PageID: $($Debug.pgid)"
-            $CurrentPageId = $Debug.pgid
+        if ( $respFinalize.Content -match '{(.*)}' ) {
+            $Debug = $Matches[0] | ConvertFrom-Json
+            if ($Debug.pgid) {
+                Write-Host "$([char]0x2718) PageID: $($Debug.pgid)"
+                $CurrentPageId = $Debug.pgid
+            }
+            Write-Debug "$([char]0x2718) Full Response: $($Debug | ConvertTo-Json -Depth 10)"
+        } else {
+            Write-Debug "$([char]0x2718) No JSON response received; exiting interrupt handling loop."
+            Write-Debug "$([char]0x2718) Last Response: $($respFinalize) ..."
+            break
         }
-        Write-Debug "$([char]0x2718) Full Response: $($Debug | ConvertTo-Json -Depth 10)"
     }
 
     if ($respFinalize.Error) {
@@ -362,13 +404,15 @@ function Invoke-EntraIDPasskeyLogin {
         # Get  ESTS cookie with longest value (usually ESTSAUTH or ESTSAUTHPERSISTENT)
         $ests = @($ESTSAUTH, $ESTSAUTHPERSISTENT, $ESTSAUTHLIGHT) | Sort-Object { $_.Value.Length } -Descending | Select-Object -First 1
         if ($ests) {
-            Write-Host "    ESTSAUTH Cookie: $($ests.Value.Substring(0, 20))..." -ForegroundColor Gray
+            Write-Host "$([char]0x26BF)  ESTSAUTH Cookie: $($ests.Value.Substring(0, 20))... saved as `$global:ESTSAUTH" -ForegroundColor Gray
+            $global:ESTSAUTH = $ests.Value
+            Write-Host "$([char]0x26BF)  Session saved as `$global:webSession for reuse in other functions." -ForegroundColor Gray
+            $global:webSession = $session
         }
-        return $ests.Value
     } else {
-        Write-Warning "Flow finished but success state is unclear. Dump:"
+        Write-Warning "Flow finished but success state is unclear. Saved session for inspection as `$global:webSession."
         $respFinalize.Content -match '{(.*)}' | Out-Null
         $Matches[0] | ConvertFrom-Json | ConvertTo-Json -Depth 10
-        return $session
+        $global:webSession = $session
     }
 }
