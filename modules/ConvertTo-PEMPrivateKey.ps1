@@ -29,8 +29,10 @@ function ConvertTo-PEMPrivateKey {
         # Remove any whitespace
         $cleanKey = $PrivateKey.Trim() -replace "`r|`n|\s", ""
 
-        # Replace invalid characters (if any)
+        # Convert base64url to standard base64 (replace URL-safe chars and restore padding)
         $cleanKey = $cleanKey -replace "-", "+" -replace "_", "/"
+        $padLength = (4 - ($cleanKey.Length % 4)) % 4
+        $cleanKey = $cleanKey + ('=' * $padLength)
 
         # Wrap at 64 characters
         $wrappedKey = ""
