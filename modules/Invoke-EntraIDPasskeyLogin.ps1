@@ -69,7 +69,7 @@ function Invoke-EntraIDPasskeyLogin {
     }
 
     # Determine FIDO Parameters from JSON (Critical for the HAR flow)
-    $rpId = $keyData.relyingParty ?? $RelyingParty
+    $rpId = $keyData.relyingParty ?? $keyData.rpId ?? $RelyingParty
     $origin = $keyData.url ?? "https://$($rpId)"
     # Make sure origin is just scheme + host
     $origin = [uri]"$origin" | Select-Object -ExpandProperty Host
@@ -85,6 +85,19 @@ function Invoke-EntraIDPasskeyLogin {
         Write-Error "CredentialId not found in JSON or arguments."
         exit 1
     }
+    
+    # Convert UUID format to base64url if necessary (contains dashes)
+    if ($credentialId -match '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') {
+        Write-Verbose "Converting UUID format credential ID to base64url"
+        # Parse as hex string, not as GUID (to preserve byte order)
+        $hexString = $credentialId.Replace('-', '')
+        $rawBytes = [byte[]]::new($hexString.Length / 2)
+        for ($i = 0; $i -lt $hexString.Length; $i += 2) {
+            $rawBytes[$i / 2] = [Convert]::ToByte($hexString.Substring($i, 2), 16)
+        }
+        $base64 = [Convert]::ToBase64String($rawBytes)
+        $credentialId = $base64.Replace('+', '-').Replace('/', '_').TrimEnd('=')
+    }
 
     Write-Host "$([char]0x2714) User:       $targetUser" -ForegroundColor Gray
     Write-Host "$([char]0x2714) RP ID:      $rpId" -ForegroundColor Gray
@@ -94,7 +107,7 @@ function Invoke-EntraIDPasskeyLogin {
 
     # Private Key and Sign Count
     [int]$SignCount = $keyData.signCount ?? 0
-    $PrivateKeyPem = $keyData.privateKey ?? $PrivateKey
+    $PrivateKeyPem = $keyData.privateKey ?? $keyData.keyValue ?? $PrivateKey
     $PrivateKeyPem = ConvertTo-PEMPrivateKey -PrivateKey $PrivateKeyPem
     if (-not $PrivateKeyPem) {
         Write-Error "Private key not found in JSON or arguments."
