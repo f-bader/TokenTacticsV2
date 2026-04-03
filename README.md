@@ -70,6 +70,23 @@ Invoke-EntraIDPasskeyLogin -Verbose -UserPrincipalName "myUserName@example.com" 
 Get-EntraIDTokenFromESTSCookie -CookieValue $Global:ESTSAUTH
 ```
 
+### Get access tokens using the SCCAUTH cookie
+
+If you have obtained an `sccauth` cookie from an authenticated session to `security.microsoft.com` (e.g., via Evilginx or browser DevTools), you can use it to retrieve Entra ID access tokens for a broad set of resources through the Microsoft Defender XDR portal.
+
+```powershell
+# Retrieve a Microsoft Graph token using the sccauth cookie
+Get-EntraIDTokenFromSCCAUTHCookie -SCCAuth "your_sccauth_value" -ResourceName MicrosoftGraph
+
+# Provide an XSRF token explicitly to skip the bootstrapping request
+Get-EntraIDTokenFromSCCAUTHCookie -SCCAuth "your_sccauth_value" -XSRF "your_xsrf_value" -ResourceName Azure
+
+# Use a custom resource URL
+Get-EntraIDTokenFromSCCAUTHCookie -SCCAuth "your_sccauth_value" -Resource "https://management.core.windows.net/"
+```
+
+Supported `-ResourceName` values: `Azure`, `LogAnalytics`, `MATP`, `MCAS`, `MicrosoftGraph`, `MicrosoftOffice`, `Purview`, `PurviewACC`, `ThreatIntelligencePortal`.
+
 ### Get a Refresh Token from ESTSAuth* Cookie
 
 ```powershell
@@ -199,6 +216,7 @@ Function        Get-EntraIDTokenFromAuthorizationCode              0.2.20     To
 Function        Get-EntraIDTokenFromCookie                         0.2.20     TokenTactics
 Function        Get-EntraIDTokenFromESTSCookie                     0.2.20     TokenTactics
 Function        Get-EntraIDTokenFromRefreshTokenCredentialCookie   0.2.20     TokenTactics
+Function        Get-EntraIDTokenFromSCCAUTHCookie                  0.2.22     TokenTactics
 Function        Get-ForgedUserAgent                                0.2.20     TokenTactics
 Function        Get-TenantID                                       0.2.20     TokenTactics
 Function        Get-TTCodeChallenge                                0.2.20     TokenTactics
@@ -237,6 +255,10 @@ Function        New-FidoSignature                                  0.2.20     To
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
+
+### 0.2.22 (2026-04-03)
+
+* Add `Get-EntraIDTokenFromSCCAUTHCookie` to retrieve Entra ID access tokens for various resources (Azure, MicrosoftGraph, MATP, MCAS, Purview, etc.) using an `sccauth` cookie from `security.microsoft.com`. Optionally accepts an `XSRF` token; if omitted, bootstraps automatically. Supports an optional `TenantId` parameter for header injection and PurviewACC resource construction.
 
 ### 0.2.20 (2026-01-01)
 

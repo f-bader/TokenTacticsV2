@@ -47,6 +47,7 @@ $functions = @(
     "Get-EntraIDTokenFromCookie"
     "Get-EntraIDTokenFromESTSCookie"
     "Get-EntraIDTokenFromRefreshTokenCredentialCookie"
+    "Get-EntraIDTokenFromSCCAUTHCookie"
     "Get-ForgedUserAgent"
     "Get-TenantID"
     "Invoke-EntraIDPasskeyLogin"
