@@ -166,6 +166,8 @@ function Invoke-EntraIDPasskeyLogin {
         throw "No FIDO challenge received from server."
     }
 
+    # Microsoft provides the challenge as a string; WebAuthn clientDataJSON expects its bytes as Base64URL.
+    $serverChallenge = [System.Text.Encoding]::ASCII.GetBytes($SessionInformation.sFidoChallenge)
     Write-Host "$([char]0x2714) Challenge Received." -ForegroundColor Green
 
     # C. Local Signing (The "Page 4" equivalent)
@@ -174,7 +176,7 @@ function Invoke-EntraIDPasskeyLogin {
     try {
         $authData = New-FidoAuthenticatorData -RpId $rpId -SignCount $SignCount
         $FidoSignatureParameters = @{
-            Challenge     = $SessionInformation.sFidoChallenge
+            Challenge     = (ConvertTo-Base64Url -Bytes $serverChallenge)
             Origin        = $origin
             AuthDataBytes = $authData
             PrivateKeyPem = $PrivateKeyPem

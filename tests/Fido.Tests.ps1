@@ -58,7 +58,7 @@ Describe 'FIDO cryptographic helpers' {
 
 Describe 'Invoke-EntraIDPasskeyLogin' {
     BeforeEach {
-        $script:ServerChallenge = 'already-base64url_challenge'
+        $script:ServerChallenge = 'server-challenge-value'
         $sessionInformation = @{
             sFidoChallenge     = $script:ServerChallenge
             sFT                = 'flow-token'
@@ -106,15 +106,16 @@ Describe 'Invoke-EntraIDPasskeyLogin' {
         }
     }
 
-    It 'passes the server challenge through unchanged and uses normalized assertion values' {
+    It 'Base64URL-encodes the server challenge bytes and uses normalized assertion values' {
         $credentialId = '00112233-4455-6677-8899-aabbccddeeff'
         $credentialBytes = [Convert]::FromHexString($credentialId.Replace('-', ''))
         $expectedCredentialId = [Convert]::ToBase64String($credentialBytes).Replace('+', '-').Replace('/', '_').TrimEnd('=')
+        $expectedChallenge = [Convert]::ToBase64String([Text.Encoding]::ASCII.GetBytes($script:ServerChallenge)).Replace('+', '-').Replace('/', '_').TrimEnd('=')
 
         Invoke-EntraIDPasskeyLogin -UserPrincipalName 'user@contoso.com' -UserHandle 'user-handle' -CredentialId $credentialId -PrivateKey 'raw-key'
 
         Should -Invoke -ModuleName TokenTactics New-FidoSignature -Times 1 -Exactly -Scope It -ParameterFilter {
-            $Challenge -eq 'already-base64url_challenge' -and
+            $Challenge -eq $expectedChallenge -and
             $Origin -eq 'https://login.microsoft.com' -and
             $PrivateKeyPem -eq 'valid-pem'
         }
