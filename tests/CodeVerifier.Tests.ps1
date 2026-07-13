@@ -9,6 +9,7 @@ Describe "CodeVerifier (PKCE helpers)" {
             InModuleScope TokenTactics {
                 $result = Get-TTCodeVerifier
                 $result | Should -Not -BeNullOrEmpty
+                $result.Length | Should -Be 43
             }
         }
 

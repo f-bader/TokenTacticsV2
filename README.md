@@ -30,6 +30,17 @@ Get-Help Get-EntraIDToken
 Invoke-RefreshToSubstrateToken -Domain "myclient.org"
 ```
 
+## Testing
+
+The test suite requires PowerShell 7 and Pester 5.7.1. It uses mocked HTTP responses and does not require Entra ID credentials or network access.
+
+```powershell
+Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser
+pwsh ./tests/Invoke-Tests.ps1
+```
+
+The same suite runs on Linux, macOS, and Windows for every pull request.
+
 ### Get refresh token using Device Code flow
 
 ```powershell
@@ -176,75 +187,9 @@ Set-AADIntTeamsStatusMessage -Message "My cool status message" -AccessToken $MST
 
 ```powershell
 Get-Command -Module TokenTactics
-
-CommandType     Name                                               Version    Source
------------     ----                                               -------    ------
-Alias           Forge-UserAgent                                    0.2.20     TokenTactics
-Alias           Get-AzureAuthorizationCode                         0.2.20     TokenTactics
-Alias           Get-AzureToken                                     0.2.20     TokenTactics
-Alias           Get-AzureTokenFromAuthorizationCode                0.2.20     TokenTactics
-Alias           Get-AzureTokenFromCookie                           0.2.20     TokenTactics
-Alias           Get-AzureTokenFromESTSCookie                       0.2.20     TokenTactics
-Alias           Get-AzureTokenFromRefreshTokenCredentialCookie     0.2.20     TokenTactics
-Alias           Parse-JWTtoken                                     0.2.20     TokenTactics
-Alias           RefreshTo-AzureCoreManagementToken                 0.2.20     TokenTactics
-Alias           RefreshTo-AzureKeyVaultToken                       0.2.20     TokenTactics
-Alias           RefreshTo-AzureManagementToken                     0.2.20     TokenTactics
-Alias           RefreshTo-AzureStorageToken                        0.2.20     TokenTactics
-Alias           RefreshTo-DeviceRegistrationToken                  0.2.20     TokenTactics
-Alias           RefreshTo-DODMSGraphToken                          0.2.20     TokenTactics
-Alias           RefreshTo-GraphToken                               0.2.20     TokenTactics
-Alias           RefreshTo-MAMToken                                 0.2.20     TokenTactics
-Alias           RefreshTo-MSGraphToken                             0.2.20     TokenTactics
-Alias           RefreshTo-MSManageToken                            0.2.20     TokenTactics
-Alias           RefreshTo-MSTeamsToken                             0.2.20     TokenTactics
-Alias           RefreshTo-OfficeAppsToken                          0.2.20     TokenTactics
-Alias           RefreshTo-OfficeManagementToken                    0.2.20     TokenTactics
-Alias           RefreshTo-OneDriveToken                            0.2.20     TokenTactics
-Alias           RefreshTo-OutlookToken                             0.2.20     TokenTactics
-Alias           RefreshTo-SharePointToken                          0.2.20     TokenTactics
-Alias           RefreshTo-SubstrateToken                           0.2.20     TokenTactics
-Alias           RefreshTo-YammerToken                              0.2.20     TokenTactics
-Function        Clear-Token                                        0.2.20     TokenTactics
-Function        ConvertFrom-JWTtoken                               0.2.20     TokenTactics
-Function        ConvertTo-Base64Url                                0.2.20     TokenTactics
-Function        ConvertTo-PEMPrivateKey                            0.2.20     TokenTactics
-Function        ConvertTo-URLParameters                            0.2.20     TokenTactics
-Function        Get-EntraIDAuthorizationCode                       0.2.20     TokenTactics
-Function        Get-EntraIDToken                                   0.2.20     TokenTactics
-Function        Get-EntraIDTokenFromAuthorizationCode              0.2.20     TokenTactics
-Function        Get-EntraIDTokenFromCookie                         0.2.20     TokenTactics
-Function        Get-EntraIDTokenFromESTSCookie                     0.2.20     TokenTactics
-Function        Get-EntraIDTokenFromRefreshTokenCredentialCookie   0.2.20     TokenTactics
-Function        Get-EntraIDTokenFromSCCAUTHCookie                  0.2.22     TokenTactics
-Function        Get-ForgedUserAgent                                0.2.20     TokenTactics
-Function        Get-TenantID                                       0.2.20     TokenTactics
-Function        Get-TTCodeChallenge                                0.2.20     TokenTactics
-Function        Get-TTCodeVerifier                                 0.2.20     TokenTactics
-Function        Invoke-EntraErrorHandling                          0.2.20     TokenTactics
-Function        Invoke-EntraIDPasskeyLogin                         0.2.20     TokenTactics
-Function        Invoke-RefreshToAzureCoreManagementToken           0.2.20     TokenTactics
-Function        Invoke-RefreshToAzureKeyVaultToken                 0.2.20     TokenTactics
-Function        Invoke-RefreshToAzureManagementToken               0.2.20     TokenTactics
-Function        Invoke-RefreshToAzureStorageToken                  0.2.20     TokenTactics
-Function        Invoke-RefreshToDeviceRegistrationToken            0.2.20     TokenTactics
-Function        Invoke-RefreshToDODMSGraphToken                    0.2.20     TokenTactics
-Function        Invoke-RefreshToGraphToken                         0.2.20     TokenTactics
-Function        Invoke-RefreshToMAMToken                           0.2.20     TokenTactics
-Function        Invoke-RefreshToMSGraphToken                       0.2.20     TokenTactics
-Function        Invoke-RefreshToMSManageToken                      0.2.20     TokenTactics
-Function        Invoke-RefreshToMSTeamsToken                       0.2.20     TokenTactics
-Function        Invoke-RefreshToOfficeAppsToken                    0.2.20     TokenTactics
-Function        Invoke-RefreshToOfficeManagementToken              0.2.20     TokenTactics
-Function        Invoke-RefreshToOneDriveToken                      0.2.20     TokenTactics
-Function        Invoke-RefreshToOutlookToken                       0.2.20     TokenTactics
-Function        Invoke-RefreshToSharePointToken                    0.2.20     TokenTactics
-Function        Invoke-RefreshToSubstrateToken                     0.2.20     TokenTactics
-Function        Invoke-RefreshToToken                              0.2.20     TokenTactics
-Function        Invoke-RefreshToYammerToken                        0.2.20     TokenTactics
-Function        New-FidoAuthenticatorData                          0.2.20     TokenTactics
-Function        New-FidoSignature                                  0.2.20     TokenTactics
 ```
+
+Only supported user-facing commands are exported; parsing, PKCE, generic refresh, and FIDO cryptographic helpers remain private implementation details.
 
 ## Authors and contributors
 - [@rvrsh3ll](https://github.com/rvrsh3ll) Author of TokenTactics (original)
@@ -255,6 +200,13 @@ Function        New-FidoSignature                                  0.2.20     To
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
+
+### 0.3.0 (2026-07-13)
+
+* Add a pinned Pester 5 test runner, cross-platform GitHub Actions checks, test reports, and an enforced coverage baseline.
+* Add deterministic mocked coverage for device code, cookie, authorization code, SCCAUTH, refresh-token, and passkey flows.
+* Fix token cleanup, URL decoding, UTC JWT timestamps, PEM validation, Yammer scope, CAE cookie support, PurviewACC tenant headers, and passkey assertion construction.
+* Export only supported user-facing commands and compatibility aliases. Implementation helpers previously exposed by the wildcard export are now private; scripts should use the corresponding public commands instead.
 
 ### 0.2.22 (2026-04-03)
 

@@ -32,6 +32,19 @@ function ConvertTo-PEMPrivateKey {
         # Replace invalid characters (if any)
         $cleanKey = $cleanKey -replace "-", "+" -replace "_", "/"
 
+        switch ($cleanKey.Length % 4) {
+            0 { }
+            2 { $cleanKey += '==' }
+            3 { $cleanKey += '=' }
+            default { throw "Private key is not valid Base64 or Base64URL data." }
+        }
+
+        try {
+            $null = [Convert]::FromBase64String($cleanKey)
+        } catch {
+            throw "Private key is not valid Base64 or Base64URL data."
+        }
+
         # Wrap at 64 characters
         $wrappedKey = ""
         for ($i = 0; $i -lt $cleanKey.Length; $i += 64) {

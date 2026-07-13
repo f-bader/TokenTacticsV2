@@ -1,48 +1,54 @@
 BeforeAll {
     . "$PSScriptRoot/fixtures/TestData.ps1"
     Import-Module $script:ModulePath -Force
+
+    $curve = [System.Security.Cryptography.ECCurve]::CreateFromFriendlyName('nistP256')
+    $script:Ecdsa = [System.Security.Cryptography.ECDsa]::Create($curve)
+    $script:Pkcs8Bytes = $script:Ecdsa.ExportPkcs8PrivateKey()
+    $script:RawBase64 = [Convert]::ToBase64String($script:Pkcs8Bytes)
+    $script:RawBase64Url = $script:RawBase64.Replace('+', '-').Replace('/', '_').TrimEnd('=')
 }
 
-Describe "ConvertTo-PEMPrivateKey" {
-    Context "Input already in PEM format" {
-        It "Returns the input unchanged when it already has PEM headers" {
-            $pemKey = "-----BEGIN PRIVATE KEY-----`nMIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQg`n-----END PRIVATE KEY-----"
-            $result = ConvertTo-PEMPrivateKey -PrivateKey $pemKey
-            $result | Should -Be $pemKey
+AfterAll {
+    if ($script:Ecdsa) {
+        $script:Ecdsa.Dispose()
+    }
+}
+
+Describe 'ConvertTo-PEMPrivateKey' {
+    It 'returns an existing PEM value unchanged' {
+        $pem = -join [System.Security.Cryptography.PemEncoding]::Write('PRIVATE KEY', $script:Pkcs8Bytes)
+        ConvertTo-PEMPrivateKey -PrivateKey $pem | Should -BeExactly $pem
+    }
+
+    It 'converts unpadded Base64URL PKCS#8 data into importable PEM' {
+        $pem = ConvertTo-PEMPrivateKey -PrivateKey $script:RawBase64Url
+        $imported = [System.Security.Cryptography.ECDsa]::Create()
+        try {
+            $imported.ImportFromPem($pem)
+            $data = [Text.Encoding]::UTF8.GetBytes('TokenTactics test')
+            $signature = $imported.SignData($data, [Security.Cryptography.HashAlgorithmName]::SHA256)
+            $script:Ecdsa.VerifyData($data, $signature, [Security.Cryptography.HashAlgorithmName]::SHA256) | Should -BeTrue
+        } finally {
+            $imported.Dispose()
         }
     }
 
-    Context "Raw Base64 key" {
-        It "Wraps the key with PEM BEGIN and END headers" {
-            $rawKey = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgtest1234567890ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789ab"
-            $result = ConvertTo-PEMPrivateKey -PrivateKey $rawKey
-            $result | Should -Match "^-----BEGIN PRIVATE KEY-----"
-            $result | Should -Match "-----END PRIVATE KEY-----$"
-        }
+    It 'wraps content lines at no more than 64 characters' {
+        $pem = ConvertTo-PEMPrivateKey -PrivateKey $script:RawBase64
+        $contentLines = $pem -split "`n" | Where-Object { $_ -notmatch '^-----' -and $_ }
 
-        It "Wraps lines at 64 characters" {
-            $rawKey = "A" * 128  # 128 chars -> 2 lines of 64
-            $result = ConvertTo-PEMPrivateKey -PrivateKey $rawKey
-            $lines = $result -split "`n"
-            # Lines between BEGIN and END should each be <= 64 characters
-            $contentLines = $lines | Where-Object { $_ -notmatch "-----" -and $_.Length -gt 0 }
-            $contentLines | ForEach-Object { $_.Length | Should -BeLessOrEqual 64 }
-        }
+        $contentLines.Count | Should -BeGreaterThan 1
+        $contentLines | ForEach-Object { $_.Length | Should -BeLessOrEqual 64 }
+    }
 
-        It "Replaces dashes with plus and underscores with slash" {
-            # Input with URL-safe Base64 characters (- -> +, _ -> /)
-            $rawKey = "AAAA-AAAA_AAAA"
-            $result = ConvertTo-PEMPrivateKey -PrivateKey $rawKey
-            # Only check the content lines (skip PEM header/footer lines)
-            $contentLines = ($result -split "`n") | Where-Object { $_ -notmatch "^-----" -and $_.Trim() -ne "" }
-            $contentLines | ForEach-Object { $_ | Should -Not -Match "-" }
-            $contentLines | ForEach-Object { $_ | Should -Not -Match "_" }
-        }
+    It 'accepts valid key data from the pipeline' {
+        $pem = $script:RawBase64Url | ConvertTo-PEMPrivateKey
+        $pem | Should -Match '^-----BEGIN PRIVATE KEY-----'
+        $pem | Should -Match '-----END PRIVATE KEY-----$'
+    }
 
-        It "Accepts input from pipeline" {
-            $rawKey = "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgABCDEFGH"
-            $result = $rawKey | ConvertTo-PEMPrivateKey
-            $result | Should -Match "-----BEGIN PRIVATE KEY-----"
-        }
+    It 'rejects malformed Base64 data' {
+        { ConvertTo-PEMPrivateKey -PrivateKey 'not-a-private-key!' } | Should -Throw '*valid Base64*'
     }
 }

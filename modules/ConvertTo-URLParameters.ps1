@@ -7,14 +7,24 @@ function ConvertTo-URLParameters {
     )
     $uri = [System.Uri]::new($RequestURL)
     # Get the parameters from the redirect URI and build a hashtable containing the different parameters
-    $query = $uri.Query.TrimStart('?')
     $queryParams = @{}
-    $paramPairs = $query.Split('&')
+    $query = $uri.Query.TrimStart('?')
+    if ([string]::IsNullOrEmpty($query)) {
+        return $queryParams
+    }
 
-    foreach ($pair in $paramPairs) {
-        $parts = $pair.Split('=')
-        $key = $parts[0]
-        $value = $parts[1]
+    foreach ($pair in $query.Split('&')) {
+        if ([string]::IsNullOrEmpty($pair)) {
+            continue
+        }
+
+        $parts = $pair.Split('=', 2)
+        $key = [System.Net.WebUtility]::UrlDecode($parts[0])
+        $value = if ($parts.Count -eq 2) {
+            [System.Net.WebUtility]::UrlDecode($parts[1])
+        } else {
+            ''
+        }
         $queryParams[$key] = $value
     }
     return $queryParams

@@ -27,7 +27,22 @@ Describe "Get-TenantID" {
         } -Verifiable
         Get-TenantID -domain "fabrikam.com"
         Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
-            $Uri -match "fabrikam\.com"
-        } -Times 1
+            "$Method" -eq 'Get' -and
+            $Uri -eq 'https://login.microsoftonline.com/fabrikam.com/.well-known/openid-configuration'
+        } -Times 1 -Exactly -Scope It
+    }
+
+    It 'throws when the authorization endpoint is missing or malformed' {
+        Mock -ModuleName TokenTactics Invoke-RestMethod {
+            [PSCustomObject]@{ authorization_endpoint = 'https://login.microsoftonline.com/not-a-guid/oauth2/authorize' }
+        }
+
+        { Get-TenantID -Domain 'contoso.com' } | Should -Throw '*valid tenant ID*'
+    }
+
+    It 'propagates discovery request failures' {
+        Mock -ModuleName TokenTactics Invoke-RestMethod { throw 'discovery unavailable' }
+
+        { Get-TenantID -Domain 'contoso.com' } | Should -Throw '*discovery unavailable*'
     }
 }

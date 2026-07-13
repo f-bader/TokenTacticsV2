@@ -32,14 +32,12 @@ function Invoke-EntraIDPasskeyLogin {
     )
 
     if ($PSVersionTable.PSVersion.Major -lt 7) {
-        Write-Error "This function requires PowerShell 7 (Core) for ECDsa PEM support."
-        exit 1
+        throw "This function requires PowerShell 7 (Core) for ECDsa PEM support."
     }
 
     if ($PSCmdlet.ParameterSetName -eq 'Path') {
         if (-not (Test-Path $KeyFilePath)) {
-            Write-Error "Key file '$KeyFilePath' not found."
-            exit 1
+            throw "Key file '$KeyFilePath' not found."
         }
 
         # Load Key Data
@@ -47,8 +45,7 @@ function Invoke-EntraIDPasskeyLogin {
         try {
             $keyData = Get-Content $KeyFilePath -Raw | ConvertFrom-Json
         } catch {
-            Write-Error "Invalid JSON in key file."
-            exit 1
+            throw "Invalid JSON in key file."
         }
     }
 
@@ -64,8 +61,7 @@ function Invoke-EntraIDPasskeyLogin {
     # Determine Target User
     $targetUser = $keyData.username ?? $UserPrincipalName
     if (-not $targetUser) {
-        Write-Error "Username not found in JSON or arguments."
-        exit 1
+        throw "Username not found in JSON or arguments."
     }
 
     # Determine FIDO Parameters from JSON (Critical for the HAR flow)
@@ -77,13 +73,11 @@ function Invoke-EntraIDPasskeyLogin {
 
     $userHandle = $keyData.userHandle ?? $UserHandle
     if (-not $userHandle) {
-        Write-Error "UserHandle not found in JSON or arguments."
-        exit 1
+        throw "UserHandle not found in JSON or arguments."
     }
     $credentialId = $keyData.credentialId ?? $CredentialId
     if (-not $credentialId) {
-        Write-Error "CredentialId not found in JSON or arguments."
-        exit 1
+        throw "CredentialId not found in JSON or arguments."
     }
     
     # Convert UUID format to base64url if necessary (contains dashes)
@@ -107,12 +101,11 @@ function Invoke-EntraIDPasskeyLogin {
 
     # Private Key and Sign Count
     [int]$SignCount = $keyData.signCount ?? 0
-    $PrivateKeyPem = $keyData.privateKey ?? $keyData.keyValue ?? $PrivateKey
-    $PrivateKeyPem = ConvertTo-PEMPrivateKey -PrivateKey $PrivateKeyPem
-    if (-not $PrivateKeyPem) {
-        Write-Error "Private key not found in JSON or arguments."
-        exit 1
+    $privateKeyValue = $keyData.privateKey ?? $keyData.keyValue ?? $PrivateKey
+    if (-not $privateKeyValue) {
+        throw "Private key not found in JSON or arguments."
     }
+    $PrivateKeyPem = ConvertTo-PEMPrivateKey -PrivateKey $privateKeyValue
 
     #region Authentication Flow
     # Configure Session
@@ -125,12 +118,10 @@ function Invoke-EntraIDPasskeyLogin {
         $uriBuilder = [System.UriBuilder]$authUrl
         $query = [System.Web.HttpUtility]::ParseQueryString($uriBuilder.Query)
     } catch {
-        Write-Error "Invalid auth URL format. $($_.Exception.Message)"
-        exit 1
+        throw "Invalid auth URL format. $($_.Exception.Message)"
     }
     if ( $authUrl -notmatch "^https://login.microsoftonline.com/" ) {
-        Write-Error "Auth URL must start with 'https://login.microsoftonline.com/'"
-        exit 1
+        throw "Auth URL must start with 'https://login.microsoftonline.com/'"
     }
     # Check if required parameters are already present
     # scope
@@ -140,8 +131,7 @@ function Invoke-EntraIDPasskeyLogin {
     $RequiredParams = @("client_id", "response_type", "redirect_uri")
     foreach ($param in $RequiredParams) {
         if (-not $query.Get($param)) {
-            Write-Error "$([char]0x2718) Missing required parameter '$param' in auth URL."
-            exit 1
+            throw "Missing required parameter '$param' in auth URL."
         }
     }
     # Add additional required parameters if missing
@@ -169,16 +159,13 @@ function Invoke-EntraIDPasskeyLogin {
     # B. Validate Credential Type
     Write-Host "$([char]0x2718) Validate FIDO2 Credential Type..." -ForegroundColor Cyan
     if (-not $SessionInformation.oGetCredTypeResult.Credentials.HasFido) {
-        Write-Error "User does not have FIDO credentials registered."
-        exit 1
+        throw "User does not have FIDO credentials registered."
     }
 
     if (-not $SessionInformation.sFidoChallenge) {
-        Write-Error "No FIDO challenge received from server."
-        exit 1
+        throw "No FIDO challenge received from server."
     }
 
-    $serverChallenge = [System.Text.Encoding]::ASCII.GetBytes( $SessionInformation.sFidoChallenge ) # Base64Url challenge from session info
     Write-Host "$([char]0x2714) Challenge Received." -ForegroundColor Green
 
     # C. Local Signing (The "Page 4" equivalent)
@@ -187,7 +174,7 @@ function Invoke-EntraIDPasskeyLogin {
     try {
         $authData = New-FidoAuthenticatorData -RpId $rpId -SignCount $SignCount
         $FidoSignatureParameters = @{
-            Challenge     = (ConvertTo-Base64Url $serverChallenge)
+            Challenge     = $SessionInformation.sFidoChallenge
             Origin        = $origin
             AuthDataBytes = $authData
             PrivateKeyPem = $PrivateKeyPem
@@ -196,17 +183,16 @@ function Invoke-EntraIDPasskeyLogin {
 
         # Construct the payload structure Microsoft expects
         $fidoPayload = [ordered]@{
-            id                = $CredentialId
+            id                = $credentialId
             clientDataJSON    = (ConvertTo-Base64Url $crypto.ClientData)
             authenticatorData = (ConvertTo-Base64Url $authData)
             signature         = (ConvertTo-Base64Url $crypto.Signature)
-            userHandle        = $UserHandle
+            userHandle        = $userHandle
         }
 
         $credentialsJson = $SessionInformation.oGetCredTypeResult.Credentials.FidoParams.AllowList -join ','
     } catch {
-        Write-Error "FIDO Assertion generation failed: $($_.Exception.Message)"
-        exit 1
+        throw "FIDO Assertion generation failed: $($_.Exception.Message)"
     }
 
     Write-Host "$([char]0x2718) Get required pre-information from microsoft.com..." -ForegroundColor Cyan
@@ -238,8 +224,7 @@ function Invoke-EntraIDPasskeyLogin {
         $respVerify.Content -match '{(.*)}' | Out-Null
         $ResponseInformation = $Matches[0] | ConvertFrom-Json
     } catch {
-        Write-Warning "Verification request failed: $($_.Exception.Message)"
-        exit 1
+        throw "Verification request failed: $($_.Exception.Message)"
     }
 
     $LoginUri = "https://login.microsoftonline.com/common/login"
@@ -262,9 +247,7 @@ function Invoke-EntraIDPasskeyLogin {
         $Debug = $Matches[0] | ConvertFrom-Json | ConvertTo-Json -Depth 10
         Write-Debug "$([char]0x2718) Finalization Response: $Debug"
     } catch {
-        Write-Warning "Finalization request failed; checking previous response for success. Error: $($_.Exception.Message)"
-        Write-Debug "$([char]0x2718) Last Response: $($respFinalize | ConvertTo-Json -Depth 10 )"
-        exit 1
+        throw "Finalization request failed: $($_.Exception.Message)"
     }
 
     $LoginUri = "https://login.microsoftonline.com/common/login?sso_reload=true"
@@ -272,8 +255,8 @@ function Invoke-EntraIDPasskeyLogin {
         type         = 23
         ps           = 23
         assertion    = ($fidoPayload | ConvertTo-Json -Compress -Depth 10)
-        lmcCanary    = $lmcCanary.Value
-        hpgrequestid = $hpgrequestid
+        lmcCanary    = $ResponseInformation.sCrossDomainCanary
+        hpgrequestid = $ResponseInformation.sessionId
         ctx          = $SessionInformation.sCtx
         canary       = $SessionInformation.canary
         flowToken    = $SessionInformation.oGetCredTypeResult.FlowToken
@@ -283,9 +266,7 @@ function Invoke-EntraIDPasskeyLogin {
         Write-Host "$([char]0x2718) Submitting FIDO2 assertion to microsoftonline.com with sso_reload=true ..." -ForegroundColor Cyan
         $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $LoginUri -Method Post -Body $Payload -WebSession $session -MaximumRedirection 0 -SkipHttpErrorCheck
     } catch {
-        Write-Warning "Finalization request failed; checking previous response for success. Error: $($_.Exception.Message)"
-        Write-Debug "$([char]0x2718) Last Response: $($respFinalize)"
-        exit 1
+        throw "Finalization request failed: $($_.Exception.Message)"
     }
 
     $respFinalize.Content -match '{(.*)}' | Out-Null

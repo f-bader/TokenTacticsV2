@@ -75,6 +75,33 @@ Describe "Invoke-RefreshToToken" {
             $Uri -match "microsoftonline\.us"
         } -Times 1
     }
+
+    It "sends one exact refresh-token request" {
+        InModuleScope TokenTactics {
+            Invoke-RefreshToToken `
+                -Domain 'contoso.com' `
+                -refreshToken 'exact-refresh-token' `
+                -ClientID 'exact-client-id' `
+                -Scope 'api://exact/.default offline_access' `
+                -CustomUserAgent 'Exact-Agent/1.0'
+        }
+
+        Should -Invoke -ModuleName TokenTactics Get-TenantID -Times 1 -Exactly -Scope It -ParameterFilter {
+            $domain -eq 'contoso.com'
+        }
+        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 1 -Exactly -Scope It -ParameterFilter {
+            $UseBasicParsing -and
+            "$Method" -eq 'Post' -and
+            $Uri -eq "https://login.microsoftonline.com/$script:FakeTenantId/oauth2/v2.0/token" -and
+            $Headers.Count -eq 1 -and
+            $Headers['User-Agent'] -eq 'Exact-Agent/1.0' -and
+            $Body.Count -eq 4 -and
+            $Body['scope'] -eq 'api://exact/.default offline_access' -and
+            $Body['client_id'] -eq 'exact-client-id' -and
+            $Body['grant_type'] -eq 'refresh_token' -and
+            $Body['refresh_token'] -eq 'exact-refresh-token'
+        }
+    }
 }
 
 # ---------------------------------------------------------------------------
@@ -108,8 +135,10 @@ Describe "Invoke-RefreshToMSGraphToken" {
 
     It "Outputs an error message when Invoke-RestMethod throws" {
         Mock -ModuleName TokenTactics Invoke-RestMethod { throw "network error" } -Verifiable
-        $output = Invoke-RefreshToMSGraphToken -Domain "contoso.com" -RefreshToken $script:FakeRefreshToken
+        $output = @(Invoke-RefreshToMSGraphToken -Domain "contoso.com" -RefreshToken $script:FakeRefreshToken 2>&1)
         ($output | ForEach-Object { "$_" } | Where-Object { $_ -match "Could not get tokens" }).Count | Should -BeGreaterThan 0
+        ($output -join "`n") | Should -Match 'network error'
+        @($output | Where-Object { $_ -is [System.Management.Automation.ErrorRecord] }) | Should -BeNullOrEmpty
     }
 }
 
@@ -499,6 +528,31 @@ Describe "Invoke-RefreshToOneDriveToken" {
         Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
             $Body -is [hashtable] -and $Body["scope"] -match "officeapps\.live\.com"
         } -Times 1
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Invoke-RefreshToYammerToken
+# ---------------------------------------------------------------------------
+Describe "Invoke-RefreshToYammerToken" {
+    BeforeAll {
+        Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
+        Mock -ModuleName TokenTactics Invoke-RestMethod { return $script:FakeTokenResponse }
+    }
+    AfterEach {
+        Remove-Variable -Scope Global -Name YammerToken -ErrorAction SilentlyContinue
+    }
+
+    It "sets the Yammer token using the Yammer resource rather than the Teams resource" {
+        Invoke-RefreshToYammerToken -Domain 'contoso.com' -RefreshToken $script:FakeRefreshToken
+
+        $global:YammerToken | Should -Be $script:FakeTokenResponse
+        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 1 -Exactly -Scope It -ParameterFilter {
+            $Body['scope'] -eq 'https://www.yammer.com/.default offline_access openid' -and
+            $Body['scope'] -notmatch 'api\.spaces\.skype\.com' -and
+            $Body['grant_type'] -eq 'refresh_token' -and
+            $Body['refresh_token'] -eq $script:FakeRefreshToken
+        }
     }
 }
 

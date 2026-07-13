@@ -127,8 +127,9 @@ Describe "Get-ForgedUserAgent" {
 
     Context "Invalid browser for device" {
         It "Falls back to a default and emits a warning for Windows with invalid browser" {
-            $result = Get-ForgedUserAgent -Device Windows -Browser Safari
+            $result = Get-ForgedUserAgent -Device Windows -Browser Safari -WarningVariable warning
             $result | Should -Not -BeNullOrEmpty
+            $warning.Message | Should -Match 'not valid'
         }
     }
 }

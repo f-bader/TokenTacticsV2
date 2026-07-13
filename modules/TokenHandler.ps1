@@ -7,7 +7,7 @@ function Get-EntraIDToken {
     #>
     param(
         [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
-        [ValidateSet("Yammer", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint")]
+        [ValidateSet("Yammer", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint", "OneDrive")]
         [string]$Client = "MSGraph",
         [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
         [string]$ClientID,
@@ -181,6 +181,10 @@ function Get-EntraIDToken {
             "scope"     = "https://$SharePointTenantName$AdminSuffix.sharepoint.com/Sites.FullControl.All offline_access openid"
         }
     }
+    if ($Client -eq 'SharePoint' -and -not $PSBoundParameters.ContainsKey('SharePointTenantName')) {
+        Write-Error "SharePointTenantName must be provided for the SharePoint client"
+        return
+    }
 
     if ($client -match "DOD") {
         $BaseUrl = "login.microsoftonline.us"
@@ -293,6 +297,8 @@ function Get-EntraIDTokenFromCookie {
         [switch]$UseCodeVerifier,
         [Parameter(Mandatory = $false)]
         [switch]$UseV1Endpoint,
+        [Parameter(Mandatory = $false)]
+        [switch]$UseCAE,
         [Parameter(Mandatory = $false)]
         [string]$Proxy
     )
@@ -514,7 +520,7 @@ function Get-EntraIDTokenFromCookie {
             $global:TokenUpn = $output.upn
             Write-Output "$([char]0x2713)  Token acquired and saved as `$response"
         } catch {
-            Write-Error "Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+            Write-Error "Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
         }
     }
 }
@@ -760,7 +766,7 @@ function Get-EntraIDTokenFromAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [string]$CodeVerifier,
         [Parameter(Mandatory = $False)]
-        [string]$UseV1Endpoint,
+        [switch]$UseV1Endpoint,
         [Parameter(Mandatory = $False)]
         [string]$Resource
     )
@@ -865,7 +871,7 @@ function Get-EntraIDTokenFromAuthorizationCode {
         $global:TokenUpn = $output.upn
         Write-Output "$([char]0x2713)  Token acquired and saved as `$response"
     } catch {
-        Write-Error "Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Error "Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
     #endregion
 }
@@ -977,7 +983,7 @@ function Get-EntraIDAuthorizationCode {
         $CodeVerifierString = "-CodeVerifier `"$CodeVerifier`""
     }
     if ($UseV1Endpoint) {
-        $V1EndpointString = "-Resource $($Resource) -UseV1Endpoint `$$($UseV1Endpoint)"
+        $V1EndpointString = "-Resource `"$Resource`" -UseV1Endpoint"
     }
     if ($Client -eq "Custom") {
         Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
@@ -1038,7 +1044,7 @@ function Invoke-RefreshToSubstrateToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$SubstrateToken"
         $SubstrateToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1087,7 +1093,7 @@ function Invoke-RefreshToMSManageToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MSManageToken"
         $MSManageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1136,7 +1142,7 @@ function Invoke-RefreshToMSTeamsToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MSTeamsToken"
         $MSTeamsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1185,7 +1191,7 @@ function Invoke-RefreshToOfficeManagementToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeManagementToken"
         $OfficeManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1234,7 +1240,7 @@ function Invoke-RefreshToOutlookToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OutlookToken"
         $OutlookToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1283,7 +1289,7 @@ function Invoke-RefreshToMSGraphToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MSGraphToken"
         $MSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1332,7 +1338,7 @@ function Invoke-RefreshToGraphToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$GraphToken"
         $GraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1381,7 +1387,7 @@ function Invoke-RefreshToOfficeAppsToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeAppsToken"
         $OfficeAppsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1430,7 +1436,7 @@ function Invoke-RefreshToAzureCoreManagementToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureCoreManagementToken"
         $AzureCoreManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1479,7 +1485,7 @@ function Invoke-RefreshToAzureStorageToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureStorageToken"
         $AzureStorageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1528,7 +1534,7 @@ function Invoke-RefreshToAzureKeyVaultToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureKeyVaultToken"
         $AzureKeyVaultToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1577,7 +1583,7 @@ function Invoke-RefreshToAzureManagementToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureManagementToken"
         $AzureManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1626,7 +1632,7 @@ function Invoke-RefreshToMAMToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MamToken"
         $MamToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1676,7 +1682,7 @@ function Invoke-RefreshToDODMSGraphToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$DODMSGraphToken"
         $DODMSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1736,7 +1742,7 @@ function Invoke-RefreshToSharePointToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$SharePointToken"
         $SharePointToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 function Invoke-RefreshToOneDriveToken {
@@ -1784,7 +1790,7 @@ function Invoke-RefreshToOneDriveToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OneDriveToken"
         $OneDriveToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1825,7 +1831,7 @@ function Invoke-RefreshToYammerToken {
         Device          = $Device
         Browser         = $Browser
         UseCAE          = $UseCAE
-        Scope           = "https://api.spaces.skype.com/.default offline_access openid"
+        Scope           = "https://www.yammer.com/.default offline_access openid"
     }
 
     try {
@@ -1833,7 +1839,7 @@ function Invoke-RefreshToYammerToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$YammerToken"
         $YammerToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1884,7 +1890,7 @@ function Invoke-RefreshToDeviceRegistrationToken {
         Write-Output "$([char]0x2713)  Token acquired and saved as `$DeviceRegistrationToken"
         $DeviceRegistrationToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
-        Write-Output "$([char]0x274C) Could not get tokens $($_.ErrorDetails | ConvertFrom-Json | Select-Object -ExpandProperty error_description)"
+        Write-Output "$([char]0x274C) Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
 }
 
@@ -1984,55 +1990,40 @@ function Clear-Token {
         Clear-Token -Token Substrate
     #>
     [CmdletBinding()]
-    param([Parameter(Mandatory = $true)]
-        [ValidateSet("All", "Response", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "OfficeManagement", "MSGraph", "DODMSGraph", "Custom", "Substrate", "SharePoint", "OneDrive", "Yammer")]
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet("All", "Response", "Outlook", "MSTeams", "Graph", "AzureCoreManagement", "AzureManagement", "AzureStorage", "AzureKeyVault", "OfficeManagement", "OfficeApps", "MSGraph", "MSManage", "DODMSGraph", "MAM", "Custom", "Substrate", "SharePoint", "OneDrive", "Yammer", "DeviceRegistration")]
         [string]$Token
     )
-    if ($Token -eq "All") {
-        # Remove variables from the global scope
-        Remove-Variable -Scope Global -Name response -ErrorAction 0
-        Remove-Variable -Scope Global -Name OutlookToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name MSTeamsToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name GraphToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name AzureCoreManagementToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name OfficeManagementToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name MSGraphToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name DODMSGraphToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name CustomToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name SubstrateToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name CustomToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name SharePointToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name YammerToken -ErrorAction 0
-        Remove-Variable -Scope Global -Name DeviceRegistrationToken -ErrorAction 0
-    } elseif ($Token -eq "Response") {
-        Remove-Variable -Scope Global -Name response -ErrorAction 0
-    } elseif ($Token -eq "Outlook") {
-        Remove-Variable -Scope Global -Name OutlookToken -ErrorAction 0
-    } elseif ($Token -eq "MSTeams") {
-        Remove-Variable -Scope Global -Name MSTeamsToken -ErrorAction 0
-    } elseif ($Token -eq "Graph") {
-        Remove-Variable -Scope Global -Name GraphToken -ErrorAction 0
-    } elseif ($Token -eq "AzureCoreManagement") {
-        Remove-Variable -Scope Global -Name AzureCoreManagementToken -ErrorAction 0
-    } elseif ($Token -eq "OfficeManagement") {
-        Remove-Variable -Scope Global -Name OfficeManagementToken -ErrorAction 0
-    } elseif ($Token -eq "MSGraph") {
-        Remove-Variable -Scope Global -Name MSGraphToken -ErrorAction 0
-    } elseif ($Token -eq "DODMSGraph") {
-        Remove-Variable -Scope Global -Name DODMSGraphToken -ErrorAction 0
-    } elseif ($Token -eq "Custom") {
-        Remove-Variable -Scope Global -Name CustomToken -ErrorAction 0
-    } elseif ($Token -eq "Substrate") {
-        Remove-Variable -Scope Global -Name SubstrateToken -ErrorAction 0
-    } elseif ( $Token -eq "SharePoint") {
-        Remove-Variable -Scope Global -Name SharePointToken -ErrorAction 0
-    } elseif ( $Token -eq "OneDrive") {
-        Remove-Variable -Scope Global -Name OneDriveToken -ErrorAction 0
-    } elseif ( $Token -eq "Yammer") {
-        Remove-Variable -Scope Global -Name YammerToken -ErrorAction 0
-    } elseif ( $Token -eq "DeviceRegistration") {
-        Remove-Variable -Scope Global -Name DeviceRegistrationToken -ErrorAction 0
-    } else {
-        Write-Error "Token $Token not found"
+
+    $tokenVariables = @{
+        Response            = 'response'
+        Outlook             = 'OutlookToken'
+        MSTeams             = 'MSTeamsToken'
+        Graph               = 'GraphToken'
+        AzureCoreManagement = 'AzureCoreManagementToken'
+        AzureManagement     = 'AzureManagementToken'
+        AzureStorage        = 'AzureStorageToken'
+        AzureKeyVault       = 'AzureKeyVaultToken'
+        OfficeManagement    = 'OfficeManagementToken'
+        OfficeApps          = 'OfficeAppsToken'
+        MSGraph             = 'MSGraphToken'
+        MSManage            = 'MSManageToken'
+        DODMSGraph          = 'DODMSGraphToken'
+        MAM                 = 'MAMToken'
+        Custom              = 'CustomToken'
+        Substrate           = 'SubstrateToken'
+        SharePoint          = 'SharePointToken'
+        OneDrive            = 'OneDriveToken'
+        Yammer              = 'YammerToken'
+        DeviceRegistration  = 'DeviceRegistrationToken'
     }
+
+    $variablesToRemove = if ($Token -eq 'All') {
+        $tokenVariables.Values
+    } else {
+        @($tokenVariables[$Token])
+    }
+
+    Remove-Variable -Scope Global -Name $variablesToRemove -ErrorAction SilentlyContinue
 }

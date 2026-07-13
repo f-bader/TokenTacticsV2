@@ -1,106 +1,86 @@
+$tokenCases = @(
+    @{ Token = 'Response'; Variable = 'response' }
+    @{ Token = 'Outlook'; Variable = 'OutlookToken' }
+    @{ Token = 'MSTeams'; Variable = 'MSTeamsToken' }
+    @{ Token = 'Graph'; Variable = 'GraphToken' }
+    @{ Token = 'AzureCoreManagement'; Variable = 'AzureCoreManagementToken' }
+    @{ Token = 'AzureManagement'; Variable = 'AzureManagementToken' }
+    @{ Token = 'AzureStorage'; Variable = 'AzureStorageToken' }
+    @{ Token = 'AzureKeyVault'; Variable = 'AzureKeyVaultToken' }
+    @{ Token = 'OfficeManagement'; Variable = 'OfficeManagementToken' }
+    @{ Token = 'OfficeApps'; Variable = 'OfficeAppsToken' }
+    @{ Token = 'MSGraph'; Variable = 'MSGraphToken' }
+    @{ Token = 'MSManage'; Variable = 'MSManageToken' }
+    @{ Token = 'DODMSGraph'; Variable = 'DODMSGraphToken' }
+    @{ Token = 'MAM'; Variable = 'MAMToken' }
+    @{ Token = 'Custom'; Variable = 'CustomToken' }
+    @{ Token = 'Substrate'; Variable = 'SubstrateToken' }
+    @{ Token = 'SharePoint'; Variable = 'SharePointToken' }
+    @{ Token = 'OneDrive'; Variable = 'OneDriveToken' }
+    @{ Token = 'Yammer'; Variable = 'YammerToken' }
+    @{ Token = 'DeviceRegistration'; Variable = 'DeviceRegistrationToken' }
+)
+
 BeforeAll {
     . "$PSScriptRoot/fixtures/TestData.ps1"
     Import-Module $script:ModulePath -Force
+
+    $script:TokenVariables = @(
+        'response', 'OutlookToken', 'MSTeamsToken', 'GraphToken',
+        'AzureCoreManagementToken', 'AzureManagementToken', 'AzureStorageToken',
+        'AzureKeyVaultToken', 'OfficeManagementToken', 'OfficeAppsToken',
+        'MSGraphToken', 'MSManageToken', 'DODMSGraphToken', 'MAMToken',
+        'CustomToken', 'SubstrateToken', 'SharePointToken', 'OneDriveToken',
+        'YammerToken', 'DeviceRegistrationToken'
+    )
+    $script:OriginalGlobals = @{}
+    foreach ($name in $script:TokenVariables) {
+        $existing = Get-Variable -Scope Global -Name $name -ErrorAction SilentlyContinue
+        if ($existing) {
+            $script:OriginalGlobals[$name] = $existing.Value
+        }
+    }
 }
 
-Describe "Clear-Token" {
+AfterAll {
+    if ($script:TokenVariables) {
+        Remove-Variable -Scope Global -Name $script:TokenVariables -ErrorAction SilentlyContinue
+    }
+    foreach ($entry in $script:OriginalGlobals.GetEnumerator()) {
+        Set-Variable -Scope Global -Name $entry.Key -Value $entry.Value
+    }
+}
+
+Describe 'Clear-Token' {
     BeforeEach {
-        # Pre-set all global token variables
-        $global:response              = [PSCustomObject]@{ access_token = "fake" }
-        $global:OutlookToken          = [PSCustomObject]@{ access_token = "fake" }
-        $global:MSTeamsToken          = [PSCustomObject]@{ access_token = "fake" }
-        $global:GraphToken            = [PSCustomObject]@{ access_token = "fake" }
-        $global:AzureCoreManagementToken = [PSCustomObject]@{ access_token = "fake" }
-        $global:OfficeManagementToken = [PSCustomObject]@{ access_token = "fake" }
-        $global:MSGraphToken          = [PSCustomObject]@{ access_token = "fake" }
-        $global:DODMSGraphToken       = [PSCustomObject]@{ access_token = "fake" }
-        $global:CustomToken           = [PSCustomObject]@{ access_token = "fake" }
-        $global:SubstrateToken        = [PSCustomObject]@{ access_token = "fake" }
-        $global:SharePointToken       = [PSCustomObject]@{ access_token = "fake" }
-        $global:YammerToken           = [PSCustomObject]@{ access_token = "fake" }
-        $global:DeviceRegistrationToken = [PSCustomObject]@{ access_token = "fake" }
+        foreach ($name in $script:TokenVariables) {
+            Set-Variable -Scope Global -Name $name -Value ([PSCustomObject]@{ access_token = $name })
+        }
     }
 
     AfterEach {
-        # Clean up any remaining global variables
-        Remove-Variable -Scope Global -Name response              -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name OutlookToken          -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name MSTeamsToken          -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name GraphToken            -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name AzureCoreManagementToken -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name OfficeManagementToken -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name MSGraphToken          -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name DODMSGraphToken       -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name CustomToken           -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name SubstrateToken        -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name SharePointToken       -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name YammerToken           -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name DeviceRegistrationToken -ErrorAction SilentlyContinue
+        Remove-Variable -Scope Global -Name $script:TokenVariables -ErrorAction SilentlyContinue
     }
 
-    Context "Clear-Token -Token All" {
-        It "Removes the `$response global variable" {
-            Clear-Token -Token All
-            { Get-Variable -Scope Global -Name response -ErrorAction Stop } | Should -Throw
-        }
+    It 'removes every token variable for -Token All' {
+        Clear-Token -Token All
 
-        It "Removes the `$MSTeamsToken global variable" {
-            Clear-Token -Token All
-            { Get-Variable -Scope Global -Name MSTeamsToken -ErrorAction Stop } | Should -Throw
-        }
-
-        It "Removes the `$MSGraphToken global variable" {
-            Clear-Token -Token All
-            { Get-Variable -Scope Global -Name MSGraphToken -ErrorAction Stop } | Should -Throw
-        }
-
-        It "Removes the `$SubstrateToken global variable" {
-            Clear-Token -Token All
-            { Get-Variable -Scope Global -Name SubstrateToken -ErrorAction Stop } | Should -Throw
+        foreach ($name in $script:TokenVariables) {
+            Get-Variable -Scope Global -Name $name -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
         }
     }
 
-    Context "Clear-Token -Token specific" {
-        It "Removes only `$MSTeamsToken when -Token MSTeams is specified" {
-            Clear-Token -Token MSTeams
-            { Get-Variable -Scope Global -Name MSTeamsToken -ErrorAction Stop } | Should -Throw
-            # Other tokens should still exist
-            $global:response | Should -Not -BeNullOrEmpty
-        }
+    It 'removes <Variable> and no other variable for -Token <Token>' -ForEach $tokenCases {
+        Clear-Token -Token $Token
 
-        It "Removes only `$response when -Token Response is specified" {
-            Clear-Token -Token Response
-            { Get-Variable -Scope Global -Name response -ErrorAction Stop } | Should -Throw
-            $global:MSTeamsToken | Should -Not -BeNullOrEmpty
+        Get-Variable -Scope Global -Name $Variable -ErrorAction SilentlyContinue | Should -BeNullOrEmpty
+        foreach ($otherName in $script:TokenVariables | Where-Object { $_ -ne $Variable }) {
+            (Get-Variable -Scope Global -Name $otherName -ErrorAction Stop).Value.access_token | Should -Be $otherName
         }
+    }
 
-        It "Removes only `$MSGraphToken when -Token MSGraph is specified" {
-            Clear-Token -Token MSGraph
-            { Get-Variable -Scope Global -Name MSGraphToken -ErrorAction Stop } | Should -Throw
-            $global:response | Should -Not -BeNullOrEmpty
-        }
-
-        It "Removes only `$OutlookToken when -Token Outlook is specified" {
-            Clear-Token -Token Outlook
-            { Get-Variable -Scope Global -Name OutlookToken -ErrorAction Stop } | Should -Throw
-            $global:response | Should -Not -BeNullOrEmpty
-        }
-
-        It "Removes only `$GraphToken when -Token Graph is specified" {
-            Clear-Token -Token Graph
-            { Get-Variable -Scope Global -Name GraphToken -ErrorAction Stop } | Should -Throw
-            $global:response | Should -Not -BeNullOrEmpty
-        }
-
-        It "Removes only `$SharePointToken when -Token SharePoint is specified" {
-            Clear-Token -Token SharePoint
-            { Get-Variable -Scope Global -Name SharePointToken -ErrorAction Stop } | Should -Throw
-            $global:response | Should -Not -BeNullOrEmpty
-        }
-
-        It "Does not throw when the variable does not already exist" {
-            Remove-Variable -Scope Global -Name MSTeamsToken -ErrorAction SilentlyContinue
-            { Clear-Token -Token MSTeams } | Should -Not -Throw
-        }
+    It 'does not throw when the selected variable does not exist' {
+        Remove-Variable -Scope Global -Name MSTeamsToken -ErrorAction SilentlyContinue
+        { Clear-Token -Token MSTeams } | Should -Not -Throw
     }
 }
