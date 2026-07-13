@@ -3,7 +3,7 @@
     RootModule        = 'TokenTactics.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.2.22'
+    ModuleVersion     = '0.3.0'
     
     # ID used to uniquely identify this module
     GUID              = '6194f0f0-8b91-4c32-b1b1-bc46c9d7a95c'
@@ -18,7 +18,68 @@
     Description       = 'Azure JSON Web Token ("JWT") Token Manipulation Toolset'
 
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
-    FunctionsToExport = '*'
+    FunctionsToExport = @(
+        'Clear-Token'
+        'ConvertFrom-JWTtoken'
+        'ConvertTo-PEMPrivateKey'
+        'Get-EntraIDAuthorizationCode'
+        'Get-EntraIDToken'
+        'Get-EntraIDTokenFromAuthorizationCode'
+        'Get-EntraIDTokenFromCookie'
+        'Get-EntraIDTokenFromESTSCookie'
+        'Get-EntraIDTokenFromRefreshTokenCredentialCookie'
+        'Get-EntraIDTokenFromSCCAUTHCookie'
+        'Get-ForgedUserAgent'
+        'Get-TenantID'
+        'Invoke-EntraIDPasskeyLogin'
+        'Invoke-RefreshToAzureCoreManagementToken'
+        'Invoke-RefreshToAzureKeyVaultToken'
+        'Invoke-RefreshToAzureManagementToken'
+        'Invoke-RefreshToAzureStorageToken'
+        'Invoke-RefreshToDeviceRegistrationToken'
+        'Invoke-RefreshToDODMSGraphToken'
+        'Invoke-RefreshToGraphToken'
+        'Invoke-RefreshToMAMToken'
+        'Invoke-RefreshToMSGraphToken'
+        'Invoke-RefreshToMSManageToken'
+        'Invoke-RefreshToMSTeamsToken'
+        'Invoke-RefreshToOfficeAppsToken'
+        'Invoke-RefreshToOfficeManagementToken'
+        'Invoke-RefreshToOneDriveToken'
+        'Invoke-RefreshToOutlookToken'
+        'Invoke-RefreshToSharePointToken'
+        'Invoke-RefreshToSubstrateToken'
+        'Invoke-RefreshToYammerToken'
+    )
+
+    AliasesToExport = @(
+        'Parse-JWTtoken'
+        'Forge-UserAgent'
+        'RefreshTo-SubstrateToken'
+        'RefreshTo-MSManageToken'
+        'RefreshTo-MSTeamsToken'
+        'RefreshTo-OfficeManagementToken'
+        'RefreshTo-OutlookToken'
+        'RefreshTo-MSGraphToken'
+        'RefreshTo-GraphToken'
+        'RefreshTo-OfficeAppsToken'
+        'RefreshTo-AzureCoreManagementToken'
+        'RefreshTo-AzureManagementToken'
+        'RefreshTo-MAMToken'
+        'RefreshTo-DODMSGraphToken'
+        'RefreshTo-SharePointToken'
+        'RefreshTo-OneDriveToken'
+        'RefreshTo-YammerToken'
+        'RefreshTo-AzureStorageToken'
+        'RefreshTo-AzureKeyVaultToken'
+        'RefreshTo-DeviceRegistrationToken'
+        'Get-AzureToken'
+        'Get-AzureTokenFromESTSCookie'
+        'Get-AzureTokenFromAuthorizationCode'
+        'Get-AzureAuthorizationCode'
+        'Get-AzureTokenFromCookie'
+        'Get-AzureTokenFromRefreshTokenCredentialCookie'
+    )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData       = @{

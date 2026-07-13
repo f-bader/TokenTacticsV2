@@ -1,0 +1,46 @@
+name: Tests
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  pester:
+    name: PowerShell 7 (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macos-latest
+          - windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Pester
+        shell: pwsh
+        run: |
+          if (-not (Get-Module -ListAvailable Pester | Where-Object Version -EQ '5.7.1')) {
+              Install-Module Pester -RequiredVersion 5.7.1 -Scope CurrentUser -Force
+          }
+
+      - name: Run tests
+        shell: pwsh
+        run: ./tests/Invoke-Tests.ps1
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports-${{ matrix.os }}
+          path: |
+            coverage.xml
+            test-results.xml
+          if-no-files-found: warn

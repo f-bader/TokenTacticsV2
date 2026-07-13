@@ -68,6 +68,7 @@ $functions = @(
     "Invoke-RefreshToOutlookToken"
     "Invoke-RefreshToSharePointToken"
     "Invoke-RefreshToSubstrateToken"
+    "Invoke-RefreshToYammerToken"
 )
 
 $c = 0
@@ -106,4 +107,33 @@ New-Alias -Name Get-AzureAuthorizationCode -Value Get-EntraIDAuthorizationCode
 New-Alias -Name Get-AzureTokenFromCookie -Value Get-EntraIDTokenFromCookie
 New-Alias -Name Get-AzureTokenFromRefreshTokenCredentialCookie -Value Get-EntraIDTokenFromRefreshTokenCredentialCookie
 
-Export-ModuleMember -Alias * -Function *
+$aliases = @(
+    "Parse-JWTtoken"
+    "Forge-UserAgent"
+    "RefreshTo-SubstrateToken"
+    "RefreshTo-MSManageToken"
+    "RefreshTo-MSTeamsToken"
+    "RefreshTo-OfficeManagementToken"
+    "RefreshTo-OutlookToken"
+    "RefreshTo-MSGraphToken"
+    "RefreshTo-GraphToken"
+    "RefreshTo-OfficeAppsToken"
+    "RefreshTo-AzureCoreManagementToken"
+    "RefreshTo-AzureManagementToken"
+    "RefreshTo-MAMToken"
+    "RefreshTo-DODMSGraphToken"
+    "RefreshTo-SharePointToken"
+    "RefreshTo-OneDriveToken"
+    "RefreshTo-YammerToken"
+    "RefreshTo-AzureStorageToken"
+    "RefreshTo-AzureKeyVaultToken"
+    "RefreshTo-DeviceRegistrationToken"
+    "Get-AzureToken"
+    "Get-AzureTokenFromESTSCookie"
+    "Get-AzureTokenFromAuthorizationCode"
+    "Get-AzureAuthorizationCode"
+    "Get-AzureTokenFromCookie"
+    "Get-AzureTokenFromRefreshTokenCredentialCookie"
+)
+
+Export-ModuleMember -Alias $aliases

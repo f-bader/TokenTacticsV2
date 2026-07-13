@@ -133,6 +133,8 @@ function Get-EntraIDTokenFromSCCAUTHCookie {
                     if ([string]::IsNullOrWhiteSpace($TenantId)) {
                         $XdrTenantContext = Invoke-RestMethod -Uri "https://security.microsoft.com/apiproxy/mtp/sccManagement/mgmt/TenantContext?realTime=true" -ContentType "application/json" -WebSession $xdrSession -Headers $xdrHeaders
                         $TenantId = $XdrTenantContext.AuthInfo.TenantId
+                        $xdrHeaders["x-tid"] = $TenantId
+                        $xdrHeaders["tenant-id"] = $TenantId
                     }
                     $Resource = "https://$($TenantId)-api.purview-service.microsoft.com"
                     # 73c2949e-da2d-457a-9607-fcc665198967 = Azure Purview
