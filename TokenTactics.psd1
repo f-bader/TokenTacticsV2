@@ -3,7 +3,7 @@
     RootModule        = 'TokenTactics.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.3.0'
+    ModuleVersion     = '0.3.1'
     
     # ID used to uniquely identify this module
     GUID              = '6194f0f0-8b91-4c32-b1b1-bc46c9d7a95c'
@@ -27,6 +27,7 @@
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
         'Get-EntraIDTokenFromESTSCookie'
+        'Get-EntraIDTokenFromNestedAppAuth'
         'Get-EntraIDTokenFromRefreshTokenCredentialCookie'
         'Get-EntraIDTokenFromSCCAUTHCookie'
         'Get-ForgedUserAgent'
