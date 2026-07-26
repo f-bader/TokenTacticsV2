@@ -128,6 +128,25 @@ Now the same capabilities are available in TokenTacticsV2.
 
 ![How to use the new cmdlets](./images/EntraIDAuthorizationCodeFlow.gif)
 
+### Get a nested app token using NAA / BroCi
+
+`Get-EntraIDTokenFromNestedAppAuth` exchanges a broker application's refresh token for a token issued to a nested application. By default, the cmdlet uses the Azure Portal broker (`c44b4083-3bb0-49c1-b47d-974e53cbdf3c`) and the ADIbizaUX nested client (`74658136-14ec-4630-ad9b-26e160ff0fc6`) with Microsoft Graph scopes. Override the broker, nested client, scope, and redirect values as needed.
+
+Supported broker presets: `AzurePortal`, `Teams`, `Microsoft365`, `EntraAdminCenter`, `IntuneAdminCenter`, `Defender`, `Purview`.
+
+```powershell
+Get-EntraIDTokenFromNestedAppAuth `
+    -BrokerPreset Defender `
+    -TenantId "e3686c4f-af27-4f22-b9de-062f05b93aac" `
+    -RefreshToken $response.refresh_token `
+    -AnchorMailbox "Oid:3135fd4e-140c-43c0-ad02-718913648fb9@e3686c4f-af27-4f22-b9de-062f05b93aac" `
+    -UseCAE
+```
+
+If you omit `-RefreshToken`, the cmdlet falls back to `$response.refresh_token`. If you omit `-RedirectUri`, it is derived from `-BrokerClientId` and `-BrokerRedirectUri` using the brokered `brk-<brokerClientId>://<broker-host>` format. Explicit `-BrokerClientId`, `-BrokerRedirectUri`, and `-AuthorityHost` values override `-BrokerPreset`.
+
+The `Teams` preset follows the newer `teams.cloud.microsoft` broker shape and automatically adds the `client_id` token-endpoint query parameter, `brk-multihub://m365.cloud.microsoft` redirect URI, and the MSAL browser telemetry fields seen in current Teams requests.
+
 ### Refresh to new access token
 
 If you do not specify a refresh token the cmdlets will use `$response.refresh_token` as a default.
@@ -200,6 +219,12 @@ Only supported user-facing commands are exported; parsing, PKCE, generic refresh
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
+
+### 0.3.1 (2026-07-26)
+
+* Add `Get-EntraIDTokenFromNestedAppAuth` to exchange broker refresh tokens for nested app tokens using NAA / BroCi.
+* Add broker presets for Azure Portal, Teams, Microsoft 365, Entra admin center, Intune admin center, Defender, and Purview, including the newer `teams.cloud.microsoft` broker flow.
+* Add deterministic Pester coverage for the new Nested App Authentication request contracts and export surface.
 
 ### 0.3.0 (2026-07-13)
 

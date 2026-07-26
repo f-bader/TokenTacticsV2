@@ -11,6 +11,7 @@ BeforeAll {
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
         'Get-EntraIDTokenFromESTSCookie'
+        'Get-EntraIDTokenFromNestedAppAuth'
         'Get-EntraIDTokenFromRefreshTokenCredentialCookie'
         'Get-EntraIDTokenFromSCCAUTHCookie'
         'Get-ForgedUserAgent'
