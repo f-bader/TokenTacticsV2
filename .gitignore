@@ -1,2 +1,4 @@
 coverage.xml
 test-results.xml
+sampleFlows/*
+.DS_Store
