@@ -220,6 +220,12 @@ TokenTactic's methods are highly influenced by the great research of Dr Nestori 
 
 ## Changelog
 
+### 0.3.2 (2026-07-26)
+
+* Split the former `TokenHandler` implementation into grouped module files and split the matching test file into dedicated test files.
+* Rename the device code cmdlet to `Get-EntraIDTokenFromDeviceCode` and keep `Get-EntraIDToken` as a compatibility alias.
+* Add `TenantId` as an alias for the `Domain` parameter across the refresh-token cmdlets and their shared helper.
+
 ### 0.3.1 (2026-07-26)
 
 * Add `Get-EntraIDTokenFromNestedAppAuth` to exchange broker refresh tokens for nested app tokens using NAA / BroCi.
