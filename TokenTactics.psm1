@@ -42,7 +42,7 @@ $functions = @(
     "ConvertFrom-JWTtoken"
     "ConvertTo-PEMPrivateKey"
     "Get-EntraIDAuthorizationCode"
-    "Get-EntraIDToken"
+    "Get-EntraIDTokenFromDeviceCode"
     "Get-EntraIDTokenFromAuthorizationCode"
     "Get-EntraIDTokenFromCookie"
     "Get-EntraIDTokenFromESTSCookie"
@@ -101,7 +101,8 @@ New-Alias -Name RefreshTo-YammerToken -Value Invoke-RefreshToYammerToken
 New-Alias -Name RefreshTo-AzureStorageToken -Value Invoke-RefreshToAzureStorageToken
 New-Alias -Name RefreshTo-AzureKeyVaultToken -Value Invoke-RefreshToAzureKeyVaultToken
 New-Alias -Name RefreshTo-DeviceRegistrationToken -Value Invoke-RefreshToDeviceRegistrationToken
-New-Alias -Name Get-AzureToken -Value Get-EntraIDToken
+New-Alias -Name Get-EntraIDToken -Value Get-EntraIDTokenFromDeviceCode
+New-Alias -Name Get-AzureToken -Value Get-EntraIDTokenFromDeviceCode
 New-Alias -Name Get-AzureTokenFromESTSCookie -Value Get-EntraIDTokenFromESTSCookie
 New-Alias -Name Get-AzureTokenFromAuthorizationCode -Value Get-EntraIDTokenFromAuthorizationCode
 New-Alias -Name Get-AzureAuthorizationCode -Value Get-EntraIDAuthorizationCode
@@ -129,6 +130,7 @@ $aliases = @(
     "RefreshTo-AzureStorageToken"
     "RefreshTo-AzureKeyVaultToken"
     "RefreshTo-DeviceRegistrationToken"
+    "Get-EntraIDToken"
     "Get-AzureToken"
     "Get-AzureTokenFromESTSCookie"
     "Get-AzureTokenFromAuthorizationCode"

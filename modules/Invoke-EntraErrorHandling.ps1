@@ -69,7 +69,7 @@ function Invoke-EntraErrorHandling {
         Write-Output "   Session information is not sufficient for single-sign-on."
         Write-Output "   This means that a user is not signed in. The cookie might have expired."
         Write-Output "$([char]0x26A0)  TokenTactics does not support interactive logins."
-        Write-Output "   Please get a valid cookie from a signed-in session or use Get-AzureToken to get a token via the device code flow."
+        Write-Output "   Please get a valid cookie from a signed-in session or use Get-EntraIDTokenFromDeviceCode to get a token via the device code flow."
     } elseif ($AppConfig.sErrorCode -eq "53003") {
         Write-Output "$([char]0x274C) Error code $($AppConfig.sErrorCode) received from the authorize endpoint"
         Write-Output "   Access has been blocked by Conditional Access policies. The access policy does not allow token issuance."
