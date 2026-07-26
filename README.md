@@ -26,7 +26,7 @@ You may also use these tokens with [AAD Internals](https://o365blog.com/aadinter
 
 ```powershell
 Import-Module .\TokenTactics.psd1
-Get-Help Get-EntraIDToken
+Get-Help Get-EntraIDTokenFromDeviceCode
 Invoke-RefreshToSubstrateToken -Domain "myclient.org"
 ```
 
@@ -44,7 +44,7 @@ The same suite runs on Linux, macOS, and Windows for every pull request.
 ### Get refresh token using Device Code flow
 
 ```powershell
-Get-EntraIDToken -Client MSGraph
+Get-EntraIDTokenFromDeviceCode -Client MSGraph
 ```
 
 Once the user has logged in, you'll be presented with the JWT and it will be saved in the `$response` variable. To access the access token use ```$response.access_token``` from your PowerShell window to display the token. You may also display the refresh token with ```$response.refresh_token```. Hint: You'll want the refresh token to keep refreshing to new tokens!
@@ -52,7 +52,7 @@ Once the user has logged in, you'll be presented with the JWT and it will be sav
 #### DOD/Mil Device Code
 
 ```powershell
-Get-EntraIDToken -Client DODMSGraph
+Get-EntraIDTokenFromDeviceCode -Client DODMSGraph
 ```
 
 ### Sign-in using a passkey
@@ -219,6 +219,12 @@ Only supported user-facing commands are exported; parsing, PKCE, generic refresh
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
+
+### 0.3.2 (2026-07-26)
+
+* Split the former `TokenHandler` implementation into grouped module files and split the matching test file into dedicated test files.
+* Rename the device code cmdlet to `Get-EntraIDTokenFromDeviceCode` and keep `Get-EntraIDToken` as a compatibility alias.
+* Add `TenantId` as an alias for the `Domain` parameter across the refresh-token cmdlets and their shared helper.
 
 ### 0.3.1 (2026-07-26)
 

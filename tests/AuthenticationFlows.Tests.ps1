@@ -11,7 +11,7 @@ BeforeAll {
     }
 }
 
-Describe 'Get-EntraIDToken device-code flow' {
+Describe 'Get-EntraIDTokenFromDeviceCode device-code flow' {
     BeforeEach {
         foreach ($name in 'response', 'TokenDomain', 'TokenUpn', 'AuthenticationFlowPollAttempt') {
             Remove-Variable -Scope Global -Name $name -ErrorAction SilentlyContinue
@@ -63,7 +63,7 @@ Describe 'Get-EntraIDToken device-code flow' {
         }
         Mock -ModuleName TokenTactics Start-Sleep {} -ParameterFilter { $Seconds -eq 4 }
 
-        Get-EntraIDToken -Client OneDrive
+        Get-EntraIDTokenFromDeviceCode -Client OneDrive
 
         $global:response.access_token | Should -Be $script:FakeAccessToken
         $global:TokenDomain | Should -Be 'contoso.com'
@@ -140,7 +140,7 @@ Describe 'Get-EntraIDToken device-code flow' {
         }
         Mock -ModuleName TokenTactics Start-Sleep {} -ParameterFilter { $Seconds -eq 2 }
 
-        Get-EntraIDToken -Client OneDrive
+        Get-EntraIDTokenFromDeviceCode -Client OneDrive
 
         $global:response.access_token | Should -Be $script:FakeAccessToken
         $global:AuthenticationFlowPollAttempt | Should -Be 2
@@ -168,10 +168,40 @@ Describe 'Get-EntraIDToken device-code flow' {
     It 'rejects SharePoint without a tenant name before making an HTTP request' {
         Mock -ModuleName TokenTactics Invoke-RestMethod { throw "Unexpected REST request: $Method $Uri" }
 
-        { Get-EntraIDToken -Client SharePoint -ErrorAction Stop } |
+        { Get-EntraIDTokenFromDeviceCode -Client SharePoint -ErrorAction Stop } |
             Should -Throw '*SharePointTenantName must be provided*'
 
         Should -Invoke Invoke-RestMethod -ModuleName TokenTactics -Exactly -Scope It -Times 0
+    }
+
+    It 'keeps Get-EntraIDToken as a compatibility alias' {
+        $deviceResponse = [PSCustomObject]@{
+            device_code = 'alias-device-code'
+            user_code   = 'ALIA-S123'
+            interval    = 3
+            expires_in  = 900
+        }
+
+        Mock -ModuleName TokenTactics Invoke-RestMethod { throw "Unexpected REST request: $Method $Uri" }
+        Mock -ModuleName TokenTactics Invoke-RestMethod { $deviceResponse } -ParameterFilter {
+            "$Uri" -eq 'https://login.microsoftonline.com/common/oauth2/v2.0/devicecode' -and
+            "$Method" -eq 'Post' -and
+            $Body['client_id'] -eq 'ab9b8c07-8f02-4f72-87fa-80105867a763' -and
+            $Body['scope'] -eq 'https://officeapps.live.com/.default offline_access openid'
+        }
+        Mock -ModuleName TokenTactics Invoke-RestMethod { $script:TokenResponse } -ParameterFilter {
+            "$Uri" -eq 'https://login.microsoftonline.com/common/oauth2/v2.0/token' -and
+            "$Method" -eq 'Post' -and
+            $Body['client_id'] -eq 'ab9b8c07-8f02-4f72-87fa-80105867a763' -and
+            $Body['grant_type'] -eq 'urn:ietf:params:oauth:grant-type:device_code' -and
+            $Body['device_code'] -eq 'alias-device-code'
+        }
+        Mock -ModuleName TokenTactics Start-Sleep {} -ParameterFilter { $Seconds -eq 3 }
+
+        Get-EntraIDToken -Client OneDrive
+
+        $global:response.access_token | Should -Be $script:FakeAccessToken
+        Should -Invoke Invoke-RestMethod -ModuleName TokenTactics -Exactly -Scope It -Times 2
     }
 }
 

@@ -7,7 +7,7 @@ BeforeAll {
         'ConvertFrom-JWTtoken'
         'ConvertTo-PEMPrivateKey'
         'Get-EntraIDAuthorizationCode'
-        'Get-EntraIDToken'
+        'Get-EntraIDTokenFromDeviceCode'
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
         'Get-EntraIDTokenFromESTSCookie'
@@ -39,8 +39,9 @@ BeforeAll {
 
     $script:ExpectedAliases = @{
         'Forge-UserAgent'                                = 'Get-ForgedUserAgent'
+        'Get-EntraIDToken'                             = 'Get-EntraIDTokenFromDeviceCode'
         'Get-AzureAuthorizationCode'                    = 'Get-EntraIDAuthorizationCode'
-        'Get-AzureToken'                                = 'Get-EntraIDToken'
+        'Get-AzureToken'                                = 'Get-EntraIDTokenFromDeviceCode'
         'Get-AzureTokenFromAuthorizationCode'           = 'Get-EntraIDTokenFromAuthorizationCode'
         'Get-AzureTokenFromCookie'                      = 'Get-EntraIDTokenFromCookie'
         'Get-AzureTokenFromESTSCookie'                  = 'Get-EntraIDTokenFromESTSCookie'

@@ -2,24 +2,17 @@ BeforeAll {
     . "$PSScriptRoot/fixtures/TestData.ps1"
     Import-Module $script:ModulePath -Force
 
-    # Build a fake token response object used across all tests
     $script:FakeTenantId = "aaaabbbb-cccc-dddd-eeee-ffffaaaabbbb"
     $script:FakeTokenResponse = [PSCustomObject]@{
-        access_token  = $script:FakeAccessToken
-        refresh_token = $script:FakeRefreshToken
-        token_type    = "Bearer"
-        expires_in    = 3600
+        access_token   = $script:FakeAccessToken
+        refresh_token  = $script:FakeRefreshToken
+        token_type     = "Bearer"
+        expires_in     = 3600
         ext_expires_in = 3600
-        scope         = "User.Read"
-    }
-    $script:FakeOpenIdConfig = [PSCustomObject]@{
-        authorization_endpoint = "https://login.microsoftonline.com/$($script:FakeTenantId)/oauth2/authorize"
+        scope          = "User.Read"
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToToken (internal)
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -29,6 +22,13 @@ Describe "Invoke-RefreshToToken" {
     It "Calls Get-TenantID with the supplied domain" {
         InModuleScope TokenTactics {
             Invoke-RefreshToToken -Domain "contoso.com" -refreshToken "rt1" -ClientID "client1" -Scope "https://graph.microsoft.com/.default"
+        }
+        Should -Invoke -ModuleName TokenTactics Get-TenantID -ParameterFilter { $domain -eq "contoso.com" } -Times 1
+    }
+
+    It "Accepts -TenantId as an alias for -Domain" {
+        InModuleScope TokenTactics {
+            Invoke-RefreshToToken -TenantId "contoso.com" -refreshToken "rt1" -ClientID "client1" -Scope "https://graph.microsoft.com/.default"
         }
         Should -Invoke -ModuleName TokenTactics Get-TenantID -ParameterFilter { $domain -eq "contoso.com" } -Times 1
     }
@@ -104,9 +104,37 @@ Describe "Invoke-RefreshToToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToMSGraphToken
-# ---------------------------------------------------------------------------
+Describe "Refresh cmdlet domain aliases" {
+    It "adds ResourceTenant and TenantId aliases to all public refresh cmdlets" {
+        $refreshCommands = @(
+            'Invoke-RefreshToSubstrateToken'
+            'Invoke-RefreshToMSManageToken'
+            'Invoke-RefreshToMSTeamsToken'
+            'Invoke-RefreshToOfficeManagementToken'
+            'Invoke-RefreshToOutlookToken'
+            'Invoke-RefreshToMSGraphToken'
+            'Invoke-RefreshToGraphToken'
+            'Invoke-RefreshToOfficeAppsToken'
+            'Invoke-RefreshToAzureCoreManagementToken'
+            'Invoke-RefreshToAzureStorageToken'
+            'Invoke-RefreshToAzureKeyVaultToken'
+            'Invoke-RefreshToAzureManagementToken'
+            'Invoke-RefreshToMAMToken'
+            'Invoke-RefreshToDODMSGraphToken'
+            'Invoke-RefreshToSharePointToken'
+            'Invoke-RefreshToOneDriveToken'
+            'Invoke-RefreshToYammerToken'
+            'Invoke-RefreshToDeviceRegistrationToken'
+        )
+
+        foreach ($commandName in $refreshCommands) {
+            $aliases = (Get-Command $commandName).Parameters['Domain'].Aliases
+            $aliases | Should -Contain 'ResourceTenant'
+            $aliases | Should -Contain 'TenantId'
+        }
+    }
+}
+
 Describe "Invoke-RefreshToMSGraphToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -119,6 +147,11 @@ Describe "Invoke-RefreshToMSGraphToken" {
     It "Sets `$global:MSGraphToken after a successful call" {
         Invoke-RefreshToMSGraphToken -Domain "contoso.com" -RefreshToken $script:FakeRefreshToken
         $global:MSGraphToken | Should -Not -BeNullOrEmpty
+    }
+
+    It "Accepts -TenantId as an alias for -Domain" {
+        Invoke-RefreshToMSGraphToken -TenantId "contoso.com" -RefreshToken $script:FakeRefreshToken
+        Should -Invoke -ModuleName TokenTactics Get-TenantID -ParameterFilter { $domain -eq "contoso.com" } -Times 1
     }
 
     It "Uses the MSGraph scope" {
@@ -142,9 +175,6 @@ Describe "Invoke-RefreshToMSGraphToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToGraphToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToGraphToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -167,9 +197,6 @@ Describe "Invoke-RefreshToGraphToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToMSTeamsToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToMSTeamsToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -192,9 +219,6 @@ Describe "Invoke-RefreshToMSTeamsToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToOutlookToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToOutlookToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -217,9 +241,6 @@ Describe "Invoke-RefreshToOutlookToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToSubstrateToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToSubstrateToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -242,9 +263,6 @@ Describe "Invoke-RefreshToSubstrateToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToOfficeManagementToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToOfficeManagementToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -267,9 +285,6 @@ Describe "Invoke-RefreshToOfficeManagementToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToOfficeAppsToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToOfficeAppsToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -292,9 +307,6 @@ Describe "Invoke-RefreshToOfficeAppsToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToAzureCoreManagementToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToAzureCoreManagementToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -317,9 +329,6 @@ Describe "Invoke-RefreshToAzureCoreManagementToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToAzureManagementToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToAzureManagementToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -342,9 +351,6 @@ Describe "Invoke-RefreshToAzureManagementToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToAzureStorageToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToAzureStorageToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -367,9 +373,6 @@ Describe "Invoke-RefreshToAzureStorageToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToAzureKeyVaultToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToAzureKeyVaultToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -392,9 +395,6 @@ Describe "Invoke-RefreshToAzureKeyVaultToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToMAMToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToMAMToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -417,9 +417,6 @@ Describe "Invoke-RefreshToMAMToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToMSManageToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToMSManageToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -442,9 +439,6 @@ Describe "Invoke-RefreshToMSManageToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToDODMSGraphToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToDODMSGraphToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -474,9 +468,6 @@ Describe "Invoke-RefreshToDODMSGraphToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToSharePointToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToSharePointToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -506,9 +497,6 @@ Describe "Invoke-RefreshToSharePointToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToOneDriveToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToOneDriveToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -531,9 +519,6 @@ Describe "Invoke-RefreshToOneDriveToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToYammerToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToYammerToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -556,9 +541,6 @@ Describe "Invoke-RefreshToYammerToken" {
     }
 }
 
-# ---------------------------------------------------------------------------
-# Invoke-RefreshToDeviceRegistrationToken
-# ---------------------------------------------------------------------------
 Describe "Invoke-RefreshToDeviceRegistrationToken" {
     BeforeAll {
         Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
@@ -578,321 +560,5 @@ Describe "Invoke-RefreshToDeviceRegistrationToken" {
         Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
             $Uri -match "oauth2/token" -and $Uri -notmatch "v2\.0"
         } -Times 1
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Get-EntraIDTokenFromAuthorizationCode
-# ---------------------------------------------------------------------------
-Describe "Get-EntraIDTokenFromAuthorizationCode" {
-    BeforeAll {
-        Mock -ModuleName TokenTactics Invoke-RestMethod { return $script:FakeTokenResponse }
-    }
-    AfterEach {
-        Remove-Variable -Scope Global -Name response -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name TokenDomain -ErrorAction SilentlyContinue
-        Remove-Variable -Scope Global -Name TokenUpn -ErrorAction SilentlyContinue
-    }
-
-    It "Sets `$global:response after a successful call" {
-        Get-EntraIDTokenFromAuthorizationCode -AuthorizationCode "auth-code-123"
-        $global:response | Should -Not -BeNullOrEmpty
-    }
-
-    It "Calls the v2.0 token endpoint by default" {
-        Get-EntraIDTokenFromAuthorizationCode -AuthorizationCode "auth-code-123"
-        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
-            $Uri -match "oauth2/v2\.0/token"
-        } -Times 1
-    }
-
-    It "Sends grant_type=authorization_code" {
-        Get-EntraIDTokenFromAuthorizationCode -AuthorizationCode "auth-code-123"
-        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
-            $Body -is [hashtable] -and $Body["grant_type"] -eq "authorization_code"
-        } -Times 1
-    }
-
-    It "Extracts authorization code from a RequestURL" {
-        $requestUrl = "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-123?code=extracted-code-456&state=abc"
-        Get-EntraIDTokenFromAuthorizationCode -RequestURL $requestUrl
-        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
-            $Body -is [hashtable] -and $Body["code"] -eq "extracted-code-456"
-        } -Times 1
-    }
-
-    It "Sets `$global:TokenDomain from the token's upn" {
-        Get-EntraIDTokenFromAuthorizationCode -AuthorizationCode "auth-code-123"
-        $global:TokenDomain | Should -Be "contoso.com"
-    }
-
-    It "Sets `$global:TokenUpn from the token" {
-        Get-EntraIDTokenFromAuthorizationCode -AuthorizationCode "auth-code-123"
-        $global:TokenUpn | Should -Be "test.user@contoso.com"
-    }
-}
-
-# ---------------------------------------------------------------------------
-# Get-EntraIDTokenFromNestedAppAuth
-# ---------------------------------------------------------------------------
-Describe "Get-EntraIDTokenFromNestedAppAuth" {
-    $brokerPresetCases = @(
-        @{
-            BrokerPreset      = 'AzurePortal'
-            BrokerClientId    = 'c44b4083-3bb0-49c1-b47d-974e53cbdf3c'
-            BrokerRedirectUri = 'https://portal.azure.com/auth/redirect/'
-            RedirectUri       = 'brk-c44b4083-3bb0-49c1-b47d-974e53cbdf3c://portal.azure.com'
-        }
-        @{
-            BrokerPreset      = 'Microsoft365'
-            BrokerClientId    = '4765445b-32c6-49b0-83e6-1d93765276ca'
-            BrokerRedirectUri = 'https://www.microsoft365.com/spalanding'
-            RedirectUri       = 'brk-4765445b-32c6-49b0-83e6-1d93765276ca://www.microsoft365.com'
-        }
-        @{
-            BrokerPreset      = 'EntraAdminCenter'
-            BrokerClientId    = 'c44b4083-3bb0-49c1-b47d-974e53cbdf3c'
-            BrokerRedirectUri = 'https://entra.microsoft.com/auth/login/'
-            RedirectUri       = 'brk-c44b4083-3bb0-49c1-b47d-974e53cbdf3c://entra.microsoft.com'
-        }
-        @{
-            BrokerPreset      = 'IntuneAdminCenter'
-            BrokerClientId    = 'c44b4083-3bb0-49c1-b47d-974e53cbdf3c'
-            BrokerRedirectUri = 'https://intune.microsoft.com/auth/login/'
-            RedirectUri       = 'brk-c44b4083-3bb0-49c1-b47d-974e53cbdf3c://intune.microsoft.com'
-        }
-        @{
-            BrokerPreset      = 'Defender'
-            BrokerClientId    = '80ccca67-54bd-44ab-8625-4b79c4dc7775'
-            BrokerRedirectUri = 'https://security.microsoft.com/Blank'
-            RedirectUri       = 'brk-80ccca67-54bd-44ab-8625-4b79c4dc7775://security.microsoft.com'
-        }
-        @{
-            BrokerPreset      = 'Purview'
-            BrokerClientId    = '80ccca67-54bd-44ab-8625-4b79c4dc7775'
-            BrokerRedirectUri = 'https://purview.microsoft.com/Blank'
-            RedirectUri       = 'brk-80ccca67-54bd-44ab-8625-4b79c4dc7775://purview.microsoft.com'
-        }
-    )
-
-    BeforeEach {
-        foreach ($name in 'response', 'TokenDomain', 'TokenUpn') {
-            Remove-Variable -Scope Global -Name $name -ErrorAction SilentlyContinue
-        }
-
-        Mock -ModuleName TokenTactics Invoke-RestMethod { throw "Unexpected REST request: $Method $Uri" }
-        Mock -ModuleName TokenTactics Get-TenantID { return $script:FakeTenantId }
-    }
-
-    AfterEach {
-        foreach ($name in 'response', 'TokenDomain', 'TokenUpn') {
-            Remove-Variable -Scope Global -Name $name -ErrorAction SilentlyContinue
-        }
-    }
-
-    It "sends the exact Azure Portal brokered token request with CAE claims" {
-        $brokerClientId = 'c44b4083-3bb0-49c1-b47d-974e53cbdf3c'
-        $brokerRedirectUri = 'https://portal.azure.com/auth/redirect/'
-        $clientRequestId = '11111111-2222-3333-4444-555555555555'
-        $anchorMailbox = "Oid:3135fd4e-140c-43c0-ad02-718913648fb9@$($script:FakeTenantId)"
-        $claims = '{"access_token":{"xms_cc":{"values":["cp1"]}}}'
-
-        Mock -ModuleName TokenTactics Invoke-RestMethod { $script:FakeTokenResponse } -ParameterFilter {
-            $parsedUri = [Uri]$Uri
-            $query = [System.Web.HttpUtility]::ParseQueryString($parsedUri.Query)
-
-            $UseBasicParsing -and
-            "$Method" -eq 'Post' -and
-            $parsedUri.Scheme -eq 'https' -and
-            $parsedUri.Host -eq 'login.microsoftonline.com' -and
-            $parsedUri.AbsolutePath -eq "/$script:FakeTenantId/oauth2/v2.0/token" -and
-            $Headers -is [System.Collections.IDictionary] -and
-            $Headers.Count -eq 1 -and
-            $Headers['User-Agent'] -eq 'Nested-Agent/1.0' -and
-            $query.Count -eq 3 -and
-            $query['brk_client_id'] -eq $brokerClientId -and
-            $query['brk_redirect_uri'] -eq $brokerRedirectUri -and
-            $query['client-request-id'] -eq $clientRequestId -and
-            $Body -is [System.Collections.IDictionary] -and
-            $Body.Count -eq 13 -and
-            $Body['client_id'] -eq '74658136-14ec-4630-ad9b-26e160ff0fc6' -and
-            $Body['redirect_uri'] -eq 'brk-c44b4083-3bb0-49c1-b47d-974e53cbdf3c://portal.azure.com' -and
-            $Body['scope'] -eq 'https://graph.microsoft.com/.default openid profile offline_access' -and
-            $Body['grant_type'] -eq 'refresh_token' -and
-            $Body['client_info'] -eq '1' -and
-            $Body['x-client-SKU'] -eq 'msal.js.browser' -and
-            $Body['x-client-VER'] -eq '5.13.0' -and
-            $Body['x-ms-lib-capability'] -eq 'retry-after, h429' -and
-            $Body['refresh_token'] -eq 'nested-app-refresh-token' -and
-            $Body['brk_client_id'] -eq $brokerClientId -and
-            $Body['brk_redirect_uri'] -eq $brokerRedirectUri -and
-            $Body['X-AnchorMailbox'] -eq $anchorMailbox -and
-            $Body['claims'] -eq $claims
-        }
-
-        Get-EntraIDTokenFromNestedAppAuth `
-            -TenantId $script:FakeTenantId `
-            -RefreshToken 'nested-app-refresh-token' `
-            -CustomUserAgent 'Nested-Agent/1.0' `
-            -ClientRequestId $clientRequestId `
-            -AnchorMailbox $anchorMailbox `
-            -UseCAE
-
-        $global:response | Should -Be $script:FakeTokenResponse
-        $global:TokenDomain | Should -Be 'contoso.com'
-        $global:TokenUpn | Should -Be 'test.user@contoso.com'
-        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 1 -Exactly -Scope It
-    }
-
-    It "matches the Teams Cloud brokered request shape for the provided example" {
-        $brokerClientId = '5e3ce6c0-2b1f-4285-8d4b-75ee78787346'
-        $brokerRedirectUri = 'https://teams.cloud.microsoft/v2/authv2'
-        $clientRequestId = '019f9eab-d509-781d-8e67-1ca76d834633'
-        $anchorMailbox = "Oid:e7417ac7-0485-4014-9100-33163bd6211f@$($script:FakeTenantId)"
-        $clientId = '4765445b-32c6-49b0-83e6-1d93765276ca'
-        $scope = '4765445b-32c6-49b0-83e6-1d93765276ca/.default openid profile offline_access'
-
-        Mock -ModuleName TokenTactics Invoke-RestMethod { $script:FakeTokenResponse } -ParameterFilter {
-            $parsedUri = [Uri]$Uri
-            $query = [System.Web.HttpUtility]::ParseQueryString($parsedUri.Query)
-
-            $UseBasicParsing -and
-            "$Method" -eq 'Post' -and
-            $parsedUri.Scheme -eq 'https' -and
-            $parsedUri.Host -eq 'login.microsoftonline.com' -and
-            $parsedUri.AbsolutePath -eq "/$script:FakeTenantId/oauth2/v2.0/token" -and
-            $Headers -is [System.Collections.IDictionary] -and
-            $Headers.Count -eq 1 -and
-            $Headers['User-Agent'] -eq 'Nested-Agent/Teams' -and
-            $query.Count -eq 4 -and
-            $query['client_id'] -eq $clientId -and
-            $query['brk_client_id'] -eq $brokerClientId -and
-            $query['brk_redirect_uri'] -eq $brokerRedirectUri -and
-            $query['client-request-id'] -eq $clientRequestId -and
-            $Body -is [System.Collections.IDictionary] -and
-            $Body.Count -eq 14 -and
-            $Body['client_id'] -eq $clientId -and
-            $Body['redirect_uri'] -eq 'brk-multihub://m365.cloud.microsoft' -and
-            $Body['scope'] -eq $scope -and
-            $Body['grant_type'] -eq 'refresh_token' -and
-            $Body['client_info'] -eq '1' -and
-            $Body['x-client-SKU'] -eq 'msal.js.browser' -and
-            $Body['x-client-VER'] -eq '5.6.3' -and
-            $Body['x-ms-lib-capability'] -eq 'retry-after, h429' -and
-            $Body['x-client-current-telemetry'] -eq '5|61,0,,,,|,' -and
-            $Body['x-client-last-telemetry'] -eq '5|0||||0,0' -and
-            $Body['refresh_token'] -eq 'teams-refresh-token' -and
-            $Body['X-AnchorMailbox'] -eq $anchorMailbox -and
-            $Body['brk_client_id'] -eq $brokerClientId -and
-            $Body['brk_redirect_uri'] -eq $brokerRedirectUri
-        }
-
-        Get-EntraIDTokenFromNestedAppAuth `
-            -BrokerPreset Teams `
-            -TenantId $script:FakeTenantId `
-            -RefreshToken 'teams-refresh-token' `
-            -ClientId $clientId `
-            -Scope $scope `
-            -ClientRequestId $clientRequestId `
-            -AnchorMailbox $anchorMailbox `
-            -CustomUserAgent 'Nested-Agent/Teams'
-
-        $global:response | Should -Be $script:FakeTokenResponse
-        $global:TokenDomain | Should -Be 'contoso.com'
-        $global:TokenUpn | Should -Be 'test.user@contoso.com'
-        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 1 -Exactly -Scope It
-    }
-
-    It "maps the <BrokerPreset> broker preset to the expected broker values" -ForEach $brokerPresetCases {
-        Mock -ModuleName TokenTactics Invoke-RestMethod { $script:FakeTokenResponse } -ParameterFilter {
-            $parsedUri = [Uri]$Uri
-            $query = [System.Web.HttpUtility]::ParseQueryString($parsedUri.Query)
-
-            $UseBasicParsing -and
-            "$Method" -eq 'Post' -and
-            $parsedUri.Scheme -eq 'https' -and
-            $parsedUri.Host -eq 'login.microsoftonline.com' -and
-            $parsedUri.AbsolutePath -eq "/$script:FakeTenantId/oauth2/v2.0/token" -and
-            $Headers -is [System.Collections.IDictionary] -and
-            $Headers.Count -eq 1 -and
-            $Headers['User-Agent'] -eq 'Nested-Agent/Preset' -and
-            $query['brk_client_id'] -eq $BrokerClientId -and
-            $query['brk_redirect_uri'] -eq $BrokerRedirectUri -and
-            $Body -is [System.Collections.IDictionary] -and
-            $Body.Count -eq 11 -and
-            $Body['client_id'] -eq 'nested-client-id' -and
-            $Body['redirect_uri'] -eq $RedirectUri -and
-            $Body['scope'] -eq 'api://nested/.default offline_access' -and
-            $Body['grant_type'] -eq 'refresh_token' -and
-            $Body['refresh_token'] -eq 'preset-refresh-token' -and
-            $Body['brk_client_id'] -eq $BrokerClientId -and
-            $Body['brk_redirect_uri'] -eq $BrokerRedirectUri
-        }
-
-        Get-EntraIDTokenFromNestedAppAuth `
-            -BrokerPreset $BrokerPreset `
-            -TenantId $script:FakeTenantId `
-            -RefreshToken 'preset-refresh-token' `
-            -ClientId 'nested-client-id' `
-            -Scope 'api://nested/.default offline_access' `
-            -CustomUserAgent 'Nested-Agent/Preset' `
-            -ClientRequestId '99999999-8888-7777-6666-555555555555'
-
-        $global:response | Should -Be $script:FakeTokenResponse
-        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 1 -Exactly -Scope It
-    }
-
-    It "uses `$response.refresh_token as a fallback and lets explicit broker overrides win over the preset" {
-        $global:response = [PSCustomObject]@{ refresh_token = 'fallback-refresh-token' }
-        $brokerClientId = '11111111-2222-3333-4444-555555555555'
-        $brokerRedirectUri = 'https://contoso.example/auth/callback/'
-        $clientRequestId = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-
-        Mock -ModuleName TokenTactics Invoke-RestMethod { $script:FakeTokenResponse } -ParameterFilter {
-            $parsedUri = [Uri]$Uri
-            $query = [System.Web.HttpUtility]::ParseQueryString($parsedUri.Query)
-
-            $UseBasicParsing -and
-            "$Method" -eq 'Post' -and
-            $parsedUri.Scheme -eq 'https' -and
-            $parsedUri.Host -eq 'login.microsoftonline.com' -and
-            $parsedUri.AbsolutePath -eq "/$script:FakeTenantId/oauth2/v2.0/token" -and
-            $Headers -is [System.Collections.IDictionary] -and
-            $Headers.Count -eq 1 -and
-            $Headers['User-Agent'] -eq 'Nested-Agent/2.0' -and
-            $query.Count -eq 3 -and
-            $query['brk_client_id'] -eq $brokerClientId -and
-            $query['brk_redirect_uri'] -eq $brokerRedirectUri -and
-            $query['client-request-id'] -eq $clientRequestId -and
-            $Body -is [System.Collections.IDictionary] -and
-            $Body.Count -eq 11 -and
-            $Body['client_id'] -eq 'nested-client-id' -and
-            $Body['redirect_uri'] -eq 'brk-11111111-2222-3333-4444-555555555555://contoso.example' -and
-            $Body['scope'] -eq 'api://nested/.default offline_access' -and
-            $Body['grant_type'] -eq 'refresh_token' -and
-            $Body['client_info'] -eq '1' -and
-            $Body['x-client-SKU'] -eq 'msal.js.browser' -and
-            $Body['x-client-VER'] -eq '5.13.0' -and
-            $Body['x-ms-lib-capability'] -eq 'retry-after, h429' -and
-            $Body['refresh_token'] -eq 'fallback-refresh-token' -and
-            $Body['brk_client_id'] -eq $brokerClientId -and
-            $Body['brk_redirect_uri'] -eq $brokerRedirectUri
-        }
-
-        Get-EntraIDTokenFromNestedAppAuth `
-            -BrokerPreset 'Defender' `
-            -Domain 'contoso.com' `
-            -BrokerClientId $brokerClientId `
-            -BrokerRedirectUri $brokerRedirectUri `
-            -ClientId 'nested-client-id' `
-            -Scope 'api://nested/.default offline_access' `
-            -CustomUserAgent 'Nested-Agent/2.0' `
-            -ClientRequestId $clientRequestId
-
-        $global:response | Should -Be $script:FakeTokenResponse
-        Should -Invoke -ModuleName TokenTactics Get-TenantID -Times 1 -Exactly -Scope It -ParameterFilter {
-            $domain -eq 'contoso.com'
-        }
-        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 1 -Exactly -Scope It
     }
 }
