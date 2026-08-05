@@ -2,19 +2,13 @@ BeforeAll {
     . "$PSScriptRoot/fixtures/TestData.ps1"
     Import-Module $script:ModulePath -Force
 
-    $script:OriginalOS = $env:OS
-    $env:OS = 'Windows_NT'
     $script:FakeCertificate = [PSCustomObject]@{
         Thumbprint = '0123456789ABCDEF0123456789ABCDEF01234567'
         Subject    = 'CN=EntraID-TPM-Auth'
     }
 }
 
-AfterAll {
-    $env:OS = $script:OriginalOS
-}
-
-Describe 'New-TPMCertificate' {
+Describe 'New-TPMCertificate on Windows' -Skip:(-not $IsWindows) {
     BeforeEach {
         $script:NewCertificateParameters = $null
         $script:ExportParameters = $null
@@ -85,13 +79,11 @@ Describe 'New-TPMCertificate' {
             Should -Throw '*New-SelfSignedCertificate cmdlet is unavailable*'
     }
 
+}
+
+Describe 'New-TPMCertificate on non-Windows systems' -Skip:$IsWindows {
     It 'rejects non-Windows systems' {
-        $env:OS = 'Unix'
-        try {
-            { New-TPMCertificate -Subject 'CN=EntraID-TPM-Auth' } |
-                Should -Throw '*supported only on Windows*'
-        } finally {
-            $env:OS = 'Windows_NT'
-        }
+        { New-TPMCertificate -Subject 'CN=EntraID-TPM-Auth' } |
+            Should -Throw '*supported only on Windows*'
     }
 }
