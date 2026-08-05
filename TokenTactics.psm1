@@ -42,6 +42,7 @@ $functions = @(
     "ConvertFrom-JWTtoken"
     "ConvertTo-PEMPrivateKey"
     "Get-EntraIDAuthorizationCode"
+    "Get-EntraIDTokenFromCertificate"
     "Get-EntraIDTokenFromDeviceCode"
     "Get-EntraIDTokenFromAuthorizationCode"
     "Get-EntraIDTokenFromCookie"
@@ -70,6 +71,7 @@ $functions = @(
     "Invoke-RefreshToSharePointToken"
     "Invoke-RefreshToSubstrateToken"
     "Invoke-RefreshToYammerToken"
+    "New-TPMCertificate"
 )
 
 $c = 0

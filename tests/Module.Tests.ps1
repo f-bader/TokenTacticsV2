@@ -7,6 +7,7 @@ BeforeAll {
         'ConvertFrom-JWTtoken'
         'ConvertTo-PEMPrivateKey'
         'Get-EntraIDAuthorizationCode'
+        'Get-EntraIDTokenFromCertificate'
         'Get-EntraIDTokenFromDeviceCode'
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
@@ -35,6 +36,7 @@ BeforeAll {
         'Invoke-RefreshToSharePointToken'
         'Invoke-RefreshToSubstrateToken'
         'Invoke-RefreshToYammerToken'
+        'New-TPMCertificate'
     )
 
     $script:ExpectedAliases = @{
