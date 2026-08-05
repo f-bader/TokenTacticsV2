@@ -49,6 +49,27 @@ Get-EntraIDTokenFromDeviceCode -Client MSGraph
 
 Once the user has logged in, you'll be presented with the JWT and it will be saved in the `$response` variable. To access the access token use ```$response.access_token``` from your PowerShell window to display the token. You may also display the refresh token with ```$response.refresh_token```. Hint: You'll want the refresh token to keep refreshing to new tokens!
 
+### Authenticate an application with a TPM-backed certificate
+
+> [!IMPORTANT]
+> Creating TPM-backed certificates requires Windows, a provisioned TPM, and the Microsoft Platform Crypto Provider.
+
+Create a non-exportable RSA certificate in your current user's personal store and export only its public certificate. The `.cer` file is DER encoded and can be uploaded under **App registrations > Certificates & secrets > Certificates**. Configure the application permissions required by the target resource and grant tenant admin consent before requesting a token.
+
+```powershell
+$certificate = New-TPMCertificate `
+    -Subject 'CN=EntraID-TPM-Auth' `
+    -PublicKeyPath 'C:\Temp\EntraID-TPM-Auth.cer'
+
+$token = Get-EntraIDTokenFromCertificate `
+    -TenantId 'contoso.onmicrosoft.com' `
+    -ClientId '00000000-0000-0000-0000-000000000000' `
+    -CertificateThumbprint $certificate.Thumbprint `
+    -Scope 'https://graph.microsoft.com/.default'
+```
+
+`Get-EntraIDTokenFromCertificate` returns the OAuth token response and also saves it in `$response`. `New-TPMCertificate` defaults to `Cert:\CurrentUser\My`; use `-CertStoreLocation Cert:\LocalMachine\My` for a service account when the process has the necessary permissions. The TPM private key is deliberately non-exportable; only the public `.cer` file is written to disk.
+
 #### DOD/Mil Device Code
 
 ```powershell
@@ -219,6 +240,11 @@ Only supported user-facing commands are exported; parsing, PKCE, generic refresh
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
+
+### 0.3.3 (2026-08-05)
+
+* Add `New-TPMCertificate` for creating non-exportable, Windows TPM-backed RSA certificates and optionally exporting their public DER certificate.
+* Add `Get-EntraIDTokenFromCertificate` to request Entra ID application tokens through OAuth 2.0 client credentials with an RS256 certificate assertion.
 
 ### 0.3.2 (2026-07-26)
 

@@ -3,7 +3,7 @@
     RootModule        = 'TokenTactics.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.3.2'
+    ModuleVersion     = '0.3.3'
     
     # ID used to uniquely identify this module
     GUID              = '6194f0f0-8b91-4c32-b1b1-bc46c9d7a95c'
@@ -23,6 +23,7 @@
         'ConvertFrom-JWTtoken'
         'ConvertTo-PEMPrivateKey'
         'Get-EntraIDAuthorizationCode'
+        'Get-EntraIDTokenFromCertificate'
         'Get-EntraIDTokenFromDeviceCode'
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
@@ -51,6 +52,7 @@
         'Invoke-RefreshToSharePointToken'
         'Invoke-RefreshToSubstrateToken'
         'Invoke-RefreshToYammerToken'
+        'New-TPMCertificate'
     )
 
     AliasesToExport = @(
