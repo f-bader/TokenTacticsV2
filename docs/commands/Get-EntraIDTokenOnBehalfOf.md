@@ -15,7 +15,7 @@ Get-EntraIDTokenOnBehalfOf -TenantId <string> -ClientId <string> `
 
 Get-EntraIDTokenOnBehalfOf -TenantId <string> -ClientId <string> `
   -UserAssertion <string> -Scope <string> -CertificateThumbprint <string> `
-  [-CertStoreLocation <Cert:\\CurrentUser\\My|Cert:\\LocalMachine\\My>]
+  [-CertStoreLocation <Cert:\CurrentUser\My|Cert:\LocalMachine\My>]
 
 Get-EntraIDTokenOnBehalfOf -TenantId <string> -ClientId <string> `
   -UserAssertion <string> -Scope <string> -PfxPath <string> `

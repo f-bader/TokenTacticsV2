@@ -8,8 +8,8 @@ provider discoverable by Entra ID.
 
 ## Syntax
 
-    New-EntraIDFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -PfxPath <String> [-PfxPassword <String> | -PfxPasswordSecureString <SecureString>] [-Audience <String>]
-    New-EntraIDFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -CertificateThumbprint <String> [-CertStoreLocation <String>] [-Audience <String>]
+    New-EntraIDFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -PfxPath <String> [-PfxPassword <String> | -PfxPasswordSecureString <SecureString>] [-Audience <String>] [-IncludeLocalConfig]
+    New-EntraIDFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -CertificateThumbprint <String> [-CertStoreLocation <String>] [-Audience <String>] [-IncludeLocalConfig]
 
 ## Custom issuer setup order
 
@@ -43,6 +43,7 @@ private key, or an unauthenticated signing API.
 | Subject | Yes | Workload subject that must match the Entra federated credential and assertion. |
 | OutputPath | Yes | Directory to receive public metadata and local configuration. |
 | Audience | No | Assertion audience. Defaults to api://AzureADTokenExchange. |
+| IncludeLocalConfig | No | Also write `issuer-config.json`, a local record of issuer, subject, audience, and key ID. The web host does not need it; do not publish it. |
 | CertificateThumbprint | One signing-key form | RSA certificate thumbprint from a Windows certificate store. |
 | CertStoreLocation | No | Cert:\CurrentUser\My or Cert:\LocalMachine\My; applies to thumbprint input. |
 | PfxPath | One signing-key form | Existing RSA PFX path. |
@@ -67,9 +68,9 @@ The command requires an HTTPS issuer and an RSA public key. It writes:
 - .well-known/openid-configuration: issuer, JWKS URI, `id_token` response type,
   public subject type, and RS256 discovery information.
 - keys.json: a JWKS with the RSA public key, x5c, and a stable SHA-256-derived key ID.
-- issuer-config.json: issuer, subject, audience, and key ID for local reference. Treat
-  this as local configuration and do not publish it unless its contents meet your
-  operational policy.
+- issuer-config.json (only with -IncludeLocalConfig): issuer, subject, audience, and
+  key ID for local reference. Treat this as local configuration and do not publish it
+  unless its contents meet your operational policy.
 
 It returns Issuer, Subject, Audience, KeyId, and OutputPath.
 OutputPath is normalized to an absolute path based on PowerShell's current

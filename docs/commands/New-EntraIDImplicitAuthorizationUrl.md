@@ -33,7 +33,7 @@ The command only constructs the URL. It does not open a browser, start a listene
 | `RedirectUri` | Yes | Exact registered redirect URI that receives the fragment response. |
 | `Scope` | Yes | Space-delimited delegated scopes, for example `https://graph.microsoft.com/User.Read`. |
 | `State` | No | Caller-provided correlation/CSRF value. If omitted, the command generates a random GUID without dashes. Preserve the returned value and pass it to `ConvertFrom-EntraIDImplicitRedirect`. |
-| `IncludeIdToken` | No | Requests both an access token and ID token (`response_type=token id_token`). The command ensures `openid` is included and adds a random nonce. |
+| `IncludeIdToken` | No | Requests both an access token and ID token (`response_type=token id_token`). The command ensures `openid` is included, always adds a random nonce, and returns it as `Nonce`. |
 
 ## Examples
 
@@ -69,8 +69,9 @@ The returned object contains:
 | --- | --- |
 | `AuthorizationUrl` | URL to the v2 authorization endpoint. It contains URL-encoded `client_id`, `redirect_uri`, `scope`, `state`, `response_mode=fragment`, and response type. |
 | `State` | The supplied or generated state value. |
+| `Nonce` | The generated nonce when `IncludeIdToken` was used; otherwise null. Validate the returned ID token's `nonce` claim against it. |
 
-Normal requests use `response_type=token`. With `IncludeIdToken`, the response type is `token id_token`, `openid` is appended to the scopes when necessary, and a random `nonce` is included. After authentication, Entra redirects to the registered URI with the result after `#`; browsers do not send that fragment to a server automatically. Pass the complete final browser URL to `ConvertFrom-EntraIDImplicitRedirect`.
+Normal requests use `response_type=token`. With `IncludeIdToken`, the response type is `token id_token`, `openid` is appended to the scopes when necessary, and a random `nonce` is always included and returned in the `Nonce` property. After authentication, Entra redirects to the registered URI with the result after `#`; browsers do not send that fragment to a server automatically. Pass the complete final browser URL to `ConvertFrom-EntraIDImplicitRedirect`.
 
 ## Errors and troubleshooting
 

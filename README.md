@@ -231,127 +231,21 @@ flows before using this flow.
 
 #### Custom federated credential provider
 
-This workflow makes a local certificate the signer for a custom external OIDC issuer.
-Only public discovery metadata and JWKS are hosted. The PFX/private key and
+This workflow makes a local certificate the signer for a custom external OIDC
+issuer. Only public discovery metadata and JWKS are hosted; the PFX/private key and
 New-EntraIDFederatedClientAssertion remain on the assertion-issuing machine.
+Hosting options are a Cloudflare named tunnel in front of the checked-in loopback
+static host (infra/Start-TTFederatedIssuerStaticHost.ps1) or an Azure Storage
+static website (infra/oidc-static-website.bicep).
 
-Set all reusable values first. These are syntactically usable examples; replace
-tenant, subscription, application, and hostname values with your environment.
+    $certificate = New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPasswordSecureString $password -PublicCertificatePath $publicCertificatePath
+    $metadata = New-EntraIDFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password
+    $assertion = New-EntraIDFederatedClientAssertion -Issuer $issuer -Subject $subject -PfxPath $pfxPath -PfxPasswordSecureString $password
+    $token = Get-EntraIDTokenFromFederatedCredential -TenantId $tenantId -ClientId $clientId -FederatedToken $assertion -Scope $scope
 
-    $subscriptionId        = '00000000-0000-0000-0000-000000000000'
-    $tenantId              = 'contoso.onmicrosoft.com'
-    $clientId              = '11111111-1111-1111-1111-111111111111'
-    $appObjectId           = '22222222-2222-2222-2222-222222222222'
-    $credentialName        = 'custom-oidc-workload'
-    $resourceGroupName     = 'rg-tokentactics-oidc'
-    $location              = 'westeurope'
-    $storageAccountName    = 'ttoidcissuer12345'
-    $deploymentName        = 'oidc-static-website'
-    $issuerHost            = 'oidc.example.com'
-    $issuer                = "https://$issuerHost"
-    $cloudflareTunnelName  = 'tokentactics-oidc'
-    $port                  = 8080
-    $metadataPath          = './oidc-public'
-    $pfxPath               = './issuer-signing.pfx'
-    $publicCertificatePath = './issuer-signing.cer'
-    $subject               = 'build-workload'
-    $audience              = 'api://AzureADTokenExchange'
-    $scope                 = 'https://graph.microsoft.com/.default'
-
-The Azure Storage branch overwrites `$issuer` with the deployment output. Keep
-passwords out of this block.
-
-Use Azure CLI, or `Az.Accounts`/`Az.Resources`/`Az.Storage` for the Az PowerShell
-branch. The Cloudflare branch additionally requires `cloudflared`.
-
-1. Choose one hosting option and finalize `$issuer`.
-
-   For Cloudflare, create the named tunnel once and route `$issuerHost` to
-   `http://127.0.0.1:$port`. Start the host and tunnel only after metadata exists:
-
-        cloudflared tunnel create $cloudflareTunnelName
-        cloudflared tunnel route dns $cloudflareTunnelName $issuerHost
-
-   For Azure Storage, deploy the template first:
-
-        az login
-        az account set --subscription $subscriptionId
-        az group create --name $resourceGroupName --location $location
-        $issuer = az deployment group create --name $deploymentName --resource-group $resourceGroupName --template-file ./infra/oidc-static-website.bicep --parameters storageAccountName=$storageAccountName --query properties.outputs.staticWebsiteUrl.value -o tsv
-        $issuer = $issuer.TrimEnd('/')
-
-   Or use Az PowerShell:
-
-        Connect-AzAccount
-        Set-AzContext -Subscription $subscriptionId
-        New-AzResourceGroup -Name $resourceGroupName -Location $location
-        $deployment = New-AzResourceGroupDeployment -Name $deploymentName -ResourceGroupName $resourceGroupName -TemplateFile ./infra/oidc-static-website.bicep -storageAccountName $storageAccountName
-        $issuer = ([string]$deployment.Outputs.staticWebsiteUrl.Value).TrimEnd('/')
-
-   If Azure reports `InvalidRequestParameters` for
-   `properties.staticWebsiteEnabled`, use the checked-in template and its
-   `Microsoft.Storage/storageAccounts/blobServices@2025-08-01` API; do not add a
-   `staticWebsiteEnabled` property manually.
-
-2. Create the signing certificate after `$issuer` is final:
-
-        $password = Read-Host 'PFX password' -AsSecureString
-        $certificate = New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPasswordSecureString $password -PublicCertificatePath $publicCertificatePath
-
-3. Generate metadata:
-
-        $metadata = New-EntraIDFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Audience $audience
-        $metadata.GeneratedFiles
-
-   This creates `.well-known/openid-configuration`, `keys.json`, and local
-   `issuer-config.json`. The `.well-known` directory is hidden; use
-   `Get-ChildItem -Force -Recurse` when checking it.
-
-4. Publish only the discovery document and JWKS. For Cloudflare, run these in
-   separate terminals:
-
-        ./sampleFlows/Start-TTFederatedIssuerStaticHost.ps1 -Path $metadataPath -Port $port
-        cloudflared tunnel run $cloudflareTunnelName
-
-   For Azure Storage, upload with either Az PowerShell or Azure CLI, excluding
-   `issuer-config.json`:
-
-        $storage = Get-AzStorageAccount -ResourceGroupName $resourceGroupName -Name $storageAccountName
-        $root = (Resolve-Path $metadataPath).Path
-        Get-ChildItem -LiteralPath $root -File -Recurse -Force | Where-Object Name -ne 'issuer-config.json' | ForEach-Object {
-            $blob = $_.FullName.Substring($root.Length).TrimStart('\', '/') -replace '\\', '/'
-            $contentType = if ($_.Extension -eq '.json') { 'application/json' } else { 'application/octet-stream' }
-            Set-AzStorageBlobContent -File $_.FullName -Container '$web' -Blob $blob -Context $storage.Context -Properties @{ ContentType = $contentType } -Force | Out-Null
-        }
-
-        az storage blob upload --account-name $storageAccountName --container-name '$web' --name 'keys.json' --file "$metadataPath/keys.json" --content-type application/json --auth-mode login --overwrite true
-        az storage blob upload --account-name $storageAccountName --container-name '$web' --name '.well-known/openid-configuration' --file "$metadataPath/.well-known/openid-configuration" --content-type application/json --auth-mode login --overwrite true
-
-5. Verify publication before configuring Entra:
-
-        $discoveryUrl = "$issuer/.well-known/openid-configuration"
-        $jwksUrl = "$issuer/keys.json"
-        $discovery = Invoke-RestMethod -Method Get -Uri $discoveryUrl
-        $jwks = Invoke-RestMethod -Method Get -Uri $jwksUrl
-        if ($discovery.issuer -ne $issuer) { throw "Discovery issuer '$($discovery.issuer)' does not match '$issuer'." }
-        if ($discovery.jwks_uri -ne $jwksUrl) { throw "Discovery JWKS URI '$($discovery.jwks_uri)' does not match '$jwksUrl'." }
-
-6. Configure the app registration's Other issuer federated credential with
-   `$issuer`, `$subject`, and `$audience`, then grant required permissions and
-   consent. With Az PowerShell:
-
-        New-AzADAppFederatedCredential -ApplicationObjectId $appObjectId -Audience $audience -Issuer $issuer -Name $credentialName -Subject $subject
-
-7. Sign and exchange:
-
-        $assertion = New-EntraIDFederatedClientAssertion -Issuer $issuer -Subject $subject -Audience $audience -PfxPath $pfxPath -PfxPasswordSecureString $password
-        $token = Get-EntraIDTokenFromFederatedCredential -TenantId $tenantId -ClientId $clientId -FederatedToken $assertion -Scope $scope
-        $token
-
-8. For rotation, publish the new public key before signing with it. Keep old and
-   new JWK entries during the overlap period, then remove the old key after callers
-   migrate. The metadata cmdlet emits one key per certificate, so an overlap
-   requires explicitly merging the old and new JWKS entries.
+The full step-by-step guide with hosting, publishing, verification, Entra
+configuration, and key rotation is in
+[docs/use-cases/custom-oidc-provider.md](./docs/use-cases/custom-oidc-provider.md).
 
 ### Connect to AzureAD using access token
 

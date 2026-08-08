@@ -18,8 +18,8 @@ certificate. The user assertion proves the delegated user context.
 3. Add downstream delegated permissions to the middle-tier app.
 4. Grant consent for the downstream permissions.
 5. Create a client secret or upload the middle-tier public certificate.
-6. Ensure the incoming access token has aud equal to the middle-tier client ID or
-   accepted application ID URI.
+6. Ensure the incoming access token has aud equal to the middle-tier client ID. The
+   command's local audience guard requires exactly that value.
 
 ## Secret-backed exchange
 

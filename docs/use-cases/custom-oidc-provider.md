@@ -128,22 +128,20 @@ Generate metadata using the exact issuer selected in step 1:
     $metadata = New-EntraIDFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Audience $audience
     $metadata.GeneratedFiles
 
-The command creates:
+The command creates the two public OIDC endpoint files:
 
 - `$metadataPath/.well-known/openid-configuration`
 - `$metadataPath/keys.json`
-- `$metadataPath/issuer-config.json`
 
-The first two files are the public OIDC endpoints. Keep `issuer-config.json` local;
-it is only a convenience record of the issuer, subject, audience, and key ID. The
-`.well-known` directory is hidden in normal PowerShell listings, so use
-`Get-ChildItem -Force -Recurse` or the returned `GeneratedFiles` property when
-checking the result.
+With `-IncludeLocalConfig` it also writes `$metadataPath/issuer-config.json`, a
+local convenience record of the issuer, subject, audience, and key ID that the web
+host does not need. Keep it local if you create it. The `.well-known` directory is
+hidden in normal PowerShell listings, so use `Get-ChildItem -Force -Recurse` or the
+returned `GeneratedFiles` property when checking the result.
 
 ## 4. Publish the public metadata
 
-Publish only the discovery document and JWKS. Do not publish the PFX or
-`issuer-config.json`.
+Publish only the discovery document and JWKS. Never publish the PFX.
 
 ### Cloudflare named tunnel
 
