@@ -13,6 +13,4 @@ registration, credential choice, command sequence, verification, and failure cas
 - [Support an existing implicit-flow browser application](./use-cases/implicit-browser-compatibility.md)
 - [Use a certificate-backed application identity](./use-cases/certificate-application-identity.md)
 
-The [cmdlet reference](./commands/README.md) documents individual parameters and
-the [validation plan](./TESTING-OAUTH-WORKLOAD-FLOWS.md) provides the complete
-test-tenant and negative-test procedure.
+The [cmdlet reference](./commands/README.md) documents individual parameters.

@@ -13,6 +13,3 @@ for callers who already know which credential and flow they need.
 - [New-TTFederatedSigningCertificate](./New-TTFederatedSigningCertificate.md)
 - [New-TTFederatedIssuerMetadata](./New-TTFederatedIssuerMetadata.md)
 - [New-TTFederatedClientAssertion](./New-TTFederatedClientAssertion.md)
-
-Use the OAuth and Workload Flow Validation Plan in the parent docs directory for
-end-to-end tenant and platform validation.

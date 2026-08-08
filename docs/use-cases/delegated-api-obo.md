@@ -43,5 +43,4 @@ Scope. Never forward the middle-tier token to the downstream API.
 - Remove downstream consent; Entra should return a permission or consent error.
 - Use a certificate not registered on the middle-tier app; Entra must reject it.
 
-See the [OBO reference](../commands/Get-EntraIDTokenOnBehalfOf.md) and the
-[validation plan](../TESTING-OAUTH-WORKLOAD-FLOWS.md).
+See the [OBO reference](../commands/Get-EntraIDTokenOnBehalfOf.md).

@@ -14,9 +14,7 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 
 Scenario-based OAuth and workload guides are in
 [docs](./docs/README.md); the individual command reference is in
-[docs/commands](./docs/commands/README.md). Use the
-[OAuth and Workload Flow Validation Plan](./docs/TESTING-OAUTH-WORKLOAD-FLOWS.md)
-when validating against a test tenant.
+[docs/commands](./docs/commands/README.md).
 
 Azure access tokens allow you to authenticate to certain endpoints as a user who signs in with a device code. If you are in possesion of a [FOCI (Family of Client IDs)](https://github.com/secureworks/family-of-client-ids-research) capable refresh token you can use it to get access tokens to all known [FOCI capable endpoints](https://github.com/secureworks/family-of-client-ids-research/blob/main/known-foci-clients.csv). Since the refresh-token also contains the information if the user has done multi-factor authentication you can use this. Once you have a user's access token, it may be possible to access certain apps such as Outlook, SharePoint, OneDrive, MSTeams and more.
 
