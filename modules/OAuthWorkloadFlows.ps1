@@ -77,7 +77,12 @@ function Invoke-TTTokenEndpoint {
         $global:response
     } catch {
         # Do not include the request body here: it can contain client credentials.
-        throw "Entra token request failed: $($_.Exception.Message)"
+        # The service response body carries the Entra error code and description and
+        # never contains the submitted credentials, so surface it for troubleshooting.
+        $message = "Entra token request failed: $($_.Exception.Message)"
+        $detail = $_.ErrorDetails.Message
+        if (-not [string]::IsNullOrWhiteSpace($detail)) { $message += " Response: $detail" }
+        throw $message
     }
 }
 
@@ -91,6 +96,8 @@ function Get-TTOpenSslPfxMaterial {
     $certificateDer = Join-Path $temporaryDirectory 'certificate.der'
     $privateKey = Join-Path $temporaryDirectory 'key.pem'
     [IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null
+    # The extracted private key is unencrypted; keep the directory owner-only.
+    if ($env:OS -ne 'Windows_NT') { & chmod 700 $temporaryDirectory | Out-Null }
     $previousPassword = $env:TT_OAUTH_PFX_PASSWORD
     $env:TT_OAUTH_PFX_PASSWORD = $Password
     try {
@@ -160,7 +167,17 @@ function Get-TTCertificate {
 
 function Assert-TTCertificate {
     param([Parameter(Mandatory = $true)]$Certificate)
-    if ($Certificate.PSObject.Properties['TTOpenSslMaterial'] -and $Certificate.TTOpenSslMaterial) { return }
+    if ($Certificate.PSObject.Properties['TTOpenSslMaterial'] -and $Certificate.TTOpenSslMaterial) {
+        if (-not (Test-Path -LiteralPath $Certificate.PrivateKeyPath -PathType Leaf)) { throw 'The extracted private key is not accessible.' }
+        $publicCertificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($Certificate.RawData)
+        try {
+            $now = [DateTimeOffset]::UtcNow
+            if ($publicCertificate.NotBefore.ToUniversalTime() -gt $now.UtcDateTime -or $publicCertificate.NotAfter.ToUniversalTime() -lt $now.UtcDateTime) {
+                throw 'The selected certificate is not currently valid.'
+            }
+        } finally { $publicCertificate.Dispose() }
+        return
+    }
     if (-not $Certificate.HasPrivateKey) { throw 'The selected certificate does not have an accessible private key.' }
     $now = [DateTimeOffset]::UtcNow
     if ($Certificate.NotBefore.ToUniversalTime() -gt $now.UtcDateTime -or $Certificate.NotAfter.ToUniversalTime() -lt $now.UtcDateTime) {
@@ -369,6 +386,9 @@ function Get-EntraIDTokenFromAzureArcManagedIdentity {
     Write-Verbose ("Azure Arc initial response received: status={0}" -f $statusCode)
     if ($statusCode -ge 200 -and $statusCode -lt 300) {
         $identityResponse = ConvertFrom-TTHttpJsonResponse -Response $initialResponse
+        if ($null -eq $identityResponse -or [string]::IsNullOrWhiteSpace([string]$identityResponse.access_token)) {
+            throw 'Azure Arc managed identity endpoint did not return an access token.'
+        }
         Write-Verbose ("Azure Arc identity response received: {0}" -f (Get-TTResponseSummary -Response $identityResponse))
         return $identityResponse
     }
@@ -398,6 +418,9 @@ function Get-EntraIDTokenFromAzureArcManagedIdentity {
             throw "Azure Arc managed identity challenge retry failed: HTTP $retryStatusCode."
         }
         $identityResponse = ConvertFrom-TTHttpJsonResponse -Response $retryResponse
+        if ($null -eq $identityResponse -or [string]::IsNullOrWhiteSpace([string]$identityResponse.access_token)) {
+            throw 'Azure Arc managed identity endpoint did not return an access token.'
+        }
         Write-Verbose ("Azure Arc identity response received: {0}" -f (Get-TTResponseSummary -Response $identityResponse))
         return $identityResponse
     } finally {
@@ -424,14 +447,21 @@ function New-EntraIDImplicitAuthorizationUrl {
     $maskedState = Get-TTMaskedValue -Value $State
     Write-Verbose ("Building implicit authorization request: tenant={0}; client_id={1}; redirect_uri={2}; scope={3}; response_type={4}; state_source={5}; state={6}" -f $TenantId, $ClientId, $RedirectUri, $Scope, $responseType, $stateSource, $maskedState)
     $parts = [ordered]@{ client_id = $ClientId; response_type = $responseType; redirect_uri = $RedirectUri; response_mode = 'fragment'; scope = $Scope; state = $State }
-    if ($IncludeIdToken -and $Scope -notmatch '(^|\s)openid(\s|$)') {
-        $parts.scope = "$Scope openid"
-        $parts.nonce = [guid]::NewGuid().ToString('N')
-        Write-Verbose 'Added openid scope and generated a nonce because IncludeIdToken was requested.'
+    $nonce = $null
+    if ($IncludeIdToken) {
+        # Entra requires a nonce whenever the response type includes id_token,
+        # even if the caller already included the openid scope.
+        if ($Scope -notmatch '(^|\s)openid(\s|$)') {
+            $parts.scope = "$Scope openid"
+            Write-Verbose 'Added openid scope because IncludeIdToken was requested.'
+        }
+        $nonce = [guid]::NewGuid().ToString('N')
+        $parts.nonce = $nonce
+        Write-Verbose ("Generated a nonce for the ID token request: value={0}" -f (Get-TTMaskedValue -Value $nonce))
     }
     $query = @($parts.GetEnumerator() | ForEach-Object { "$($_.Key)=$([Uri]::EscapeDataString([string]$_.Value))" }) -join '&'
     Write-Verbose ("Implicit authorization URL built: authority=login.microsoftonline.com; path=/oauth2/v2.0/authorize; query_parameters={0}; state={1}" -f (($parts.Keys -join ',') , (Get-TTMaskedValue -Value $State)))
-    [pscustomobject]@{ AuthorizationUrl = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/authorize?$query"; State = $State }
+    [pscustomobject]@{ AuthorizationUrl = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/authorize?$query"; State = $State; Nonce = $nonce }
 }
 
 function ConvertFrom-EntraIDImplicitRedirect {
@@ -488,6 +518,7 @@ function New-TTFederatedSigningCertificate {
             $request.CertificateExtensions.Add([System.Security.Cryptography.X509Certificates.X509KeyUsageExtension]::new([System.Security.Cryptography.X509Certificates.X509KeyUsageFlags]::DigitalSignature, $false))
             $certificate = $request.CreateSelfSigned([DateTimeOffset]::UtcNow.AddMinutes(-5), [DateTimeOffset]$NotAfter)
             [IO.File]::WriteAllBytes($PfxPath, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, $password))
+            if ($env:OS -ne 'Windows_NT') { & chmod 600 $PfxPath | Out-Null }
             if ($PublicCertificatePath) { [IO.File]::WriteAllBytes($PublicCertificatePath, $certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert)) }
         } catch {
             # Some macOS/Linux crypto providers cannot create self-signed certificates
@@ -500,7 +531,8 @@ function New-TTFederatedSigningCertificate {
             $temporaryKey = Join-Path $temporaryDirectory 'key.pem'
             $temporaryCertificate = Join-Path $temporaryDirectory 'certificate.pem'
             [IO.Directory]::CreateDirectory($temporaryDirectory) | Out-Null
-            $opensslSubject = '/' + ($Subject -replace ',', '/' -replace '^CN=', 'CN=')
+            if ($env:OS -ne 'Windows_NT') { & chmod 700 $temporaryDirectory | Out-Null }
+            $opensslSubject = '/' + (($Subject -split ',' | ForEach-Object { $_.Trim() } | Where-Object { $_ }) -join '/')
             $days = [Math]::Max(1, [Math]::Ceiling(($NotAfter.ToUniversalTime() - [DateTime]::UtcNow).TotalDays))
             $previousPassword = $env:TT_OAUTH_PFX_PASSWORD
             $env:TT_OAUTH_PFX_PASSWORD = $password
@@ -509,6 +541,7 @@ function New-TTFederatedSigningCertificate {
                 if ($LASTEXITCODE -ne 0) { throw 'OpenSSL failed to create the signing certificate.' }
                 & $openssl.Source pkcs12 -export -out $PfxPath -inkey $temporaryKey -in $temporaryCertificate -passout env:TT_OAUTH_PFX_PASSWORD 2>&1 | Out-Null
                 if ($LASTEXITCODE -ne 0) { throw 'OpenSSL failed to create the PFX.' }
+                if ($env:OS -ne 'Windows_NT') { & chmod 600 $PfxPath | Out-Null }
                 if ($PublicCertificatePath) {
                     & $openssl.Source x509 -in $temporaryCertificate -out $PublicCertificatePath -outform DER 2>&1 | Out-Null
                     if ($LASTEXITCODE -ne 0) { throw 'OpenSSL failed to export the public certificate.' }
@@ -550,9 +583,10 @@ function New-TTFederatedIssuerMetadata {
         [Parameter(Mandatory = $true, ParameterSetName = 'PfxSecureString')]
         [string]$PfxPath,
         [Parameter(ParameterSetName = 'PfxPlaintext')][string]$PfxPassword,
-        [Parameter(Mandatory = $true, ParameterSetName = 'PfxSecureString')][securestring]$PfxPasswordSecureString
+        [Parameter(Mandatory = $true, ParameterSetName = 'PfxSecureString')][securestring]$PfxPasswordSecureString,
+        [switch]$IncludeLocalConfig
     )
-    Write-Verbose ("Generating federated issuer metadata: issuer={0}; subject={1}; audience={2}; output_path={3}; certificate_input={4}" -f $Issuer.AbsoluteUri, $Subject, $Audience, $OutputPath, $PSCmdlet.ParameterSetName)
+    Write-Verbose ("Generating federated issuer metadata: issuer={0}; subject={1}; audience={2}; output_path={3}; certificate_input={4}; local_config={5}" -f $Issuer.AbsoluteUri, $Subject, $Audience, $OutputPath, $PSCmdlet.ParameterSetName, $IncludeLocalConfig.IsPresent)
     if ($Issuer.Scheme -ne 'https') { throw 'Issuer must be an HTTPS URL.' }
     if ([string]::IsNullOrWhiteSpace($OutputPath)) { throw 'OutputPath must not be empty.' }
     # Resolve through PowerShell's provider path so a relative path follows the
@@ -589,11 +623,19 @@ function New-TTFederatedIssuerMetadata {
             [IO.Directory]::CreateDirectory($wellKnown) | Out-Null
             $discoveryPath = Join-Path $wellKnown 'openid-configuration'
             $jwksPath = Join-Path $outputDirectory 'keys.json'
-            $configurationPath = Join-Path $outputDirectory 'issuer-config.json'
-            [IO.File]::WriteAllText($discoveryPath, ($discovery | ConvertTo-Json -Depth 5), [Text.Encoding]::UTF8)
-            [IO.File]::WriteAllText($jwksPath, (@{ keys = @($jwk) } | ConvertTo-Json -Depth 8), [Text.Encoding]::UTF8)
-            [IO.File]::WriteAllText($configurationPath, ([ordered]@{ issuer = $issuerText; subject = $Subject; audience = $Audience; kid = $kid } | ConvertTo-Json), [Text.Encoding]::UTF8)
-            Write-Verbose ("Generated issuer metadata files: discovery={0}; jwks={1}; configuration={2}" -f $discoveryPath, $jwksPath, $configurationPath)
+            $utf8NoBom = [Text.UTF8Encoding]::new($false)
+            [IO.File]::WriteAllText($discoveryPath, ($discovery | ConvertTo-Json -Depth 5), $utf8NoBom)
+            [IO.File]::WriteAllText($jwksPath, (@{ keys = @($jwk) } | ConvertTo-Json -Depth 8), $utf8NoBom)
+            # issuer-config.json is a local convenience record that the web host does
+            # not need, so it is only written when explicitly requested.
+            $configurationPath = $null
+            if ($IncludeLocalConfig) {
+                $configurationPath = Join-Path $outputDirectory 'issuer-config.json'
+                [IO.File]::WriteAllText($configurationPath, ([ordered]@{ issuer = $issuerText; subject = $Subject; audience = $Audience; kid = $kid } | ConvertTo-Json), $utf8NoBom)
+            }
+            $generatedFiles = @($discoveryPath, $jwksPath)
+            if ($configurationPath) { $generatedFiles += $configurationPath }
+            Write-Verbose ("Generated issuer metadata files: {0}" -f ($generatedFiles -join '; '))
             [pscustomobject]@{
                 Issuer = $issuerText
                 Subject = $Subject
@@ -603,7 +645,7 @@ function New-TTFederatedIssuerMetadata {
                 DiscoveryPath = $discoveryPath
                 JwksPath = $jwksPath
                 ConfigurationPath = $configurationPath
-                GeneratedFiles = @($discoveryPath, $jwksPath, $configurationPath)
+                GeneratedFiles = $generatedFiles
             }
         } finally { $rsa.Dispose() }
     } finally {

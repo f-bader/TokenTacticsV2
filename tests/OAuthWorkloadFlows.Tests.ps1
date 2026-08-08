@@ -158,6 +158,111 @@ Describe 'OAuth workload flows' {
         } | Should -Throw '*state value did not match*'
     }
 
+    It 'rejects an implicit redirect without a fragment' {
+        {
+            ConvertFrom-EntraIDImplicitRedirect -RedirectUrl 'https://app.example/callback' -ExpectedState expected
+        } | Should -Throw '*does not contain an implicit-flow response fragment*'
+    }
+
+    It 'always emits and returns a nonce when an ID token is requested' {
+        $request = New-EntraIDImplicitAuthorizationUrl -TenantId organizations -ClientId client-id -RedirectUri 'https://app.example/callback' -Scope 'openid https://graph.microsoft.com/User.Read' -IncludeIdToken
+
+        $request.Nonce | Should -Not -BeNullOrEmpty
+        $request.AuthorizationUrl | Should -Match ([regex]::Escape("nonce=$($request.Nonce)"))
+        $request.AuthorizationUrl | Should -Not -Match 'openid%20openid'
+    }
+
+    It 'rejects a client-credentials scope that is not a single /.default resource' {
+        {
+            Get-EntraIDTokenFromClientSecret -TenantId contoso -ClientId client-id -ClientSecret plaintext -Scope 'https://graph.microsoft.com/User.Read'
+        } | Should -Throw '*Scope must contain exactly one resource*'
+        {
+            Get-EntraIDTokenFromClientSecret -TenantId contoso -ClientId client-id -ClientSecret plaintext -Scope 'https://graph.microsoft.com/.default https://management.azure.com/.default'
+        } | Should -Throw '*Scope must contain exactly one resource*'
+    }
+
+    It 'rejects an on-behalf-of assertion issued to a different audience' {
+        $encode = {
+            param([string]$Value)
+            [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes($Value)).TrimEnd('=').Replace('+', '-').Replace('/', '_')
+        }
+        $assertion = "$(& $encode '{"alg":"none"}').$(& $encode '{"aud":"someone-else"}').signature"
+
+        {
+            Get-EntraIDTokenOnBehalfOf -TenantId contoso -ClientId middle-tier -ClientSecret plaintext -UserAssertion $assertion -Scope 'https://graph.microsoft.com/User.Read'
+        } | Should -Throw '*UserAssertion must be an access token issued to*'
+    }
+
+    It 'rejects a missing federated token file' {
+        {
+            Get-EntraIDTokenFromFederatedCredential -TenantId contoso -ClientId client-id -FederatedTokenPath (Join-Path $TestDrive 'missing.jwt')
+        } | Should -Throw '*was not found*'
+    }
+
+    It 'surfaces the Entra error details when a token request fails' {
+        Mock -ModuleName TokenTactics Invoke-RestMethod {
+            $errorRecord = [System.Management.Automation.ErrorRecord]::new(
+                [Exception]::new('Response status code does not indicate success: 400 (Bad Request).'),
+                'TokenRequestFailed', 'NotSpecified', $null
+            )
+            $errorRecord.ErrorDetails = [System.Management.Automation.ErrorDetails]::new('{"error":"invalid_client","error_description":"AADSTS7000215: Invalid client secret is provided."}')
+            throw $errorRecord
+        }
+
+        {
+            Get-EntraIDTokenFromClientSecret -TenantId contoso -ClientId client-id -ClientSecret plaintext
+        } | Should -Throw '*AADSTS7000215*'
+    }
+
+    It 'requires the GitHub Actions OIDC environment variables' {
+        $previousUrl = $env:ACTIONS_ID_TOKEN_REQUEST_URL
+        $previousToken = $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN
+        $env:ACTIONS_ID_TOKEN_REQUEST_URL = $null
+        $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN = $null
+        try {
+            { Get-EntraIDTokenFromGitHubActions -TenantId contoso -ClientId client-id } | Should -Throw '*environment variables are unavailable*'
+        } finally {
+            $env:ACTIONS_ID_TOKEN_REQUEST_URL = $previousUrl
+            $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN = $previousToken
+        }
+    }
+
+    It 'rejects a non-loopback Azure Arc identity endpoint' {
+        $previousEndpoint = $env:IDENTITY_ENDPOINT
+        $env:IDENTITY_ENDPOINT = 'http://169.254.169.254/metadata/identity/oauth2/token'
+        try {
+            { Get-EntraIDTokenFromAzureArcManagedIdentity } | Should -Throw '*loopback*'
+        } finally {
+            $env:IDENTITY_ENDPOINT = $previousEndpoint
+        }
+    }
+
+    It 'fails the Azure Arc flow on a non-challenge error status' {
+        $previousEndpoint = $env:IDENTITY_ENDPOINT
+        $env:IDENTITY_ENDPOINT = 'http://127.0.0.1:40342/metadata/identity/oauth2/token'
+        try {
+            Mock -ModuleName TokenTactics Invoke-WebRequest {
+                [pscustomobject]@{ StatusCode = 500; Headers = @{}; Content = 'server error' }
+            }
+            { Get-EntraIDTokenFromAzureArcManagedIdentity } | Should -Throw '*HTTP 500*'
+        } finally {
+            $env:IDENTITY_ENDPOINT = $previousEndpoint
+        }
+    }
+
+    It 'fails the Azure Arc flow when the response contains no access token' {
+        $previousEndpoint = $env:IDENTITY_ENDPOINT
+        $env:IDENTITY_ENDPOINT = 'http://127.0.0.1:40342/metadata/identity/oauth2/token'
+        try {
+            Mock -ModuleName TokenTactics Invoke-WebRequest {
+                [pscustomobject]@{ StatusCode = 200; Headers = @{}; Content = 'not-a-json-token-response' }
+            }
+            { Get-EntraIDTokenFromAzureArcManagedIdentity } | Should -Throw '*did not return an access token*'
+        } finally {
+            $env:IDENTITY_ENDPOINT = $previousEndpoint
+        }
+    }
+
     It 'generates public issuer metadata and a signed custom assertion from a PFX' {
         if (-not $IsWindows -and -not (Get-Command openssl -ErrorAction SilentlyContinue)) {
             Set-ItResult -Skipped -Because 'Cross-platform PFX generation requires OpenSSL.'
@@ -178,7 +283,7 @@ Describe 'OAuth workload flows' {
             $certificateVerboseText = ($certificateVerbose | ForEach-Object Message) -join [Environment]::NewLine
             $certificateVerboseText | Should -Match 'Federated signing certificate created'
             $certificateVerboseText | Should -Not -Match 'test-password'
-            $metadata = New-TTFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $outputPath -PfxPath $pfxPath -PfxPassword 'test-password'
+            $metadata = New-TTFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $outputPath -PfxPath $pfxPath -PfxPassword 'test-password' -IncludeLocalConfig
             $assertion = New-TTFederatedClientAssertion -Issuer 'https://issuer.example.test' -Subject workload -PfxPath $pfxPath -PfxPassword 'test-password'
 
             Test-Path (Join-Path $outputPath '.well-known/openid-configuration') | Should -BeTrue
@@ -192,6 +297,14 @@ Describe 'OAuth workload flows' {
             $keys = Get-Content (Join-Path $outputPath 'keys.json') -Raw | ConvertFrom-Json
             $keys.keys.Count | Should -Be 1
             (ConvertFrom-JWTtoken -Token $assertion).iss | Should -Be 'https://issuer.example.test'
+
+            # The local issuer configuration is opt-in; the web host only needs the
+            # discovery document and the JWKS.
+            $publicOnlyPath = './oidc-public-only'
+            $publicOnly = New-TTFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $publicOnlyPath -PfxPath $pfxPath -PfxPassword 'test-password'
+            $publicOnly.GeneratedFiles.Count | Should -Be 2
+            $publicOnly.ConfigurationPath | Should -BeNullOrEmpty
+            Test-Path (Join-Path $publicOnlyPath 'issuer-config.json') | Should -BeFalse
         } finally {
             Pop-Location
             [Environment]::CurrentDirectory = $originalProcessLocation
