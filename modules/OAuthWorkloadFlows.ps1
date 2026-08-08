@@ -194,7 +194,10 @@ function New-TTRsaJwt {
     Assert-TTCertificate -Certificate $Certificate
     $sha256 = [System.Security.Cryptography.SHA256]::Create()
     try { $kid = ConvertTo-Base64Url -Bytes ($sha256.ComputeHash($Certificate.RawData)) } finally { $sha256.Dispose() }
-    $header = [ordered]@{ alg = $Algorithm; typ = 'JWT'; 'x5t#S256' = $kid }
+    # Emit the RFC 7515 key id so relying parties can select the key from the JWKS
+    # (and so key rollover with multiple published keys keeps working). It matches
+    # the JWK 'kid'; x5t#S256 is retained for Entra certificate credentials.
+    $header = [ordered]@{ alg = $Algorithm; typ = 'JWT'; kid = $kid; 'x5t#S256' = $kid }
     $headerBytes = [Text.Encoding]::UTF8.GetBytes(($header | ConvertTo-Json -Compress))
     $payloadBytes = [Text.Encoding]::UTF8.GetBytes(($Payload | ConvertTo-Json -Compress))
     $unsigned = "$(ConvertTo-Base64Url -Bytes $headerBytes).$(ConvertTo-Base64Url -Bytes $payloadBytes)"

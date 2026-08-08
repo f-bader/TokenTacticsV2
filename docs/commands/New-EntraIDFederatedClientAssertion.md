@@ -61,7 +61,7 @@ New-EntraIDFederatedClientAssertion `
 
 ## Behavior and output
 
-Returns a compact JWT string, signed with RS256. The header contains `alg`, `typ`, and an `x5t#S256` key ID derived from the signing certificate. The payload has `iss`, `sub`, `aud`, `iat`, `nbf`, `exp`, and a unique `jti`; `exp` is limited to 1–10 minutes after issuance. Each invocation uses a fresh `jti`.
+Returns a compact JWT string, signed with RS256. The header contains `alg`, `typ`, a `kid` key ID matching the published JWKS, and the same value as `x5t#S256` (derived from the signing certificate). The payload has `iss`, `sub`, `aud`, `iat`, `nbf`, `exp`, and a unique `jti`; `exp` is limited to 1–10 minutes after issuance. Each invocation uses a fresh `jti`.
 
 ## Errors and troubleshooting
 
