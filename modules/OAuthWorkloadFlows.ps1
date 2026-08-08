@@ -41,6 +41,16 @@ function Get-TTResponseSummary {
     ($parts | Sort-Object) -join '; '
 }
 
+function ConvertFrom-TTHttpJsonResponse {
+    param([AllowNull()][object]$Response)
+    if ($null -eq $Response) { return $null }
+    if (-not $Response.PSObject.Properties['Content']) { return $Response }
+    $content = [string]$Response.Content
+    if ([string]::IsNullOrWhiteSpace($content)) { return $null }
+    try { return ConvertFrom-Json -InputObject $content -ErrorAction Stop }
+    catch { return $content }
+}
+
 function Get-TTTokenEndpoint {
     param([Parameter(Mandatory = $true)][string]$TenantId)
     "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
@@ -345,27 +355,55 @@ function Get-EntraIDTokenFromAzureArcManagedIdentity {
     $headers = @{ Metadata = 'True' }
     try {
         Write-Verbose 'Sending the initial Azure Arc managed-identity request with Metadata=True.'
-        $identityResponse = Invoke-RestMethod -UseBasicParsing -Method Get -Uri $uri -Headers $headers -ErrorAction Stop
+        # Arc deliberately responds with HTTP 401 and a WWW-Authenticate challenge
+        # before a caller can read the challenge file and retry. Invoke-RestMethod's
+        # exception response does not expose that header consistently across PS7/.NET
+        # versions, so capture the non-success response explicitly.
+        $initialResponse = Invoke-WebRequest -UseBasicParsing -Method Get -Uri $uri -Headers $headers -SkipHttpErrorCheck -ErrorAction Stop
+    }
+    catch {
+        throw "Azure Arc managed identity request failed: $($_.Exception.Message)"
+    }
+
+    $statusCode = [int]$initialResponse.StatusCode
+    Write-Verbose ("Azure Arc initial response received: status={0}" -f $statusCode)
+    if ($statusCode -ge 200 -and $statusCode -lt 300) {
+        $identityResponse = ConvertFrom-TTHttpJsonResponse -Response $initialResponse
         Write-Verbose ("Azure Arc identity response received: {0}" -f (Get-TTResponseSummary -Response $identityResponse))
         return $identityResponse
     }
-    catch {
-        $challenge = $_.Exception.Response.Headers['WWW-Authenticate']
-        if ([string]::IsNullOrWhiteSpace($challenge) -or $challenge -notmatch 'Basic realm=(.+)$') { throw "Azure Arc managed identity request failed: $($_.Exception.Message)" }
-        $secretFile = $Matches[1].Trim('"')
-        if (-not (Test-Path -LiteralPath $secretFile -PathType Leaf)) { throw 'Azure Arc returned an inaccessible challenge secret file.' }
-        Write-Verbose ("Azure Arc requested Basic authentication; reading challenge secret file: path={0}" -f $secretFile)
-        $secret = (Get-Content -LiteralPath $secretFile -Raw).Trim()
+    if ($statusCode -ne 401) {
+        throw "Azure Arc managed identity request failed: HTTP $statusCode."
+    }
+
+    $challenge = [string]$initialResponse.Headers['WWW-Authenticate']
+    if ([string]::IsNullOrWhiteSpace($challenge) -or $challenge -notmatch '(?i)Basic\s+realm=(.+)$') {
+        throw 'Azure Arc managed identity request returned 401 without a parseable WWW-Authenticate challenge.'
+    }
+    $secretFile = $Matches[1].Trim().Trim('"')
+    if (-not (Test-Path -LiteralPath $secretFile -PathType Leaf)) { throw 'Azure Arc returned an inaccessible challenge secret file.' }
+    Write-Verbose ("Azure Arc requested Basic authentication; reading challenge secret file: path={0}" -f $secretFile)
+    $secret = (Get-Content -LiteralPath $secretFile -Raw).Trim()
+    try {
+        $headers.Authorization = "Basic $secret"
+        Write-Verbose ("Retrying Azure Arc request with challenge secret: value={0}" -f (Get-TTMaskedValue -Value $secret))
         try {
-            $headers.Authorization = "Basic $secret"
-            Write-Verbose ("Retrying Azure Arc request with challenge secret: value={0}" -f (Get-TTMaskedValue -Value $secret))
-            $identityResponse = Invoke-RestMethod -UseBasicParsing -Method Get -Uri $uri -Headers $headers -ErrorAction Stop
-            Write-Verbose ("Azure Arc identity response received: {0}" -f (Get-TTResponseSummary -Response $identityResponse))
-            return $identityResponse
-        } finally {
-            $secret = $null
-            Write-Verbose 'Azure Arc challenge secret cleared from the working variable.'
+            $retryResponse = Invoke-WebRequest -UseBasicParsing -Method Get -Uri $uri -Headers $headers -SkipHttpErrorCheck -ErrorAction Stop
         }
+        catch {
+            throw "Azure Arc managed identity challenge retry failed: $($_.Exception.Message)"
+        }
+        $retryStatusCode = [int]$retryResponse.StatusCode
+        if ($retryStatusCode -lt 200 -or $retryStatusCode -ge 300) {
+            throw "Azure Arc managed identity challenge retry failed: HTTP $retryStatusCode."
+        }
+        $identityResponse = ConvertFrom-TTHttpJsonResponse -Response $retryResponse
+        Write-Verbose ("Azure Arc identity response received: {0}" -f (Get-TTResponseSummary -Response $identityResponse))
+        return $identityResponse
+    } finally {
+        $secret = $null
+        $headers.Authorization = $null
+        Write-Verbose 'Azure Arc challenge secret cleared from the working variable.'
     }
 }
 

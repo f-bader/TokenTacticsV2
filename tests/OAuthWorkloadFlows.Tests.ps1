@@ -91,6 +91,43 @@ Describe 'OAuth workload flows' {
         }
     }
 
+    It 'completes the Azure Arc challenge-file handshake' {
+        $previousEndpoint = $env:IDENTITY_ENDPOINT
+        $challengePath = Join-Path $TestDrive 'arc-challenge.key'
+        [IO.File]::WriteAllText($challengePath, 'arc-challenge-value')
+        $env:IDENTITY_ENDPOINT = 'http://localhost:40342/metadata/identity/oauth2/token'
+        $script:ArcRequests = @()
+        try {
+            Mock -ModuleName TokenTactics Invoke-WebRequest {
+                $capturedHeaders = @{}
+                foreach ($headerName in $Headers.Keys) { $capturedHeaders[$headerName] = $Headers[$headerName] }
+                $script:ArcRequests += [pscustomobject]@{ Uri = $Uri; Headers = $capturedHeaders }
+                if ($null -eq $Headers.Authorization) {
+                    [pscustomobject]@{
+                        StatusCode = 401
+                        Headers = @{ 'WWW-Authenticate' = "Basic realm=$challengePath" }
+                        Content = ''
+                    }
+                } else {
+                    [pscustomobject]@{
+                        StatusCode = 200
+                        Headers = @{}
+                        Content = '{"access_token":"arc-access-token","token_type":"Bearer","expires_in":3600,"resource":"https://management.azure.com/"}'
+                    }
+                }
+            }
+
+            $result = Get-EntraIDTokenFromAzureArcManagedIdentity -Resource 'https://management.azure.com/'
+
+            $result.access_token | Should -Be 'arc-access-token'
+            $script:ArcRequests.Count | Should -Be 2
+            $script:ArcRequests[0].Headers.Metadata | Should -Be 'True'
+            $script:ArcRequests[1].Headers.Authorization | Should -Be 'Basic arc-challenge-value'
+        } finally {
+            $env:IDENTITY_ENDPOINT = $previousEndpoint
+        }
+    }
+
     It 'creates and parses an implicit access-token redirect with matching state' {
         $request = New-EntraIDImplicitAuthorizationUrl -TenantId organizations -ClientId client-id -RedirectUri 'https://app.example/callback' -Scope 'https://graph.microsoft.com/User.Read' -State expected-state
         $request.AuthorizationUrl | Should -Match 'response_type=token'
