@@ -8,7 +8,12 @@ BeforeAll {
         'ConvertTo-PEMPrivateKey'
         'Get-EntraIDAuthorizationCode'
         'Get-EntraIDTokenFromCertificate'
+        'Get-EntraIDTokenFromClientSecret'
         'Get-EntraIDTokenFromDeviceCode'
+        'Get-EntraIDTokenFromFederatedCredential'
+        'Get-EntraIDTokenFromGitHubActions'
+        'Get-EntraIDTokenFromAzureArcManagedIdentity'
+        'Get-EntraIDTokenOnBehalfOf'
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
         'Get-EntraIDTokenFromESTSCookie'
@@ -37,6 +42,11 @@ BeforeAll {
         'Invoke-RefreshToSubstrateToken'
         'Invoke-RefreshToYammerToken'
         'New-TPMCertificate'
+        'New-EntraIDImplicitAuthorizationUrl'
+        'ConvertFrom-EntraIDImplicitRedirect'
+        'New-TTFederatedSigningCertificate'
+        'New-TTFederatedIssuerMetadata'
+        'New-TTFederatedClientAssertion'
     )
 
     $script:ExpectedAliases = @{

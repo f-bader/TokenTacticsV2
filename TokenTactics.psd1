@@ -3,7 +3,7 @@
     RootModule        = 'TokenTactics.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.3.3'
+    ModuleVersion     = '0.4.0'
     
     # ID used to uniquely identify this module
     GUID              = '6194f0f0-8b91-4c32-b1b1-bc46c9d7a95c'
@@ -24,7 +24,12 @@
         'ConvertTo-PEMPrivateKey'
         'Get-EntraIDAuthorizationCode'
         'Get-EntraIDTokenFromCertificate'
+        'Get-EntraIDTokenFromClientSecret'
         'Get-EntraIDTokenFromDeviceCode'
+        'Get-EntraIDTokenFromFederatedCredential'
+        'Get-EntraIDTokenFromGitHubActions'
+        'Get-EntraIDTokenFromAzureArcManagedIdentity'
+        'Get-EntraIDTokenOnBehalfOf'
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
         'Get-EntraIDTokenFromESTSCookie'
@@ -53,6 +58,11 @@
         'Invoke-RefreshToSubstrateToken'
         'Invoke-RefreshToYammerToken'
         'New-TPMCertificate'
+        'New-EntraIDImplicitAuthorizationUrl'
+        'ConvertFrom-EntraIDImplicitRedirect'
+        'New-TTFederatedSigningCertificate'
+        'New-TTFederatedIssuerMetadata'
+        'New-TTFederatedClientAssertion'
     )
 
     AliasesToExport = @(

@@ -43,7 +43,12 @@ $functions = @(
     "ConvertTo-PEMPrivateKey"
     "Get-EntraIDAuthorizationCode"
     "Get-EntraIDTokenFromCertificate"
+    "Get-EntraIDTokenFromClientSecret"
     "Get-EntraIDTokenFromDeviceCode"
+    "Get-EntraIDTokenFromFederatedCredential"
+    "Get-EntraIDTokenFromGitHubActions"
+    "Get-EntraIDTokenFromAzureArcManagedIdentity"
+    "Get-EntraIDTokenOnBehalfOf"
     "Get-EntraIDTokenFromAuthorizationCode"
     "Get-EntraIDTokenFromCookie"
     "Get-EntraIDTokenFromESTSCookie"
@@ -72,6 +77,11 @@ $functions = @(
     "Invoke-RefreshToSubstrateToken"
     "Invoke-RefreshToYammerToken"
     "New-TPMCertificate"
+    "New-EntraIDImplicitAuthorizationUrl"
+    "ConvertFrom-EntraIDImplicitRedirect"
+    "New-TTFederatedSigningCertificate"
+    "New-TTFederatedIssuerMetadata"
+    "New-TTFederatedClientAssertion"
 )
 
 $c = 0
