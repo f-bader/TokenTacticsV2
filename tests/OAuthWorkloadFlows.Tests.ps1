@@ -95,7 +95,7 @@ Describe 'OAuth workload flows' {
         $previousEndpoint = $env:IDENTITY_ENDPOINT
         $challengePath = Join-Path $TestDrive 'arc-challenge.key'
         [IO.File]::WriteAllText($challengePath, 'arc-challenge-value')
-        $env:IDENTITY_ENDPOINT = 'http://localhost:40342/metadata/identity/oauth2/token'
+        $env:IDENTITY_ENDPOINT = 'http://[::1]:40342/metadata/identity/oauth2/token'
         $script:ArcRequests = @()
         try {
             Mock -ModuleName TokenTactics Invoke-WebRequest {

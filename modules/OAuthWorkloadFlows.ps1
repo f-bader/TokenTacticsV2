@@ -348,7 +348,7 @@ function Get-EntraIDTokenFromAzureArcManagedIdentity {
     Write-Verbose ("Starting Azure Arc managed-identity flow: resource={0}; api_version={1}" -f $Resource, $ApiVersion)
     if ([string]::IsNullOrWhiteSpace($env:IDENTITY_ENDPOINT)) { throw 'IDENTITY_ENDPOINT is not set. This command must run on an Azure Arc-enabled machine with a managed identity.' }
     $endpoint = [Uri]$env:IDENTITY_ENDPOINT
-    if ($endpoint.Host -notin @('localhost', '127.0.0.1', '::1')) { throw 'IDENTITY_ENDPOINT must be a loopback endpoint.' }
+    if ($endpoint.DnsSafeHost -notin @('localhost', '127.0.0.1', '::1')) { throw 'IDENTITY_ENDPOINT must be a loopback endpoint.' }
     Write-Verbose ("Using loopback identity endpoint: host={0}; port={1}; path={2}" -f $endpoint.Host, $endpoint.Port, $endpoint.AbsolutePath)
     $separator = if ($env:IDENTITY_ENDPOINT.Contains('?')) { '&' } else { '?' }
     $uri = "$($env:IDENTITY_ENDPOINT)$separator" + "resource=$([Uri]::EscapeDataString($Resource))&api-version=$([Uri]::EscapeDataString($ApiVersion))"
