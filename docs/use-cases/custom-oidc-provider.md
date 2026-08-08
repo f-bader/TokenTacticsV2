@@ -149,7 +149,7 @@ Publish only the discovery document and JWKS. Do not publish the PFX or
 
 Start the static host in one terminal:
 
-    ./sampleFlows/Start-TTFederatedIssuerStaticHost.ps1 -Path $metadataPath -Port $port
+    ./infra/Start-TTFederatedIssuerStaticHost.ps1 -Path $metadataPath -Port $port
 
 Start the named tunnel in a second terminal:
 
