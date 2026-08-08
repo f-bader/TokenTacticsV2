@@ -73,3 +73,14 @@ Returns a compact JWT string, signed with RS256. The header contains `alg`, `typ
 ## Security and platform notes
 
 The output JWT is a bearer assertion: treat it as sensitive until its short expiry. The command does not persist it. PFX signing works across Windows, Linux, and macOS, using an OpenSSL fallback when needed; Windows certificate-store/TPM signing is Windows-only. Keep PFX files and passwords in access-controlled storage, use the shortest practical lifetime, rotate public JWKS before changing the signer, and never expose the private key through the metadata host.
+
+## Verbose diagnostics
+
+Use `-Verbose` to see issuer/subject/audience, lifetime, certificate source, signing time window, and assertion creation:
+
+```powershell
+New-TTFederatedClientAssertion -Issuer $issuer -Subject $subject `
+  -PfxPath $pfxPath -PfxPasswordSecureString $password -Verbose
+```
+
+The JWT, PFX password, and private key are never printed; the generated assertion is represented only by a redacted length. Certificate paths and non-sensitive JWT timing/identity fields remain visible.

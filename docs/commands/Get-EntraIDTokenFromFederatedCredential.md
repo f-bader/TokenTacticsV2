@@ -69,3 +69,14 @@ Posts `grant_type=client_credentials`, `client_assertion_type=urn:ietf:params:oa
 ## Security and platform notes
 
 Plaintext, `SecureString`, and token-file inputs are convenience mechanisms, not a PowerShell security boundary. Do not log or commit JWTs; they can be exchanged while valid. The command does not persist the supplied assertion and does not include request bodies in its own exception messages. It runs on PowerShell 7 on Windows, Linux, and macOS.
+
+## Verbose diagnostics
+
+Use `-Verbose` to follow assertion selection, token-file reads, the token endpoint request, and response metadata:
+
+```powershell
+Get-EntraIDTokenFromFederatedCredential -TenantId $tenantId -ClientId $clientId `
+  -FederatedTokenPath $tokenPath -Verbose
+```
+
+The external JWT and returned token are shown only as redacted length summaries. The selected file path, tenant, client, scope, grant type, and non-sensitive response fields are included.

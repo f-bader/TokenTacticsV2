@@ -52,3 +52,13 @@ The command validates that `IDENTITY_ENDPOINT` resolves to `localhost`, `127.0.0
 ## Security and platform notes
 
 The challenge file is an Arc-local secret and must never be copied, printed, or committed. The command limits the endpoint to loopback before processing it and clears its in-memory secret reference when finished. It is intended for Azure Arc-enabled Windows and Linux servers; it is not a general Azure VM IMDS command and has no macOS support.
+
+## Verbose diagnostics
+
+Use `-Verbose` to observe resource/API-version selection, loopback endpoint validation, the initial metadata request, challenge-file path, retry, and response metadata:
+
+```powershell
+Get-EntraIDTokenFromAzureArcManagedIdentity -Resource 'https://management.azure.com/' -Verbose
+```
+
+The challenge-file contents and returned access token are never printed; both are represented only by redacted lengths. The endpoint host, port, path, and challenge-file path remain visible for troubleshooting.

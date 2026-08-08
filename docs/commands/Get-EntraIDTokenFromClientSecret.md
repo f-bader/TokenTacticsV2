@@ -84,3 +84,14 @@ It returns Entra's token response object unchanged, normally containing `access_
 ## Security notes
 
 `SecureString` is accepted for PowerShell ergonomics, not as a security boundary. The value is converted only long enough to build the HTTPS request, is not deliberately persisted, and request bodies are excluded from the module's token-endpoint error text. Avoid putting plaintext secrets in source files, shell history, CI logs, transcripts, or command-line arguments. Prefer a secret store or a workload-federated credential for automation where practical.
+
+## Verbose diagnostics
+
+Add `-Verbose` while learning or troubleshooting:
+
+```powershell
+Get-EntraIDTokenFromClientSecret -TenantId $tenantId -ClientId $clientId `
+  -ClientSecretSecureString $secret -Verbose
+```
+
+Diagnostics identify the tenant, client, scope, token endpoint, request grant, and response metadata. Secrets and access tokens are never printed; they appear only as a redacted length summary such as `<redacted length=18>`.

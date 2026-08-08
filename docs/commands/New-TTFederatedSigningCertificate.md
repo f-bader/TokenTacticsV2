@@ -70,3 +70,14 @@ The command creates a digital-signature RSA certificate, exports it as PFX, and 
 ## Security and platform notes
 
 Keep the PFX in a private, access-controlled location and rotate it before expiry. Plaintext password input is supported for PowerShell usability but is not secure storage; prefer secret injection or `SecureString` for interactive entry, and never place either in source control. Certificate creation works across Windows, Linux, and macOS with .NET or the OpenSSL fallback. A Windows TPM certificate created separately can also be used by the subsequent metadata/assertion commands, but this command itself outputs a portable PFX, not a TPM key.
+
+## Verbose diagnostics
+
+Use `-Verbose` to follow output-directory creation, .NET versus OpenSSL provider selection, key length, subject, expiry, and resulting certificate paths/thumbprint:
+
+```powershell
+New-TTFederatedSigningCertificate -PfxPath $pfxPath `
+  -PfxPasswordSecureString $password -PublicCertificatePath $publicCertPath -Verbose
+```
+
+PFX passwords, private keys, and certificate contents are never printed. Paths and the public certificate thumbprint are intentionally shown so you can connect this step to metadata generation.

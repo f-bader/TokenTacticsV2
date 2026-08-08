@@ -66,3 +66,14 @@ The cmdlet reads `ACTIONS_ID_TOKEN_REQUEST_URL` and `ACTIONS_ID_TOKEN_REQUEST_TO
 ## Security and platform notes
 
 The GitHub runtime token is short lived and is passed directly to Entra; the cmdlet does not write it to disk or log it. It works on Windows, Linux, and macOS GitHub-hosted or self-hosted runners where PowerShell 7 and the GitHub OIDC runtime variables are available. Use least-privilege workflow permissions and restrict Entra credentials to a precise repository/ref or protected environment.
+
+## Verbose diagnostics
+
+Add `-Verbose` to see the selected tenant, client, scope, audience, GitHub OIDC endpoint host/path, exchange stages, and token response metadata:
+
+```powershell
+Get-EntraIDTokenFromGitHubActions -TenantId $env:AZURE_TENANT_ID `
+  -ClientId $env:AZURE_CLIENT_ID -Verbose
+```
+
+The GitHub runtime bearer token, GitHub OIDC assertion, and Entra access token are masked as redacted lengths. The runtime URL is not printed in full because its query string can contain sensitive material.

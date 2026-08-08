@@ -33,6 +33,19 @@ Describe 'OAuth workload flows' {
         $script:LastTokenRequest.Body.client_secret | Should -Be 'plaintext'
     }
 
+    It 'writes useful verbose diagnostics without exposing client secrets or tokens' {
+        $secret = 'super-secret-value'
+        $verbose = @(Get-EntraIDTokenFromClientSecret -TenantId contoso -ClientId client-id -ClientSecret $secret -Verbose 4>&1 |
+                Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
+        $text = ($verbose | ForEach-Object Message) -join [Environment]::NewLine
+
+        $text | Should -Match 'Starting client-credentials flow'
+        $text | Should -Match 'POST token request'
+        $text | Should -Match '<redacted length=18>'
+        $text | Should -Not -Match [regex]::Escape($secret)
+        $text | Should -Not -Match [regex]::Escape($script:FakeAccessToken)
+    }
+
     It 'exchanges a generic federated assertion' {
         Get-EntraIDTokenFromFederatedCredential -TenantId contoso -ClientId client-id -FederatedToken 'external-assertion' | Out-Null
 
@@ -88,6 +101,20 @@ Describe 'OAuth workload flows' {
         $result.TokenType | Should -Be 'Bearer'
     }
 
+    It 'masks implicit-flow state and token values in verbose diagnostics' {
+        $state = 'state-value-that-must-not-be-logged'
+        $requestVerbose = @(New-EntraIDImplicitAuthorizationUrl -TenantId organizations -ClientId client-id -RedirectUri 'https://app.example/callback' -Scope 'https://graph.microsoft.com/User.Read' -State $state -Verbose 4>&1 |
+                Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
+        $redirectVerbose = @(ConvertFrom-EntraIDImplicitRedirect -RedirectUrl "https://app.example/callback#access_token=implicit-secret-token&token_type=Bearer&state=$state" -ExpectedState $state -Verbose 4>&1 |
+                Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
+        $text = (($requestVerbose + $redirectVerbose) | ForEach-Object Message) -join [Environment]::NewLine
+
+        $text | Should -Match 'Implicit authorization URL built'
+        $text | Should -Match '<redacted length='
+        $text | Should -Not -Match [regex]::Escape($state)
+        $text | Should -Not -Match 'implicit-secret-token'
+    }
+
     It 'rejects an implicit redirect with the wrong state' {
         {
             ConvertFrom-EntraIDImplicitRedirect -RedirectUrl 'https://app.example/callback#access_token=token-value&state=wrong' -ExpectedState expected
@@ -109,7 +136,11 @@ Describe 'OAuth workload flows' {
             # PowerShell's provider location can differ from .NET's process location.
             [Environment]::CurrentDirectory = [IO.Path]::GetFullPath($TestDrive)
             $outputPath = './oidc-public'
-            New-TTFederatedSigningCertificate -PfxPath $pfxPath -PfxPassword 'test-password' | Out-Null
+            $certificateOutput = @(New-TTFederatedSigningCertificate -PfxPath $pfxPath -PfxPassword 'test-password' -Verbose 4>&1)
+            $certificateVerbose = @($certificateOutput | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
+            $certificateVerboseText = ($certificateVerbose | ForEach-Object Message) -join [Environment]::NewLine
+            $certificateVerboseText | Should -Match 'Federated signing certificate created'
+            $certificateVerboseText | Should -Not -Match 'test-password'
             $metadata = New-TTFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $outputPath -PfxPath $pfxPath -PfxPassword 'test-password'
             $assertion = New-TTFederatedClientAssertion -Issuer 'https://issuer.example.test' -Subject workload -PfxPath $pfxPath -PfxPassword 'test-password'
 

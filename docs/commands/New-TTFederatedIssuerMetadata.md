@@ -95,3 +95,14 @@ PFX input is cross-platform; macOS PFX loading can require OpenSSL. Thumbprint/s
 input is Windows-only. The metadata contains public key material, but issuer-config.json
 is intended for local workflow reference. Protect the signing PFX separately and
 rotate by publishing the replacement key before signing with it.
+
+## Verbose diagnostics
+
+Add `-Verbose` to see issuer/subject/audience validation, PowerShell-relative output-path resolution, certificate loading, and every generated file:
+
+```powershell
+New-TTFederatedIssuerMetadata -Issuer $issuer -Subject $subject `
+  -OutputPath $outputPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Verbose
+```
+
+The PFX password, private key, and certificate contents are never logged. The resolved output directory, discovery/JWKS/configuration paths, and public key ID are shown so hosting problems are easy to diagnose.

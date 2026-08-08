@@ -87,3 +87,14 @@ The command parses the redirect; it does not validate JWT signatures, inspect to
 ## Security notes
 
 `RedirectUrl`, `AccessToken`, and `IdToken` can be credentials. Do not print, persist, or send them to logs, PowerShell history, transcripts, browser history, issue trackers, or chat. State validation is mandatory for every authorization attempt; this command deliberately uses an exact case-sensitive comparison. Because implicit flow exposes tokens to the user agent, migrate to authorization code + PKCE when possible.
+
+## Verbose diagnostics
+
+Add `-Verbose` to see the redirect host/path, fragment size, parsed parameter names, state-validation result, and safe output metadata:
+
+```powershell
+ConvertFrom-EntraIDImplicitRedirect -RedirectUrl $browserUrl `
+  -ExpectedState $request.State -Verbose
+```
+
+The redirect fragment, state, access token, and ID token values are not emitted. They appear only as redacted lengths; errors and non-sensitive fields remain visible.

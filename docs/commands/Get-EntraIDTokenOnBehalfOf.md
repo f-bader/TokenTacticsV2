@@ -104,3 +104,15 @@ It returns Entra's token response object unchanged; use `access_token` only for 
 ## Security notes
 
 Treat `UserAssertion`, client secrets, PFX files, and PFX passwords as credentials. `SecureString` options are convenient input forms, not a security boundary; values are converted only briefly for use and not intentionally logged or persisted. Do not place assertions or secrets in transcript files, URLs, source code, or CI logs. Restrict PFX filesystem permissions and prefer hardware-backed certificates on Windows when available.
+
+## Verbose diagnostics
+
+Use `-Verbose` to see the OBO stages, decoded assertion audience, selected secret/certificate input, downstream scope, token endpoint, and response metadata:
+
+```powershell
+Get-EntraIDTokenOnBehalfOf -TenantId $tenantId -ClientId $middleTierClientId `
+  -ClientSecretSecureString $secret -UserAssertion $userAccessToken `
+  -Scope 'https://graph.microsoft.com/User.Read' -Verbose
+```
+
+The user assertion, client secret, certificate assertion, and returned access token are represented only by redacted lengths. Certificate paths and non-sensitive request fields remain visible to make each step easy to follow.

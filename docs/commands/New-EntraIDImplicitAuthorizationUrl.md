@@ -84,3 +84,14 @@ Normal requests use `response_type=token`. With `IncludeIdToken`, the response t
 ## Security notes
 
 The state value is a CSRF/correlation control. Keep it per authorization attempt, unpredictable, and validate it before using tokens. Do not use a fixed state in production. Treat the redirect URL and its fragment as sensitive because they can contain bearer tokens; avoid browser history, referrer leakage, screenshots, logs, and copied terminal transcripts. Prefer authorization code + PKCE whenever the app supports it.
+
+## Verbose diagnostics
+
+Use `-Verbose` to see the tenant, client, redirect URI, scope, response type, and the authorization endpoint/query parameter names:
+
+```powershell
+New-EntraIDImplicitAuthorizationUrl -TenantId $tenantId -ClientId $clientId `
+  -RedirectUri $redirectUri -Scope 'https://graph.microsoft.com/User.Read' -Verbose
+```
+
+Generated or supplied state and any nonce are masked by length. The complete authorization URL is returned as the command output but is not written to verbose logs, preventing state leakage.
