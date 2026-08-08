@@ -114,7 +114,7 @@ Create the certificate only after `$issuer` is final. The PFX stays outside the
 public metadata directory.
 
     $password = Read-Host 'PFX password' -AsSecureString
-    $certificate = New-TTFederatedSigningCertificate -PfxPath $pfxPath -PfxPasswordSecureString $password -PublicCertificatePath $publicCertificatePath
+    $certificate = New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPasswordSecureString $password -PublicCertificatePath $publicCertificatePath
     $certificate | Format-List Thumbprint, PfxPath, PublicCertificatePath, NotAfter
 
 On macOS and Linux, OpenSSL is used when the native .NET certificate provider
@@ -125,7 +125,7 @@ Windows-only; PFX input is cross-platform.
 
 Generate metadata using the exact issuer selected in step 1:
 
-    $metadata = New-TTFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Audience $audience
+    $metadata = New-EntraIDFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Audience $audience
     $metadata.GeneratedFiles
 
 The command creates:
@@ -216,7 +216,7 @@ create the credential, run this after the app registration exists:
 Create the assertion only after the public endpoints and federated credential are
 ready:
 
-    $assertion = New-TTFederatedClientAssertion -Issuer $issuer -Subject $subject -Audience $audience -PfxPath $pfxPath -PfxPasswordSecureString $password
+    $assertion = New-EntraIDFederatedClientAssertion -Issuer $issuer -Subject $subject -Audience $audience -PfxPath $pfxPath -PfxPasswordSecureString $password
     $token = Get-EntraIDTokenFromFederatedCredential -TenantId $tenantId -ClientId $clientId -FederatedToken $assertion -Scope $scope
     $token
 
@@ -227,14 +227,14 @@ Decode the assertion locally and verify `iss`, `sub`, `aud`, `iat`, `nbf`, `exp`
 
 For rotation, create a new PFX and publish its public key before signing with it.
 Keep the old and new keys in the public JWKS during the overlap period, then remove
-the old key after all callers have migrated. `New-TTFederatedIssuerMetadata` emits
+the old key after all callers have migrated. `New-EntraIDFederatedIssuerMetadata` emits
 one key for one certificate; preserving an overlap requires explicitly merging the
 old and new JWK entries before publishing the JWKS.
 
 Test wrong issuer, subject, audience, signature, expired assertions, unavailable
 discovery, unavailable JWKS, and a removed old key before completing the rotation.
 
-See the [certificate](../commands/New-TTFederatedSigningCertificate.md),
-[metadata](../commands/New-TTFederatedIssuerMetadata.md),
-[assertion](../commands/New-TTFederatedClientAssertion.md), and
+See the [certificate](../commands/New-EntraIDFederatedSigningCertificate.md),
+[metadata](../commands/New-EntraIDFederatedIssuerMetadata.md),
+[assertion](../commands/New-EntraIDFederatedClientAssertion.md), and
 [exchange](../commands/Get-EntraIDTokenFromFederatedCredential.md) references.

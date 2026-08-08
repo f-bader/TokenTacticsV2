@@ -232,6 +232,38 @@ function New-TTClientCertificateAssertion {
 }
 
 function Get-EntraIDTokenFromClientSecret {
+    <#
+    .SYNOPSIS
+        Acquires an Entra ID application token with a client secret.
+
+    .DESCRIPTION
+        Requests an app-only access token through the OAuth 2.0 client credentials
+        grant. The scope must name exactly one resource with the '/.default' suffix.
+        Verbose diagnostics redact the secret and the returned tokens.
+
+    .PARAMETER TenantId
+        The Microsoft Entra tenant ID or domain.
+
+    .PARAMETER ClientId
+        The application (client) ID registered in Microsoft Entra ID.
+
+    .PARAMETER ClientSecret
+        The plaintext client-secret value.
+
+    .PARAMETER ClientSecretSecureString
+        The client secret as a SecureString.
+
+    .PARAMETER Scope
+        The application permission scope to request. Must use the .default suffix.
+        Defaults to 'https://graph.microsoft.com/.default'.
+
+    .EXAMPLE
+        Get-EntraIDTokenFromClientSecret -TenantId 'contoso.onmicrosoft.com' -ClientId '00000000-0000-0000-0000-000000000000' -ClientSecret 'secret-value'
+
+    .NOTES
+        Treat the client secret as a credential. Prefer SecureString input or a
+        federated credential for automation.
+    #>
     [CmdletBinding(DefaultParameterSetName = 'PlaintextSecret')]
     param(
         [Parameter(Mandatory = $true)][string]$TenantId,
@@ -255,6 +287,56 @@ function Get-EntraIDTokenFromClientSecret {
 }
 
 function Get-EntraIDTokenOnBehalfOf {
+    <#
+    .SYNOPSIS
+        Exchanges a user access token for a downstream API token (on-behalf-of).
+
+    .DESCRIPTION
+        Performs the OAuth 2.0 on-behalf-of grant: a middle-tier API exchanges an
+        incoming user access token whose audience is the middle-tier client ID for a
+        delegated downstream token. The middle tier authenticates with a client
+        secret or an RSA certificate (Windows store or PFX).
+
+    .PARAMETER TenantId
+        The Microsoft Entra tenant ID or domain.
+
+    .PARAMETER ClientId
+        The application (client) ID of the middle-tier API.
+
+    .PARAMETER UserAssertion
+        The incoming user access token issued to the middle-tier application.
+
+    .PARAMETER Scope
+        Space-delimited delegated scopes for the downstream API.
+
+    .PARAMETER ClientSecret
+        The plaintext middle-tier client-secret value.
+
+    .PARAMETER ClientSecretSecureString
+        The middle-tier client secret as a SecureString.
+
+    .PARAMETER CertificateThumbprint
+        Thumbprint of an RSA certificate in a Windows certificate store.
+
+    .PARAMETER CertStoreLocation
+        The personal certificate store containing the certificate.
+
+    .PARAMETER PfxPath
+        Path to a PFX containing an accessible RSA private key.
+
+    .PARAMETER PfxPassword
+        Plaintext PFX password.
+
+    .PARAMETER PfxPasswordSecureString
+        PFX password as a SecureString.
+
+    .EXAMPLE
+        Get-EntraIDTokenOnBehalfOf -TenantId 'contoso.onmicrosoft.com' -ClientId $middleTierId -ClientSecret $secret -UserAssertion $incomingToken -Scope 'https://graph.microsoft.com/User.Read'
+
+    .NOTES
+        The user assertion, client secret, and certificate assertion are credentials;
+        keep them out of logs, transcripts, and source control.
+    #>
     [CmdletBinding(DefaultParameterSetName = 'PlaintextSecret')]
     param(
         [Parameter(Mandatory = $true)][string]$TenantId,
@@ -302,6 +384,41 @@ function Get-EntraIDTokenOnBehalfOf {
 }
 
 function Get-EntraIDTokenFromFederatedCredential {
+    <#
+    .SYNOPSIS
+        Exchanges an external OIDC JWT for an Entra ID application token.
+
+    .DESCRIPTION
+        Sends an externally issued JWT as a client assertion through the OAuth 2.0
+        client credentials grant. An Entra federated identity credential whose
+        issuer, subject, and audience exactly match the JWT must exist on the app
+        registration. The scope must name one resource with the '/.default' suffix.
+
+    .PARAMETER TenantId
+        The Microsoft Entra tenant ID or domain.
+
+    .PARAMETER ClientId
+        The application (client) ID configured with the federated credential.
+
+    .PARAMETER FederatedToken
+        The plaintext external JWT.
+
+    .PARAMETER FederatedTokenSecureString
+        The external JWT as a SecureString.
+
+    .PARAMETER FederatedTokenPath
+        Path to a file containing the external JWT.
+
+    .PARAMETER Scope
+        The application permission scope to request. Must use the .default suffix.
+        Defaults to 'https://graph.microsoft.com/.default'.
+
+    .EXAMPLE
+        Get-EntraIDTokenFromFederatedCredential -TenantId 'contoso.onmicrosoft.com' -ClientId $clientId -FederatedToken $externalJwt -Scope 'https://management.azure.com/.default'
+
+    .NOTES
+        The external JWT is exchangeable while valid; do not log or commit it.
+    #>
     [CmdletBinding(DefaultParameterSetName = 'PlaintextToken')]
     param(
         [Parameter(Mandatory = $true)][string]$TenantId,
@@ -335,6 +452,37 @@ function Get-EntraIDTokenFromFederatedCredential {
 }
 
 function Get-EntraIDTokenFromGitHubActions {
+    <#
+    .SYNOPSIS
+        Acquires an Entra ID application token inside a GitHub Actions workflow.
+
+    .DESCRIPTION
+        Requests an OIDC token from the GitHub Actions runtime and exchanges it for
+        an Entra application access token through workload identity federation. The
+        job must run with 'id-token: write' permission and the app registration must
+        trust the repository, ref, or environment via a federated credential.
+
+    .PARAMETER TenantId
+        The Microsoft Entra tenant ID or domain.
+
+    .PARAMETER ClientId
+        The application (client) ID configured with the GitHub federated credential.
+
+    .PARAMETER Scope
+        The application permission scope to request. Must use the .default suffix.
+        Defaults to 'https://graph.microsoft.com/.default'.
+
+    .PARAMETER Audience
+        The audience requested from GitHub's OIDC endpoint. Defaults to
+        'api://AzureADTokenExchange' and must match the federated credential.
+
+    .EXAMPLE
+        Get-EntraIDTokenFromGitHubActions -TenantId $env:AZURE_TENANT_ID -ClientId $env:AZURE_CLIENT_ID -Scope 'https://management.azure.com/.default'
+
+    .NOTES
+        Only runs where ACTIONS_ID_TOKEN_REQUEST_URL and
+        ACTIONS_ID_TOKEN_REQUEST_TOKEN are present.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$TenantId,
@@ -357,6 +505,31 @@ function Get-EntraIDTokenFromGitHubActions {
 }
 
 function Get-EntraIDTokenFromAzureArcManagedIdentity {
+    <#
+    .SYNOPSIS
+        Acquires a token from an Azure Arc-enabled machine's managed identity.
+
+    .DESCRIPTION
+        Requests a resource token from the local Azure Arc identity endpoint,
+        completing the endpoint's challenge-file protocol: the initial request
+        receives a 401 with a WWW-Authenticate challenge naming a local secret file,
+        whose content authorizes the retry. The endpoint must be a loopback address.
+
+    .PARAMETER Resource
+        The Azure resource URI to request a token for. Defaults to
+        'https://management.azure.com/'.
+
+    .PARAMETER ApiVersion
+        The Arc managed-identity endpoint API version. Defaults to '2020-06-01'.
+
+    .EXAMPLE
+        Get-EntraIDTokenFromAzureArcManagedIdentity -Resource 'https://management.azure.com/'
+
+    .NOTES
+        Only runs on Azure Arc-enabled Windows or Linux servers where
+        IDENTITY_ENDPOINT is present. The challenge secret is never returned or
+        persisted.
+    #>
     [CmdletBinding()]
     param(
         [string]$Resource = 'https://management.azure.com/',
@@ -431,6 +604,48 @@ function Get-EntraIDTokenFromAzureArcManagedIdentity {
 }
 
 function New-EntraIDImplicitAuthorizationUrl {
+    <#
+    .SYNOPSIS
+        Builds an Entra OAuth 2.0 implicit-flow authorization URL.
+
+    .DESCRIPTION
+        Constructs a v2 /authorize URL for the implicit grant (response_mode
+        fragment) and returns it together with the state value needed to validate
+        the redirect. Implicit flow is a compatibility feature; prefer
+        authorization code flow with PKCE for new applications.
+
+    .PARAMETER TenantId
+        The Microsoft Entra tenant ID, domain, or selector such as 'organizations'.
+
+    .PARAMETER ClientId
+        The application (client) ID of the interactive application.
+
+    .PARAMETER RedirectUri
+        The exact registered redirect URI that receives the fragment response.
+
+    .PARAMETER Scope
+        Space-delimited delegated scopes, for example
+        'https://graph.microsoft.com/User.Read'.
+
+    .PARAMETER State
+        Caller-provided CSRF/correlation value. A random value is generated when
+        omitted.
+
+    .PARAMETER IncludeIdToken
+        Requests both an access token and an ID token (response_type
+        'token id_token'). Ensures the openid scope is present and adds a nonce,
+        which is returned for later validation.
+
+    .EXAMPLE
+        $request = New-EntraIDImplicitAuthorizationUrl -TenantId 'organizations' -ClientId $clientId -RedirectUri 'https://app.example/callback' -Scope 'https://graph.microsoft.com/User.Read'
+
+    .OUTPUTS
+        PSCustomObject with AuthorizationUrl, State, and Nonce properties.
+
+    .NOTES
+        Access-token implicit grant must be enabled on the app registration. Treat
+        the resulting redirect URL as sensitive: its fragment contains bearer tokens.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$TenantId,
@@ -465,6 +680,33 @@ function New-EntraIDImplicitAuthorizationUrl {
 }
 
 function ConvertFrom-EntraIDImplicitRedirect {
+    <#
+    .SYNOPSIS
+        Parses an Entra implicit-flow redirect URL and validates its state.
+
+    .DESCRIPTION
+        Extracts the access token, ID token, and related fields from the fragment of
+        the final browser redirect URL. The comparison against ExpectedState is
+        exact and case-sensitive; a mismatch throws before any result is returned.
+        The command parses only: it does not validate JWT signatures or claims.
+
+    .PARAMETER RedirectUrl
+        The complete final redirect URL, including the portion after '#'.
+
+    .PARAMETER ExpectedState
+        The exact state value paired with the authorization request.
+
+    .EXAMPLE
+        $result = ConvertFrom-EntraIDImplicitRedirect -RedirectUrl $browserUrl -ExpectedState $request.State
+
+    .OUTPUTS
+        PSCustomObject with AccessToken, IdToken, TokenType, ExpiresIn, Scope,
+        State, Error, and ErrorDescription properties.
+
+    .NOTES
+        Check the Error property before using AccessToken. The redirect URL and the
+        returned tokens are credentials; keep them out of logs and history.
+    #>
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)][string]$RedirectUrl,
@@ -490,7 +732,52 @@ function ConvertFrom-EntraIDImplicitRedirect {
     $result
 }
 
-function New-TTFederatedSigningCertificate {
+function New-EntraIDFederatedSigningCertificate {
+    <#
+    .SYNOPSIS
+        Creates a self-signed RSA signing certificate for a custom OIDC issuer.
+
+    .DESCRIPTION
+        Generates a digital-signature RSA certificate and exports it as a
+        password-protected PFX, optionally exporting the public certificate as DER.
+        The PFX is the private signing material for New-EntraIDFederatedClientAssertion;
+        only the public key is published through the OIDC metadata. Uses .NET
+        cryptography where supported and falls back to OpenSSL.
+
+    .PARAMETER PfxPath
+        Destination PFX file. Parent directories are created when absent.
+
+    .PARAMETER PfxPassword
+        Plaintext PFX export password.
+
+    .PARAMETER PfxPasswordSecureString
+        PFX export password as a SecureString.
+
+    .PARAMETER Subject
+        Certificate subject. Defaults to 'CN=TokenTactics Federated Issuer'.
+
+    .PARAMETER KeyLength
+        RSA key size: 2048 (default), 3072, or 4096.
+
+    .PARAMETER NotAfter
+        Certificate expiry. Defaults to one year from creation and must be in the
+        future.
+
+    .PARAMETER PublicCertificatePath
+        Optional path for a DER-encoded public certificate export.
+
+    .EXAMPLE
+        $password = Read-Host 'PFX password' -AsSecureString
+        New-EntraIDFederatedSigningCertificate -PfxPath './issuer-signing.pfx' -PfxPasswordSecureString $password -PublicCertificatePath './issuer-signing.cer'
+
+    .OUTPUTS
+        PSCustomObject with Thumbprint, PfxPath, PublicCertificatePath, and NotAfter
+        properties.
+
+    .NOTES
+        Keep the PFX in a private, access-controlled location and rotate it before
+        expiry. Never publish the PFX or its private key.
+    #>
     [CmdletBinding(DefaultParameterSetName = 'PlaintextPassword')]
     param(
         [Parameter(Mandatory = $true)][string]$PfxPath,
@@ -570,7 +857,61 @@ function New-TTFederatedSigningCertificate {
     }
 }
 
-function New-TTFederatedIssuerMetadata {
+function New-EntraIDFederatedIssuerMetadata {
+    <#
+    .SYNOPSIS
+        Generates public OIDC discovery metadata for a custom federated issuer.
+
+    .DESCRIPTION
+        Writes the public OpenID Connect discovery document
+        (.well-known/openid-configuration) and JWKS (keys.json) for a
+        certificate-backed custom issuer into OutputPath, ready to be hosted at the
+        issuer URL. With -IncludeLocalConfig, also writes issuer-config.json, a
+        local convenience record that must not be published.
+
+    .PARAMETER Issuer
+        The stable HTTPS issuer URL. Must match the Entra federated credential and
+        every assertion's iss claim.
+
+    .PARAMETER Subject
+        The workload subject that must match the federated credential.
+
+    .PARAMETER OutputPath
+        Directory that receives the generated metadata files.
+
+    .PARAMETER Audience
+        The assertion audience. Defaults to 'api://AzureADTokenExchange'.
+
+    .PARAMETER CertificateThumbprint
+        Thumbprint of an RSA certificate in a Windows certificate store.
+
+    .PARAMETER CertStoreLocation
+        The personal certificate store containing the certificate.
+
+    .PARAMETER PfxPath
+        Path to an existing RSA PFX.
+
+    .PARAMETER PfxPassword
+        Plaintext PFX password.
+
+    .PARAMETER PfxPasswordSecureString
+        PFX password as a SecureString.
+
+    .PARAMETER IncludeLocalConfig
+        Also write issuer-config.json (issuer, subject, audience, key ID) for local
+        reference. Not required by the web host; do not publish it.
+
+    .EXAMPLE
+        New-EntraIDFederatedIssuerMetadata -Issuer 'https://oidc.example.com' -Subject 'build-workload' -OutputPath './oidc-public' -PfxPath './issuer-signing.pfx' -PfxPasswordSecureString $password
+
+    .OUTPUTS
+        PSCustomObject with Issuer, Subject, Audience, KeyId, OutputPath,
+        DiscoveryPath, JwksPath, ConfigurationPath, and GeneratedFiles properties.
+
+    .NOTES
+        Publish only the discovery document and the JWKS, anonymously reachable over
+        HTTPS. Keep the PFX and private key outside the public directory.
+    #>
     [CmdletBinding(DefaultParameterSetName = 'PfxPlaintext')]
     param(
         [Parameter(Mandatory = $true)][Uri]$Issuer,
@@ -654,7 +995,55 @@ function New-TTFederatedIssuerMetadata {
     }
 }
 
-function New-TTFederatedClientAssertion {
+function New-EntraIDFederatedClientAssertion {
+    <#
+    .SYNOPSIS
+        Signs a short-lived OIDC JWT for exchange through a custom federated credential.
+
+    .DESCRIPTION
+        Creates an RS256-signed JWT with the supplied issuer, subject, and audience
+        from a local PFX or Windows certificate-store/TPM key. Exchange the
+        assertion with Get-EntraIDTokenFromFederatedCredential. The issuer's public
+        discovery and JWKS metadata must be published and the Entra federated
+        credential must match before the exchange can succeed.
+
+    .PARAMETER Issuer
+        The HTTPS issuer URL. A trailing slash is removed before signing.
+
+    .PARAMETER Subject
+        The workload subject. Must exactly match the federated credential.
+
+    .PARAMETER Audience
+        The assertion audience. Defaults to 'api://AzureADTokenExchange'.
+
+    .PARAMETER LifetimeMinutes
+        Assertion lifetime in minutes (1-10). Defaults to 5.
+
+    .PARAMETER CertificateThumbprint
+        Thumbprint of an RSA certificate in a Windows certificate store.
+
+    .PARAMETER CertStoreLocation
+        The personal certificate store containing the certificate.
+
+    .PARAMETER PfxPath
+        Path to a PFX containing an accessible RSA private key.
+
+    .PARAMETER PfxPassword
+        Plaintext PFX password.
+
+    .PARAMETER PfxPasswordSecureString
+        PFX password as a SecureString.
+
+    .EXAMPLE
+        $assertion = New-EntraIDFederatedClientAssertion -Issuer 'https://oidc.example.com' -Subject 'build-workload' -PfxPath './issuer-signing.pfx' -PfxPasswordSecureString $password
+
+    .OUTPUTS
+        System.String. The compact signed JWT.
+
+    .NOTES
+        The assertion is a bearer credential until it expires; do not log, persist,
+        or commit it.
+    #>
     [CmdletBinding(DefaultParameterSetName = 'PfxPlaintext')]
     param(
         [Parameter(Mandatory = $true)][Uri]$Issuer,

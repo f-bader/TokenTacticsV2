@@ -1,4 +1,4 @@
-# New-TTFederatedClientAssertion
+# New-EntraIDFederatedClientAssertion
 
 ## Synopsis
 
@@ -7,7 +7,7 @@ Creates a short-lived RS256-signed OIDC JWT from a local PFX or Windows certific
 ## Syntax
 
 ```powershell
-New-TTFederatedClientAssertion -Issuer <Uri> -Subject <String> `
+New-EntraIDFederatedClientAssertion -Issuer <Uri> -Subject <String> `
   (-CertificateThumbprint <String> [-CertStoreLocation <String>] | `
    -PfxPath <String> [-PfxPassword <String> | -PfxPasswordSecureString <SecureString>]) `
   [-Audience <String>] [-LifetimeMinutes <Int32>]
@@ -15,7 +15,7 @@ New-TTFederatedClientAssertion -Issuer <Uri> -Subject <String> `
 
 ## Prerequisites and custom issuer setup
 
-Before issuing an assertion, publish OIDC discovery/JWKS for this signing key with `New-TTFederatedIssuerMetadata`, using the same HTTPS issuer. Configure the workload application's **Other issuer** federated credential in Entra to exactly match this command's issuer, subject, and audience. The public JWKS must expose the signing certificate's key ID.
+Before issuing an assertion, publish OIDC discovery/JWKS for this signing key with `New-EntraIDFederatedIssuerMetadata`, using the same HTTPS issuer. Configure the workload application's **Other issuer** federated credential in Entra to exactly match this command's issuer, subject, and audience. The public JWKS must expose the signing certificate's key ID.
 
 An assertion by itself is not an access token. Pass it to `Get-EntraIDTokenFromFederatedCredential` along with the tenant, application client ID, and a `/.default` scope.
 
@@ -39,7 +39,7 @@ Create and exchange an assertion from a PFX:
 
 ```powershell
 $password = Read-Host 'PFX password' -AsSecureString
-$assertion = New-TTFederatedClientAssertion `
+$assertion = New-EntraIDFederatedClientAssertion `
   -Issuer 'https://oidc.example.com' -Subject 'contoso-build-agent' `
   -PfxPath './issuer-signing.pfx' -PfxPasswordSecureString $password
 
@@ -53,7 +53,7 @@ $token = Get-EntraIDTokenFromFederatedCredential `
 Use a TPM-backed certificate on Windows:
 
 ```powershell
-New-TTFederatedClientAssertion `
+New-EntraIDFederatedClientAssertion `
   -Issuer 'https://oidc.contoso.example' -Subject 'build-host-01' `
   -CertificateThumbprint '0123456789ABCDEF0123456789ABCDEF01234567' `
   -LifetimeMinutes 3
@@ -79,7 +79,7 @@ The output JWT is a bearer assertion: treat it as sensitive until its short expi
 Use `-Verbose` to see issuer/subject/audience, lifetime, certificate source, signing time window, and assertion creation:
 
 ```powershell
-New-TTFederatedClientAssertion -Issuer $issuer -Subject $subject `
+New-EntraIDFederatedClientAssertion -Issuer $issuer -Subject $subject `
   -PfxPath $pfxPath -PfxPasswordSecureString $password -Verbose
 ```
 

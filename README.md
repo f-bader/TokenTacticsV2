@@ -233,7 +233,7 @@ flows before using this flow.
 
 This workflow makes a local certificate the signer for a custom external OIDC issuer.
 Only public discovery metadata and JWKS are hosted. The PFX/private key and
-New-TTFederatedClientAssertion remain on the assertion-issuing machine.
+New-EntraIDFederatedClientAssertion remain on the assertion-issuing machine.
 
 Set all reusable values first. These are syntactically usable examples; replace
 tenant, subscription, application, and hostname values with your environment.
@@ -296,11 +296,11 @@ branch. The Cloudflare branch additionally requires `cloudflared`.
 2. Create the signing certificate after `$issuer` is final:
 
         $password = Read-Host 'PFX password' -AsSecureString
-        $certificate = New-TTFederatedSigningCertificate -PfxPath $pfxPath -PfxPasswordSecureString $password -PublicCertificatePath $publicCertificatePath
+        $certificate = New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPasswordSecureString $password -PublicCertificatePath $publicCertificatePath
 
 3. Generate metadata:
 
-        $metadata = New-TTFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Audience $audience
+        $metadata = New-EntraIDFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Audience $audience
         $metadata.GeneratedFiles
 
    This creates `.well-known/openid-configuration`, `keys.json`, and local
@@ -344,7 +344,7 @@ branch. The Cloudflare branch additionally requires `cloudflared`.
 
 7. Sign and exchange:
 
-        $assertion = New-TTFederatedClientAssertion -Issuer $issuer -Subject $subject -Audience $audience -PfxPath $pfxPath -PfxPasswordSecureString $password
+        $assertion = New-EntraIDFederatedClientAssertion -Issuer $issuer -Subject $subject -Audience $audience -PfxPath $pfxPath -PfxPasswordSecureString $password
         $token = Get-EntraIDTokenFromFederatedCredential -TenantId $tenantId -ClientId $clientId -FederatedToken $assertion -Scope $scope
         $token
 

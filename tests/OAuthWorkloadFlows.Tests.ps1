@@ -278,13 +278,13 @@ Describe 'OAuth workload flows' {
             # PowerShell's provider location can differ from .NET's process location.
             [Environment]::CurrentDirectory = [IO.Path]::GetFullPath($TestDrive)
             $outputPath = './oidc-public'
-            $certificateOutput = @(New-TTFederatedSigningCertificate -PfxPath $pfxPath -PfxPassword 'test-password' -Verbose 4>&1)
+            $certificateOutput = @(New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPassword 'test-password' -Verbose 4>&1)
             $certificateVerbose = @($certificateOutput | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
             $certificateVerboseText = ($certificateVerbose | ForEach-Object Message) -join [Environment]::NewLine
             $certificateVerboseText | Should -Match 'Federated signing certificate created'
             $certificateVerboseText | Should -Not -Match 'test-password'
-            $metadata = New-TTFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $outputPath -PfxPath $pfxPath -PfxPassword 'test-password' -IncludeLocalConfig
-            $assertion = New-TTFederatedClientAssertion -Issuer 'https://issuer.example.test' -Subject workload -PfxPath $pfxPath -PfxPassword 'test-password'
+            $metadata = New-EntraIDFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $outputPath -PfxPath $pfxPath -PfxPassword 'test-password' -IncludeLocalConfig
+            $assertion = New-EntraIDFederatedClientAssertion -Issuer 'https://issuer.example.test' -Subject workload -PfxPath $pfxPath -PfxPassword 'test-password'
 
             Test-Path (Join-Path $outputPath '.well-known/openid-configuration') | Should -BeTrue
             Test-Path (Join-Path $outputPath 'issuer-config.json') | Should -BeTrue
@@ -301,7 +301,7 @@ Describe 'OAuth workload flows' {
             # The local issuer configuration is opt-in; the web host only needs the
             # discovery document and the JWKS.
             $publicOnlyPath = './oidc-public-only'
-            $publicOnly = New-TTFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $publicOnlyPath -PfxPath $pfxPath -PfxPassword 'test-password'
+            $publicOnly = New-EntraIDFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $publicOnlyPath -PfxPath $pfxPath -PfxPassword 'test-password'
             $publicOnly.GeneratedFiles.Count | Should -Be 2
             $publicOnly.ConfigurationPath | Should -BeNullOrEmpty
             Test-Path (Join-Path $publicOnlyPath 'issuer-config.json') | Should -BeFalse

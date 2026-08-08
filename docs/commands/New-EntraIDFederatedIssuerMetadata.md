@@ -1,4 +1,4 @@
-# New-TTFederatedIssuerMetadata
+# New-EntraIDFederatedIssuerMetadata
 
 ## Synopsis
 
@@ -8,8 +8,8 @@ provider discoverable by Entra ID.
 
 ## Syntax
 
-    New-TTFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -PfxPath <String> [-PfxPassword <String> | -PfxPasswordSecureString <SecureString>] [-Audience <String>]
-    New-TTFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -CertificateThumbprint <String> [-CertStoreLocation <String>] [-Audience <String>]
+    New-EntraIDFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -PfxPath <String> [-PfxPassword <String> | -PfxPasswordSecureString <SecureString>] [-Audience <String>]
+    New-EntraIDFederatedIssuerMetadata -Issuer <Uri> -Subject <String> -OutputPath <String> -CertificateThumbprint <String> [-CertStoreLocation <String>] [-Audience <String>]
 
 ## Custom issuer setup order
 
@@ -21,7 +21,7 @@ document, and every assertion.
    deploy infra/oidc-static-website.bicep to create an Azure Storage static website.
    The [custom OIDC scenario guide](../use-cases/custom-oidc-provider.md) contains
    Azure CLI and Az PowerShell deployment commands.
-2. Create a signing PFX with New-TTFederatedSigningCertificate, or use an existing
+2. Create a signing PFX with New-EntraIDFederatedSigningCertificate, or use an existing
    RSA PFX or Windows certificate-store/TPM certificate.
 3. Run this command and publish the generated directory through the chosen URL. It
    must serve /.well-known/openid-configuration and /keys.json without authentication.
@@ -29,7 +29,7 @@ document, and every assertion.
 4. In the app registration, create an Other issuer federated credential with the
    generated issuer, exact subject, and exact audience. The default audience is
    api://AzureADTokenExchange. Assign application permissions and grant consent.
-5. Use New-TTFederatedClientAssertion with the same issuer, subject, and signing key,
+5. Use New-EntraIDFederatedClientAssertion with the same issuer, subject, and signing key,
    then exchange it with Get-EntraIDTokenFromFederatedCredential.
 
 Only discovery/JWKS files are public. Never host the PFX, issuer configuration file,
@@ -54,11 +54,11 @@ private key, or an unauthenticated signing API.
 Generate metadata from a portable PFX:
 
     $password = Read-Host 'PFX password' -AsSecureString
-    New-TTFederatedIssuerMetadata -Issuer 'https://oidc.example.com' -Subject 'contoso-build-agent' -OutputPath './oidc-public' -PfxPath './issuer-signing.pfx' -PfxPasswordSecureString $password
+    New-EntraIDFederatedIssuerMetadata -Issuer 'https://oidc.example.com' -Subject 'contoso-build-agent' -OutputPath './oidc-public' -PfxPath './issuer-signing.pfx' -PfxPasswordSecureString $password
 
 Generate metadata using a Windows certificate-store certificate:
 
-    New-TTFederatedIssuerMetadata -Issuer 'https://oidc.contoso.example' -Subject 'arc-build-host-01' -OutputPath 'C:\oidc-public' -CertificateThumbprint $certificate.Thumbprint
+    New-EntraIDFederatedIssuerMetadata -Issuer 'https://oidc.contoso.example' -Subject 'arc-build-host-01' -OutputPath 'C:\oidc-public' -CertificateThumbprint $certificate.Thumbprint
 
 ## Behavior and generated files
 
@@ -101,7 +101,7 @@ rotate by publishing the replacement key before signing with it.
 Add `-Verbose` to see issuer/subject/audience validation, PowerShell-relative output-path resolution, certificate loading, and every generated file:
 
 ```powershell
-New-TTFederatedIssuerMetadata -Issuer $issuer -Subject $subject `
+New-EntraIDFederatedIssuerMetadata -Issuer $issuer -Subject $subject `
   -OutputPath $outputPath -PfxPath $pfxPath -PfxPasswordSecureString $password -Verbose
 ```
 

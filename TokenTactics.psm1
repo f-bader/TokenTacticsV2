@@ -79,9 +79,9 @@ $functions = @(
     "New-TPMCertificate"
     "New-EntraIDImplicitAuthorizationUrl"
     "ConvertFrom-EntraIDImplicitRedirect"
-    "New-TTFederatedSigningCertificate"
-    "New-TTFederatedIssuerMetadata"
-    "New-TTFederatedClientAssertion"
+    "New-EntraIDFederatedSigningCertificate"
+    "New-EntraIDFederatedIssuerMetadata"
+    "New-EntraIDFederatedClientAssertion"
 )
 
 $c = 0

@@ -1,4 +1,4 @@
-# New-TTFederatedSigningCertificate
+# New-EntraIDFederatedSigningCertificate
 
 ## Synopsis
 
@@ -7,7 +7,7 @@ Creates an RSA self-signed signing certificate and writes its private key as a p
 ## Syntax
 
 ```powershell
-New-TTFederatedSigningCertificate -PfxPath <String> `
+New-EntraIDFederatedSigningCertificate -PfxPath <String> `
   (-PfxPassword <String> | -PfxPasswordSecureString <SecureString>) `
   [-Subject <String>] [-KeyLength <Int32>] [-NotAfter <DateTime>] `
   [-PublicCertificatePath <String>]
@@ -22,7 +22,7 @@ only after that URL is finalized, then use the same issuer for metadata and asse
 
 PowerShell 7 is required. The command uses .NET cryptography where supported and falls back to OpenSSL on platforms whose providers cannot create/export the certificate. Install OpenSSL when running on macOS or when the .NET provider cannot complete the operation.
 
-The PFX is the private signing material for `New-TTFederatedClientAssertion`. It is not uploaded to Entra and is not part of the public OIDC metadata. A self-signed certificate is sufficient because Entra verifies signatures using the JWKS you publish, rather than trusting a public certificate authority.
+The PFX is the private signing material for `New-EntraIDFederatedClientAssertion`. It is not uploaded to Entra and is not part of the public OIDC metadata. A self-signed certificate is sufficient because Entra verifies signatures using the JWKS you publish, rather than trusting a public certificate authority.
 
 ## Parameters
 
@@ -42,7 +42,7 @@ Create a default 2048-bit PFX and public certificate:
 
 ```powershell
 $password = Read-Host 'PFX password' -AsSecureString
-New-TTFederatedSigningCertificate `
+New-EntraIDFederatedSigningCertificate `
   -PfxPath './issuer-signing.pfx' `
   -PfxPasswordSecureString $password `
   -PublicCertificatePath './issuer-signing.cer'
@@ -51,7 +51,7 @@ New-TTFederatedSigningCertificate `
 Create a 3072-bit PFX with explicit subject and lifetime:
 
 ```powershell
-New-TTFederatedSigningCertificate `
+New-EntraIDFederatedSigningCertificate `
   -PfxPath '/secure/issuer.pfx' -PfxPassword 'development-only-password' `
   -Subject 'CN=Contoso Build Issuer' -KeyLength 3072 `
   -NotAfter (Get-Date).AddMonths(6)
@@ -76,7 +76,7 @@ Keep the PFX in a private, access-controlled location and rotate it before expir
 Use `-Verbose` to follow output-directory creation, .NET versus OpenSSL provider selection, key length, subject, expiry, and resulting certificate paths/thumbprint:
 
 ```powershell
-New-TTFederatedSigningCertificate -PfxPath $pfxPath `
+New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath `
   -PfxPasswordSecureString $password -PublicCertificatePath $publicCertPath -Verbose
 ```
 
