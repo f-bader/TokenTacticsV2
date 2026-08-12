@@ -42,6 +42,7 @@ $functions = @(
     "ConvertFrom-JWTtoken"
     "ConvertTo-PEMPrivateKey"
     "Get-EntraIDAuthorizationCode"
+    "Get-EntraIDFido2Challenge"
     "Get-EntraIDTokenFromCertificate"
     "Get-EntraIDTokenFromDeviceCode"
     "Get-EntraIDTokenFromAuthorizationCode"
@@ -52,6 +53,8 @@ $functions = @(
     "Get-EntraIDTokenFromSCCAUTHCookie"
     "Get-ForgedUserAgent"
     "Get-TenantID"
+    "Get-WindowsHelloFidoAssertion"
+    "Invoke-EntraIDPasskeyAssertionLogin"
     "Invoke-EntraIDPasskeyLogin"
     "Invoke-RefreshToAzureCoreManagementToken"
     "Invoke-RefreshToAzureKeyVaultToken"
@@ -71,6 +74,7 @@ $functions = @(
     "Invoke-RefreshToSharePointToken"
     "Invoke-RefreshToSubstrateToken"
     "Invoke-RefreshToYammerToken"
+    "New-EntraIDUserHandle"
     "New-TPMCertificate"
 )
 

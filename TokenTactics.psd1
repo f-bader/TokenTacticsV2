@@ -3,7 +3,7 @@
     RootModule        = 'TokenTactics.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.3.3'
+    ModuleVersion     = '0.4.0'
     
     # ID used to uniquely identify this module
     GUID              = '6194f0f0-8b91-4c32-b1b1-bc46c9d7a95c'
@@ -23,6 +23,7 @@
         'ConvertFrom-JWTtoken'
         'ConvertTo-PEMPrivateKey'
         'Get-EntraIDAuthorizationCode'
+        'Get-EntraIDFido2Challenge'
         'Get-EntraIDTokenFromCertificate'
         'Get-EntraIDTokenFromDeviceCode'
         'Get-EntraIDTokenFromAuthorizationCode'
@@ -33,6 +34,8 @@
         'Get-EntraIDTokenFromSCCAUTHCookie'
         'Get-ForgedUserAgent'
         'Get-TenantID'
+        'Get-WindowsHelloFidoAssertion'
+        'Invoke-EntraIDPasskeyAssertionLogin'
         'Invoke-EntraIDPasskeyLogin'
         'Invoke-RefreshToAzureCoreManagementToken'
         'Invoke-RefreshToAzureKeyVaultToken'
@@ -52,6 +55,7 @@
         'Invoke-RefreshToSharePointToken'
         'Invoke-RefreshToSubstrateToken'
         'Invoke-RefreshToYammerToken'
+        'New-EntraIDUserHandle'
         'New-TPMCertificate'
     )
 

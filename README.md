@@ -102,6 +102,33 @@ Invoke-EntraIDPasskeyLogin -Verbose -UserPrincipalName "myUserName@example.com" 
 Get-EntraIDTokenFromESTSCookie -CookieValue $Global:ESTSAUTH
 ```
 
+#### Split passkey flow (e.g. Windows Hello for Business)
+
+The passkey sign-in is also available as separate cmdlets, which allows the assertion to be signed on a different machine than the one running the login flow — for example with a Windows Hello for Business credential (based on [ROADtools](https://github.com/dirkjanm/ROADtools) by Dirk-jan Mollema, MIT licensed).
+
+```powershell
+# 1. Retrieve a FIDO2 challenge (saves the web session as $global:Fido2WebSession)
+$challenge = Get-EntraIDFido2Challenge -UserPrincipalName "user@contoso.com"
+
+# 2. Create a signed assertion with the Windows Hello for Business key (Windows only)
+#    The object ID is derived from the certificate's user SID; pass -UserId to override it.
+#    The assertion is returned as a JSON string, e.g. for transfer via clipboard:
+#    Get-WindowsHelloFidoAssertion -Challenge $challenge | Set-Clipboard
+$assertion = Get-WindowsHelloFidoAssertion -Challenge $challenge -UserId "00000000-0000-0000-0000-000000000002"
+
+# 3. Complete the sign-in. Returns an access token and refresh token by default.
+Invoke-EntraIDPasskeyAssertionLogin -Assertion $assertion
+
+# Alternatively, return the ESTSAUTH cookie value instead of tokens
+Invoke-EntraIDPasskeyAssertionLogin -Assertion $assertion -OutputType ESTSAUTHCookie
+```
+
+If you need the FIDO2 user handle of a user (e.g. for the software-based passkey flow), you can calculate it from the tenant ID and the user's object ID:
+
+```powershell
+New-EntraIDUserHandle -TenantId "00000000-0000-0000-0000-000000000001" -UserId "00000000-0000-0000-0000-000000000002"
+```
+
 ### Get access tokens using the SCCAUTH cookie
 
 If you have obtained an `sccauth` cookie from an authenticated session to `security.microsoft.com` (e.g., via Evilginx or browser DevTools), you can use it to retrieve Entra ID access tokens for a broad set of resources through the Microsoft Defender XDR portal.
@@ -240,6 +267,13 @@ Only supported user-facing commands are exported; parsing, PKCE, generic refresh
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
+
+### 0.4.0 (2026-08-12)
+
+* Add `Get-EntraIDFido2Challenge` to retrieve a FIDO2 sign-in challenge and save the web session for the split passkey flow.
+* Add `Get-WindowsHelloFidoAssertion` to create a signed WebAuthn assertion with a Windows Hello for Business key. Based on `fido_assertion.ps1` by Dirk-jan Mollema ([ROADtools](https://github.com/dirkjanm/ROADtools)), released under the MIT license.
+* Add `New-EntraIDUserHandle` to calculate the FIDO2 user handle from a tenant ID and user object ID.
+* Add `Invoke-EntraIDPasskeyAssertionLogin` to complete the passkey sign-in from a signed assertion, returning tokens by default or the ESTSAUTH cookie via `-OutputType ESTSAUTHCookie`.
 
 ### 0.3.3 (2026-08-05)
 
