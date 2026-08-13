@@ -348,6 +348,13 @@ TokenTactic's methods are highly influenced by the great research of Dr Nestori 
 
 ## Changelog
 
+### 0.5.0 (2026-08-13)
+
+* Add OAuth 2.0 client-credentials, on-behalf-of, and implicit-flow compatibility cmdlets, including secure-string credential support and state validation.
+* Add workload identity federation exchanges for external OIDC tokens, GitHub Actions, and Azure Arc managed identities.
+* Add certificate-backed application and OBO authentication with Windows certificate-store and portable PFX support, including OpenSSL fallback on macOS and Linux.
+* Add custom OIDC issuer tooling for signing certificates, discovery/JWKS metadata, client assertions, loopback hosting, and Azure Storage static website deployment.
+
 ### 0.4.0 (2026-08-12)
 
 * Add `Get-EntraIDFido2Challenge` to retrieve a FIDO2 sign-in challenge and save the web session for the split passkey flow.
