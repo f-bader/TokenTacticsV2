@@ -12,6 +12,21 @@ The workflow has two separate planes:
 
 Never publish the PFX, private key, or a signing endpoint.
 
+```mermaid
+flowchart LR
+    W[External workload]
+    P[Private assertion host]
+    H[Public HTTPS issuer]
+    E[Microsoft Entra ID]
+    API[Resource provider]
+
+    W --> P
+    P -->|signed JWT| E
+    H -->|discovery and JWKS only| E
+    E -->|application token| W
+    W --> API
+```
+
 ## 0. Set the variables
 
 Run these commands in the PowerShell session that will perform the workflow. The

@@ -3,6 +3,18 @@
 Use this scenario for a scheduled PowerShell job, service, migration, or automation
 that has no signed-in user and needs application permissions.
 
+```mermaid
+sequenceDiagram
+    participant D as Daemon or scheduled job
+    participant E as Microsoft Entra ID
+    participant API as Resource provider
+
+    D->>E: Client secret or certificate assertion
+    E-->>D: App-only access token with roles
+    D->>API: Bearer token for one resource
+    API-->>D: Application-authorized response
+```
+
 ## Choose the credential
 
 | Environment | Recommended command | Credential |

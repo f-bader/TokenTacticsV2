@@ -3,6 +3,20 @@
 Use workload identity federation when the runner already has an OIDC identity and
 you do not want to create a long-lived Entra client secret.
 
+```mermaid
+sequenceDiagram
+    participant W as External workload
+    participant O as Workload OIDC issuer
+    participant E as Microsoft Entra ID
+    participant API as Azure or Microsoft API
+
+    W->>O: Request signed OIDC JWT
+    O-->>W: External identity token
+    W->>E: Exchange JWT with federated credential
+    E-->>W: App-only access token
+    W->>API: Call resource with token
+```
+
 ## GitHub Actions
 
 ### Entra setup
