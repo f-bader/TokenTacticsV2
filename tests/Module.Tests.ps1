@@ -7,6 +7,7 @@ BeforeAll {
         'ConvertFrom-JWTtoken'
         'ConvertTo-PEMPrivateKey'
         'Get-EntraIDAuthorizationCode'
+        'Get-EntraIDFido2Challenge'
         'Get-EntraIDTokenFromCertificate'
         'Get-EntraIDTokenFromDeviceCode'
         'Get-EntraIDTokenFromAuthorizationCode'
@@ -17,6 +18,8 @@ BeforeAll {
         'Get-EntraIDTokenFromSCCAUTHCookie'
         'Get-ForgedUserAgent'
         'Get-TenantID'
+        'Get-WindowsHelloFidoAssertion'
+        'Invoke-EntraIDPasskeyAssertionLogin'
         'Invoke-EntraIDPasskeyLogin'
         'Invoke-RefreshToAzureCoreManagementToken'
         'Invoke-RefreshToAzureKeyVaultToken'
@@ -36,6 +39,7 @@ BeforeAll {
         'Invoke-RefreshToSharePointToken'
         'Invoke-RefreshToSubstrateToken'
         'Invoke-RefreshToYammerToken'
+        'New-EntraIDUserHandle'
         'New-TPMCertificate'
     )
 
