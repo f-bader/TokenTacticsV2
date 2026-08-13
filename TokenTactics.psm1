@@ -44,7 +44,12 @@ $functions = @(
     "Get-EntraIDAuthorizationCode"
     "Get-EntraIDFido2Challenge"
     "Get-EntraIDTokenFromCertificate"
+    "Get-EntraIDTokenFromClientSecret"
     "Get-EntraIDTokenFromDeviceCode"
+    "Get-EntraIDTokenFromFederatedCredential"
+    "Get-EntraIDTokenFromGitHubActions"
+    "Get-EntraIDTokenFromAzureArcManagedIdentity"
+    "Get-EntraIDTokenOnBehalfOf"
     "Get-EntraIDTokenFromAuthorizationCode"
     "Get-EntraIDTokenFromCookie"
     "Get-EntraIDTokenFromESTSCookie"
@@ -76,6 +81,11 @@ $functions = @(
     "Invoke-RefreshToYammerToken"
     "New-EntraIDUserHandle"
     "New-TPMCertificate"
+    "New-EntraIDImplicitAuthorizationUrl"
+    "ConvertFrom-EntraIDImplicitRedirect"
+    "New-EntraIDFederatedSigningCertificate"
+    "New-EntraIDFederatedIssuerMetadata"
+    "New-EntraIDFederatedClientAssertion"
 )
 
 $c = 0

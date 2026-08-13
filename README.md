@@ -12,6 +12,10 @@ This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTa
 
 ## Azure JSON Web Token ("JWT") Manipulation Toolset
 
+Scenario-based OAuth and workload guides are in
+[docs](./docs/README.md); the individual command reference is in
+[docs/commands](./docs/commands/README.md).
+
 Azure access tokens allow you to authenticate to certain endpoints as a user who signs in with a device code. If you are in possesion of a [FOCI (Family of Client IDs)](https://github.com/secureworks/family-of-client-ids-research) capable refresh token you can use it to get access tokens to all known [FOCI capable endpoints](https://github.com/secureworks/family-of-client-ids-research/blob/main/known-foci-clients.csv). Since the refresh-token also contains the information if the user has done multi-factor authentication you can use this. Once you have a user's access token, it may be possible to access certain apps such as Outlook, SharePoint, OneDrive, MSTeams and more.
 
 For instance, if you have a Graph or MSGraph refresh token, you can then connect to Azure and dump users, groups, etc. You could then, depending on conditional access policies, switch to an Azure Core Management token and run [AzureHound](https://github.com/BloodHoundAD/AzureHound). Then, get an Outlook access token and read/send emails or MS Teams and read/send teams messages!
@@ -169,8 +173,6 @@ This module uses authorization code flow to obtain an access token and refresh t
 
 Be sure to use the right cookie! `ESTSAuthPersistent` is only useful when a CA policy actually grants a persistent session. Otherwise, you should use `ESTSAuth`. You can usually tell which one to use based on length, the longer cookie is the one you want to use :)
 
-*Note: This may not work in all cases as it may require user interaction. If this is the case, either use the Device Code flow above, or try `roadtx interactiveauth --estscookie`*
-
 This feature was backported from the [pull request](https://github.com/rvrsh3ll/TokenTactics/pull/9/) by [rotarydrone](https://github.com/rotarydrone) in the original repo.
 
 ### Get a refresh token using the authorization code flow
@@ -217,6 +219,71 @@ Invoke-RefreshToOutlookToken -domain "myclient.org"
 
 $OutlookToken.access_token
 ```
+
+### Additional OAuth 2.0 and workload flows
+
+#### Client secret and on-behalf-of
+
+Get-EntraIDTokenFromClientSecret implements the application-only client credentials
+grant. Supply either -ClientSecret or -ClientSecretSecureString; neither value is
+written by the cmdlet.
+
+    Get-EntraIDTokenFromClientSecret -TenantId 'contoso.onmicrosoft.com' -ClientId '00000000-0000-0000-0000-000000000000' -ClientSecret 'client-secret-value' -Scope 'https://graph.microsoft.com/.default'
+
+Get-EntraIDTokenOnBehalfOf exchanges an incoming access token issued to the
+middle-tier app for a downstream delegated token. The assertion must have the
+middle-tier application as its audience.
+
+    Get-EntraIDTokenOnBehalfOf -TenantId 'contoso.onmicrosoft.com' -ClientId '00000000-0000-0000-0000-000000000000' -ClientSecret 'client-secret-value' -UserAssertion $incomingAccessToken -Scope 'https://graph.microsoft.com/User.Read'
+
+#### Federated credentials, GitHub Actions, and Azure Arc
+
+Get-EntraIDTokenFromFederatedCredential exchanges an external OIDC JWT for an
+application token. It accepts -FederatedToken, -FederatedTokenSecureString, or
+-FederatedTokenPath. The Entra federated credential must exactly match the JWT
+issuer, subject, and audience.
+
+    Get-EntraIDTokenFromGitHubActions -TenantId $env:AZURE_TENANT_ID -ClientId $env:AZURE_CLIENT_ID -Scope 'https://management.azure.com/.default'
+
+The GitHub workflow needs permissions: id-token: write. Configure the app
+registration federated credential for the target repository/environment and the
+api://AzureADTokenExchange audience.
+
+Get-EntraIDTokenFromAzureArcManagedIdentity retrieves a resource token from the
+local Azure Arc managed-identity endpoint. It runs only where IDENTITY_ENDPOINT is
+present and completes the endpoint's local challenge-file protocol; it is not a
+federated-credential exchange.
+
+#### Implicit flow compatibility
+
+Entra recommends authorization code flow with PKCE. When an existing registration
+requires implicit access tokens, generate an authorization URL and then paste the
+final browser redirect back into the parser:
+
+    $request = New-EntraIDImplicitAuthorizationUrl -TenantId 'organizations' -ClientId '00000000-0000-0000-0000-000000000000' -RedirectUri 'https://app.example/callback' -Scope 'https://graph.microsoft.com/User.Read'
+    Start-Process $request.AuthorizationUrl
+    $token = ConvertFrom-EntraIDImplicitRedirect -RedirectUrl '<pasted-final-url>' -ExpectedState $request.State
+
+Enable Access tokens under the application registration's Implicit grant and hybrid
+flows before using this flow.
+
+#### Custom federated credential provider
+
+This workflow makes a local certificate the signer for a custom external OIDC
+issuer. Only public discovery metadata and JWKS are hosted; the PFX/private key and
+New-EntraIDFederatedClientAssertion remain on the assertion-issuing machine.
+Hosting options are a Cloudflare named tunnel in front of the checked-in loopback
+static host (infra/Start-TTFederatedIssuerStaticHost.ps1) or an Azure Storage
+static website (infra/oidc-static-website.bicep).
+
+    $certificate = New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPasswordSecureString $password -PublicCertificatePath $publicCertificatePath
+    $metadata = New-EntraIDFederatedIssuerMetadata -Issuer $issuer -Subject $subject -OutputPath $metadataPath -PfxPath $pfxPath -PfxPasswordSecureString $password
+    $assertion = New-EntraIDFederatedClientAssertion -Issuer $issuer -Subject $subject -PfxPath $pfxPath -PfxPasswordSecureString $password
+    $token = Get-EntraIDTokenFromFederatedCredential -TenantId $tenantId -ClientId $clientId -FederatedToken $assertion -Scope $scope
+
+The full step-by-step guide with hosting, publishing, verification, Entra
+configuration, and key rotation is in
+[docs/use-cases/custom-oidc-provider.md](./docs/use-cases/custom-oidc-provider.md).
 
 ### Connect to AzureAD using access token
 
@@ -280,6 +347,13 @@ Only supported user-facing commands are exported; parsing, PKCE, generic refresh
 TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
+
+### 0.5.0 (2026-08-13)
+
+* Add OAuth 2.0 client-credentials, on-behalf-of, and implicit-flow compatibility cmdlets, including secure-string credential support and state validation.
+* Add workload identity federation exchanges for external OIDC tokens, GitHub Actions, and Azure Arc managed identities.
+* Add certificate-backed application and OBO authentication with Windows certificate-store and portable PFX support, including OpenSSL fallback on macOS and Linux.
+* Add custom OIDC issuer tooling for signing certificates, discovery/JWKS metadata, client assertions, loopback hosting, and Azure Storage static website deployment.
 
 ### 0.4.0 (2026-08-12)
 

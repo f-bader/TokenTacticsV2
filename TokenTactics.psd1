@@ -3,7 +3,7 @@
     RootModule        = 'TokenTactics.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '0.4.0'
+    ModuleVersion     = '0.5.0'
     
     # ID used to uniquely identify this module
     GUID              = '6194f0f0-8b91-4c32-b1b1-bc46c9d7a95c'
@@ -25,7 +25,12 @@
         'Get-EntraIDAuthorizationCode'
         'Get-EntraIDFido2Challenge'
         'Get-EntraIDTokenFromCertificate'
+        'Get-EntraIDTokenFromClientSecret'
         'Get-EntraIDTokenFromDeviceCode'
+        'Get-EntraIDTokenFromFederatedCredential'
+        'Get-EntraIDTokenFromGitHubActions'
+        'Get-EntraIDTokenFromAzureArcManagedIdentity'
+        'Get-EntraIDTokenOnBehalfOf'
         'Get-EntraIDTokenFromAuthorizationCode'
         'Get-EntraIDTokenFromCookie'
         'Get-EntraIDTokenFromESTSCookie'
@@ -57,6 +62,11 @@
         'Invoke-RefreshToYammerToken'
         'New-EntraIDUserHandle'
         'New-TPMCertificate'
+        'New-EntraIDImplicitAuthorizationUrl'
+        'ConvertFrom-EntraIDImplicitRedirect'
+        'New-EntraIDFederatedSigningCertificate'
+        'New-EntraIDFederatedIssuerMetadata'
+        'New-EntraIDFederatedClientAssertion'
     )
 
     AliasesToExport = @(
