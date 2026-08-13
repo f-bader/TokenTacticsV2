@@ -269,7 +269,6 @@ Describe 'OAuth workload flows' {
             return
         }
 
-        $pfxPath = Join-Path $TestDrive 'issuer.pfx'
         $callerLocation = Join-Path $TestDrive 'caller'
         [IO.Directory]::CreateDirectory($callerLocation) | Out-Null
         $originalProcessLocation = [Environment]::CurrentDirectory
@@ -278,11 +277,20 @@ Describe 'OAuth workload flows' {
             # PowerShell's provider location can differ from .NET's process location.
             [Environment]::CurrentDirectory = [IO.Path]::GetFullPath($TestDrive)
             $outputPath = './oidc-public'
-            $certificateOutput = @(New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPassword 'test-password' -Verbose 4>&1)
+            $pfxPath = './issuer.pfx'
+            $publicCertificatePath = './issuer.cer'
+            $expectedPfxPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($pfxPath)
+            $expectedPublicCertificatePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($publicCertificatePath)
+            $certificateOutput = @(New-EntraIDFederatedSigningCertificate -PfxPath $pfxPath -PfxPassword 'test-password' -PublicCertificatePath $publicCertificatePath -Verbose 4>&1)
             $certificateVerbose = @($certificateOutput | Where-Object { $_ -is [System.Management.Automation.VerboseRecord] })
             $certificateVerboseText = ($certificateVerbose | ForEach-Object Message) -join [Environment]::NewLine
             $certificateVerboseText | Should -Match 'Federated signing certificate created'
             $certificateVerboseText | Should -Not -Match 'test-password'
+            $certificateResult = $certificateOutput | Where-Object { $_.PSObject.Properties['PfxPath'] } | Select-Object -Last 1
+            $certificateResult.PfxPath | Should -Be $expectedPfxPath
+            $certificateResult.PublicCertificatePath | Should -Be $expectedPublicCertificatePath
+            Test-Path -LiteralPath $expectedPfxPath -PathType Leaf | Should -BeTrue
+            Test-Path -LiteralPath $expectedPublicCertificatePath -PathType Leaf | Should -BeTrue
             $metadata = New-EntraIDFederatedIssuerMetadata -Issuer 'https://issuer.example.test' -Subject workload -OutputPath $outputPath -PfxPath $pfxPath -PfxPassword 'test-password' -IncludeLocalConfig
             $assertion = New-EntraIDFederatedClientAssertion -Issuer 'https://issuer.example.test' -Subject workload -PfxPath $pfxPath -PfxPassword 'test-password'
 

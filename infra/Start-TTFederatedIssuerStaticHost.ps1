@@ -17,7 +17,7 @@ param(
     [int]$Port = 8080
 )
 
-$root = [IO.Path]::GetFullPath($Path)
+$root = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($Path)
 $rootPrefix = $root.TrimEnd([IO.Path]::DirectorySeparatorChar, [IO.Path]::AltDirectorySeparatorChar) + [IO.Path]::DirectorySeparatorChar
 $listener = [Net.HttpListener]::new()
 $listener.Prefixes.Add("http://127.0.0.1:$Port/")

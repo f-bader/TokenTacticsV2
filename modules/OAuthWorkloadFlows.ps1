@@ -142,6 +142,11 @@ function Get-TTCertificate {
         [object]$PfxPassword
     )
     if ($PfxPath) {
+        # Resolve through PowerShell's provider location before validation and
+        # filesystem/external-process access. .NET and OpenSSL use the process
+        # working directory for relative paths, which may differ from the
+        # caller's PowerShell location.
+        $PfxPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PfxPath)
         $passwordInput = if ($null -ne $PfxPassword) { 'provided' } else { 'not provided' }
         Write-Verbose ("Loading signing certificate from PFX: path={0}; password={1}" -f $PfxPath, $passwordInput)
         if (-not (Test-Path -LiteralPath $PfxPath -PathType Leaf)) { throw "PFX file '$PfxPath' was not found." }
@@ -791,6 +796,12 @@ function New-EntraIDFederatedSigningCertificate {
         [datetime]$NotAfter = (Get-Date).AddYears(1),
         [string]$PublicCertificatePath
     )
+    # Resolve through PowerShell's provider location before creating parent
+    # directories or passing paths to .NET/OpenSSL.
+    $PfxPath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PfxPath)
+    if ($PublicCertificatePath) {
+        $PublicCertificatePath = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($PublicCertificatePath)
+    }
     Write-Verbose ("Creating federated signing certificate: pfx_path={0}; public_certificate_path={1}; subject={2}; key_length={3}; not_after={4}; password_input={5}" -f $PfxPath, $PublicCertificatePath, $Subject, $KeyLength, $NotAfter.ToUniversalTime().ToString('o'), $PSCmdlet.ParameterSetName)
     if ($NotAfter.ToUniversalTime() -le [DateTime]::UtcNow) { throw 'NotAfter must be in the future.' }
     $parent = Split-Path -Parent $PfxPath
