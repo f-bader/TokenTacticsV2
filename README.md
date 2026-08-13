@@ -10,21 +10,37 @@
 
 This is an updated version of [TokenTactics](https://github.com/rvrsh3ll/TokenTactics) originally written by Stephan Borosh [@rvrsh3ll](https://github.com/rvrsh3ll) & Bobby Cooke [@0xBoku](https://github.com/boku7).
 
-## Azure JSON Web Token ("JWT") Manipulation Toolset
+## Microsoft Entra ID OAuth, Token, and Workload Authentication Toolkit
+
+TokenTactics v2 is a PowerShell toolkit for authorized security research, red-team
+engagements, identity testing, and defensive engineering with Microsoft Entra ID.
+It helps obtain, exchange, refresh, inspect, and clear access and refresh tokens
+across interactive, delegated, application, workload, and brokered authentication
+flows.
+
+Supported scenarios include device code and authorization code authentication,
+passkey/FIDO2 sign-in, ESTSAUTH and SCCAUTH cookie exchange, refresh-token and
+Continuous Access Evaluation (CAE) workflows, client credentials, on-behalf-of
+(OBO), certificate and TPM-backed authentication, workload identity federation
+(including GitHub Actions and Azure Arc), custom OIDC providers, and nested app
+authentication. Tokens can be used with Microsoft Graph, Azure management,
+SharePoint, OneDrive, Exchange, Teams, and other supported Microsoft cloud
+workloads.
+
+Use TokenTactics only against tenants, accounts, applications, and workloads for
+which you have explicit authorization.
 
 Scenario-based OAuth and workload guides are in
 [docs](./docs/README.md); the individual command reference is in
 [docs/commands](./docs/commands/README.md).
 
-Azure access tokens allow you to authenticate to certain endpoints as a user who signs in with a device code. If you are in possesion of a [FOCI (Family of Client IDs)](https://github.com/secureworks/family-of-client-ids-research) capable refresh token you can use it to get access tokens to all known [FOCI capable endpoints](https://github.com/secureworks/family-of-client-ids-research/blob/main/known-foci-clients.csv). Since the refresh-token also contains the information if the user has done multi-factor authentication you can use this. Once you have a user's access token, it may be possible to access certain apps such as Outlook, SharePoint, OneDrive, MSTeams and more.
+For more information about Microsoft Entra ID access tokens, see the Microsoft
+documentation on [Microsoft identity platform access tokens](https://learn.microsoft.com/en-us/entra/identity-platform/access-tokens).
 
-For instance, if you have a Graph or MSGraph refresh token, you can then connect to Azure and dump users, groups, etc. You could then, depending on conditional access policies, switch to an Azure Core Management token and run [AzureHound](https://github.com/BloodHoundAD/AzureHound). Then, get an Outlook access token and read/send emails or MS Teams and read/send teams messages!
+There are example requests to Microsoft cloud endpoints in the `resources` folder,
+as well as an example device-code authentication template.
 
-For more on Azure token types [Microsoft identity platform access tokens](https://docs.microsoft.com/en-us/azure/active-directory/develop/access-tokens)
-
-There are some example requests to endpoints in the resources folder. There is also an example phishing template for device code phishing.
-
-You may also use these tokens with [AAD Internals](https://o365blog.com/aadinternals/) as well. We strongly recommended to check this amazing tool out.
+You may also use these tokens with [AAD Internals](https://o365blog.com/aadinternals/).
 
 ## Installation and Usage
 
@@ -51,7 +67,9 @@ The same suite runs on Linux, macOS, and Windows for every pull request.
 Get-EntraIDTokenFromDeviceCode -Client MSGraph
 ```
 
-Once the user has logged in, you'll be presented with the JWT and it will be saved in the `$response` variable. To access the access token use ```$response.access_token``` from your PowerShell window to display the token. You may also display the refresh token with ```$response.refresh_token```. Hint: You'll want the refresh token to keep refreshing to new tokens!
+Once the user has logged in, the OAuth token response is saved in the `$response`
+variable. Access the bearer token with `$response.access_token` or the refresh
+token with `$response.refresh_token`.
 
 ### Authenticate an application with a TPM-backed certificate
 
@@ -83,12 +101,12 @@ Get-EntraIDTokenFromDeviceCode -Client DODMSGraph
 ### Sign-in using a passkey
 
 > [!IMPORTANT]
-> This feature was introduced in v0.2.20 and required PowerShell 7.0
+> This feature was introduced in v0.2.20 and requires PowerShell 7.0.
 
 If you have created a passkey in a third party provider like KeePassXC, Bitwarden, 1Password, or similar you can export the private key material.
 
 > [!CAUTION]
-> Exporting you private key material is extremely dangerous. Make sure you understand the risk before your move on.
+> Exporting your private key material is extremely dangerous. Make sure you understand the risk before you proceed.
 
 The KeePassXC passkey file format is natively supported and you can point the cmdlet to the file directly. The initial sign-in procedure will only get the required ESTSAUTH cookie and you have to use `Get-EntraIDTokenFromESTSCookie` to exchange this cookie for a bearer token (access token, refresh token, and id token).
 
@@ -169,7 +187,9 @@ Supported `-ResourceName` values: `Azure`, `LogAnalytics`, `MATP`, `MCAS`, `Micr
 Get-EntraIDTokenFromESTSCookie -ESTSAuthCookie "0.AbcApTk..."
 ```
 
-This module uses authorization code flow to obtain an access token and refresh token using ESTSAuth (or ESTSAuthPersistent) cookie. Useful if you have phished a session via Evilginx or have otherwise obtained this cookie.
+This module uses authorization code flow to obtain an access token and refresh token
+using an ESTSAuth (or ESTSAuthPersistent) cookie. Use it only when you have obtained
+the cookie from an authorized test session.
 
 Be sure to use the right cookie! `ESTSAuthPersistent` is only useful when a CA policy actually grants a persistent session. Otherwise, you should use `ESTSAuth`. You can usually tell which one to use based on length, the longer cookie is the one you want to use :)
 
@@ -177,7 +197,7 @@ This feature was backported from the [pull request](https://github.com/rvrsh3ll/
 
 ### Get a refresh token using the authorization code flow
 
-One of the most prominent example for this [oauth2 flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow) (at least at the beginning on 2025) is the Intune Company Portal which allows, for some resources, to bypass device compliance requirements.
+One prominent example of this [OAuth 2.0 flow](https://learn.microsoft.com/en-us/entra/identity-platform/v2-oauth2-auth-code-flow) is the Intune Company Portal, which can provide access to some resources under particular tenant and Conditional Access configurations.
 
 This intel was first published by [@dirkjan](https://bsky.app/profile/dirkjanm.io/post/3ld4nbbhqd222) and then released at [Black Hat Europe](https://github.com/secureworks/pytune) to a wider audience by [@TEMP43487580](https://x.com/TEMP43487580/status/1866882057743282432)
 
@@ -185,9 +205,11 @@ JumpsecLabs published a [blog article](https://labs.jumpsec.com/tokensmith-bypas
 
 Now the same capabilities are available in TokenTacticsV2.
 
-`Get-AzureAuthorizationCode` will create a URL you can then use to authenticate to.
+`Get-EntraIDAuthorizationCode` creates a URL that you can use to authenticate.
 
-`Get-EntraIDTokenFromAuthorizationCode` uses wither the full URL or can be used with the parameters `AuthorizationCode` and `RedirectUrl` to exchange the auth code to an access and refresh token. After that you can try to get access to other resources as always.
+`Get-EntraIDTokenFromAuthorizationCode` accepts either the full redirect URL or the
+`AuthorizationCode` and `RedirectUrl` parameters to exchange the authorization code
+for access and refresh tokens.
 
 ![How to use the new cmdlets](./images/EntraIDAuthorizationCodeFlow.gif)
 
@@ -308,13 +330,23 @@ Clear-Token -Token All
 
 ### Continuous Access Evaluation
 
-With [continuous access evaluation](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation) Microsoft implements additional security measures, but also extend the maximum lifetime of an access token to 24 hours. Certain CAE capable service like MSGraph, Exchange, Teams and SharePoint can blocke access tokens based on certain events triggered by Azure AD. Currently those critical events are:
+With [Continuous Access Evaluation (CAE)](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-continuous-access-evaluation), Microsoft enables supported services to react to critical events and applicable Conditional Access policy changes during a token's lifetime. Microsoft currently documents these five critical events:
 
-* User Account is deleted or disabled
+* User account is deleted or disabled
 * Password for a user is changed or reset
-* Multi-factor authentication is enabled for the user
+* Multifactor authentication is enabled for the user
 * Administrator explicitly revokes all refresh tokens for a user
-* High user risk detected by Azure AD Identity Protection (not in Teams and SharePoint Online)
+* High user risk is detected by Microsoft Entra ID Protection
+
+These are critical-event evaluations and do not depend on Conditional Access
+policies. Microsoft notes that SharePoint Online doesn't support user-risk events.
+Separately, CAE-capable services can evaluate supported Conditional Access policies,
+including IP-based location changes; support varies by client and resource provider.
+
+[Universal Continuous Access Evaluation](https://learn.microsoft.com/en-us/entra/global-secure-access/concept-universal-continuous-access-evaluation)
+extends CAE through Global Secure Access. It applies the same Entra ID identity
+signals to network access at the Global Secure Access edge, including for applications
+that are not CAE-aware, and can require near-real-time reauthentication.
 
 ```powershell
 Invoke-RefreshToMSGraphToken -Domain "myclient.org" -UseCAE
@@ -344,7 +376,7 @@ Only supported user-facing commands are exported; parsing, PKCE, generic refresh
 - [@f-bader](https://github.com/f-bader) updated TokenTactics to support V2 endpoint and additional features like CAE. Maintainer of TokenTacticsV2
 - [@Pri3st](https://github.com/Pri3st) added functions to fetch Storage and Key Vault access tokens and a custom user agent
 
-TokenTactic's methods are highly influenced by the great research of Dr Nestori Syynimaa at https://o365blog.com/.
+TokenTactics' methods are highly influenced by the research of Dr. Nestori Syynimaa at https://o365blog.com/.
 
 ## Changelog
 
@@ -469,7 +501,7 @@ TokenTactic's methods are highly influenced by the great research of Dr Nestori 
 ## New Features in v2
 
 * Switched to `v2.0` of the Azure AD OAuth2 endpoint
-* Support for [continuous access evaluation](https://docs.microsoft.com/en-us/azure/active-directory/conditional-access/concept-continuous-access-evaluation) using the new `-UseCAE` switch
+* Support for [Continuous Access Evaluation](https://learn.microsoft.com/en-us/entra/identity-platform/continuous-access-evaluation) using the new `-UseCAE` switch
 * Made `ClientId` a parameter
 * Changed `client_id` for MSTeams
 * Added support for OneDrive and SharePoint
