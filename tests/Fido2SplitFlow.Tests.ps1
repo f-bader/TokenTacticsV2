@@ -45,7 +45,7 @@ BeforeAll {
 }
 
 AfterAll {
-    Remove-Variable -Scope Global -Name Fido2WebSession, ESTSAUTH, webSession, response -ErrorAction SilentlyContinue
+    Remove-Variable -Scope Global -Name Fido2WebSession, Fido2FlowState, ESTSAUTH, webSession, response -ErrorAction SilentlyContinue
 }
 
 Describe 'New-EntraIDUserHandle' {
@@ -55,6 +55,8 @@ Describe 'New-EntraIDUserHandle' {
         $result.TenantId | Should -Be '00112233-4455-6677-8899-aabbccddeeff'
         $result.UserId | Should -Be 'ffeeddcc-bbaa-9988-7766-554433221100'
         $result.UserHandleBase64 | Should -Be 'T046MyIRAFVEd2aImaq7zN3u/+XL2v8mea6v5bMB3Jw5+rS+TeKZ6lehLC8UuwzR6I2C'
+        $result.UserHandleBase64Url | Should -Be 'T046MyIRAFVEd2aImaq7zN3u_-XL2v8mea6v5bMB3Jw5-rS-TeKZ6lehLC8UuwzR6I2C'
+        $result.UserHandle | Should -Be $result.UserHandleBase64Url
         $result.UserHandleHex | Should -Be '4f4e3a33221100554477668899aabbccddeeffe5cbdaff2679aeafe5b301dc9c39fab4be4de299ea57a12c2f14bb0cd1e88d82'
     }
 
@@ -74,15 +76,20 @@ Describe 'Get-EntraIDFido2Challenge' {
     }
 
     AfterEach {
-        Remove-Variable -Scope Global -Name Fido2WebSession -ErrorAction SilentlyContinue
+        Remove-Variable -Scope Global -Name Fido2WebSession, Fido2FlowState -ErrorAction SilentlyContinue
     }
 
-    It 'returns only the challenge string and saves the session state in a global variable' {
+    It 'returns structured flow state and saves the session state in global variables' {
         $result = Get-EntraIDFido2Challenge -UserPrincipalName 'user@contoso.com'
 
-        $result | Should -Be 'server-challenge-value'
+        $result.Challenge | Should -Be 'server-challenge-value'
+        $result.OAuth.Client | Should -Be 'MSGraph'
+        $result.OAuth.ClientID | Should -Be 'd3590ed6-52b3-4102-aeff-aad2292ab01c'
+        $result.OAuth.RedirectUrl | Should -Be 'ms-appx-web://Microsoft.AAD.BrokerPlugIn/S-1-15-2-1479478596-3248452454-924133441-2206841801-2812823084-3237817612-3652912309'
+        $result.PostbackUrl | Should -Be '/post'
 
         $global:Fido2WebSession | Should -Not -BeNullOrEmpty
+        $global:Fido2FlowState | Should -Not -BeNullOrEmpty
         $global:Fido2WebSession.Fido2SessionInfo | Should -Not -BeNullOrEmpty
         $global:Fido2WebSession.Fido2SessionInfo.UserPrincipalName | Should -Be 'user@contoso.com'
         $global:Fido2WebSession.Fido2SessionInfo.sFidoChallenge | Should -Be 'server-challenge-value'
@@ -92,7 +99,22 @@ Describe 'Get-EntraIDFido2Challenge' {
         Get-EntraIDFido2Challenge -UserPrincipalName 'user@contoso.com'
 
         $script:CapturedUri | Should -Match 'sso_reload=true'
-        $script:CapturedUri | Should -Match 'login_hint=user@contoso\.com'
+        $script:CapturedUri | Should -Match 'login_hint=user%40contoso\.com'
+    }
+
+    It 'parses an authorize response with a JavaScript config assignment and trailing semicolon' {
+        Mock -ModuleName TokenTactics Invoke-WebRequest {
+            $config = $script:SessionInformation | ConvertTo-Json -Compress -Depth 10
+            return [PSCustomObject]@{
+                Content = "<script>`$Config = $config;</script>"
+                StatusCode = 200
+            }
+        }
+
+        $result = Get-EntraIDFido2Challenge -UserPrincipalName 'user@contoso.com' -Client Outlook
+
+        $result.Challenge | Should -Be 'server-challenge-value'
+        $result.PostbackUrl | Should -Be '/post'
     }
 
     It 'throws when the user has no FIDO credentials registered' {
@@ -109,7 +131,44 @@ Describe 'Get-EntraIDFido2Challenge' {
     }
 
     It 'throws when the auth URL is not a login.microsoftonline.com URL' {
-        { Get-EntraIDFido2Challenge -UserPrincipalName 'user@contoso.com' -AuthUrl 'https://example.com/authorize?client_id=x&response_type=code&redirect_uri=y' } | Should -Throw "*must start with 'https://login.microsoftonline.com/'*"
+        { Get-EntraIDFido2Challenge -UserPrincipalName 'user@contoso.com' -AuthUrl 'https://example.com/authorize?client_id=x&response_type=code&redirect_uri=y' } | Should -Throw '*login.microsoftonline.com*'
+    }
+
+    It 'builds OAuth URLs from the refresh-token client aliases and supports PKCE' {
+        $result = Get-EntraIDFido2Challenge `
+            -UserPrincipalName 'user@contoso.com' `
+            -Client AzureManagement `
+            -Tenant 'contoso.onmicrosoft.com' `
+            -RedirectUrl 'https://app.example/callback' `
+            -UseCodeVerifier `
+            -CodeVerifier 'fixed-verifier'
+
+        $result.OAuth.Client | Should -Be 'AzureManagement'
+        $result.OAuth.ClientID | Should -Be 'd3590ed6-52b3-4102-aeff-aad2292ab01c'
+        $result.OAuth.CodeVerifier | Should -Be 'fixed-verifier'
+        $result.OAuth.RedirectUrl | Should -Be 'https://app.example/callback'
+        $script:CapturedUri | Should -Match 'organizations|contoso\.onmicrosoft\.com'
+        $script:CapturedUri | Should -Match 'code_challenge_method=S256'
+        $script:CapturedUri | Should -Match 'redirect_uri=https%3a%2f%2fapp.example%2fcallback'
+    }
+
+    It 'selects the registered redirect URI from the effective client ID' {
+        $oauth = InModuleScope TokenTactics {
+            New-TTEntraAuthorizationUrl `
+                -Client Custom `
+                -ClientID '9ba1a5c7-f17a-4de9-a1f1-6178c8d51223' `
+                -Scope 'openid'
+        }
+
+        $oauth.RedirectUrl | Should -Be 'ms-appx-web://Microsoft.AAD.BrokerPlugin/9ba1a5c7-f17a-4de9-a1f1-6178c8d51223'
+    }
+
+    It 'requires an explicit redirect URI for an unknown client ID' {
+        {
+            InModuleScope TokenTactics {
+                New-TTEntraAuthorizationUrl -Client Custom -ClientID '00000000-0000-0000-0000-000000000001' -Scope 'openid'
+            }
+        } | Should -Throw '*Provide -RedirectUrl*'
     }
 }
 
@@ -170,7 +229,7 @@ Describe 'Invoke-EntraIDPasskeyAssertionLogin' {
         Invoke-EntraIDPasskeyAssertionLogin -Assertion $script:Assertion
 
         Should -Invoke -ModuleName TokenTactics Invoke-WebRequest -Times 1 -Exactly -Scope It -ParameterFilter {
-            if ($Uri -ne 'https://login.microsoftonline.com/common/login') {
+            if ($Uri -ne 'https://login.microsoftonline.com/post') {
                 return $false
             }
             $assertion = $Body.assertion | ConvertFrom-Json
@@ -180,7 +239,7 @@ Describe 'Invoke-EntraIDPasskeyAssertionLogin' {
             $Body.hpgrequestid -eq 'session-id'
         }
         Should -Invoke -ModuleName TokenTactics Invoke-WebRequest -Times 1 -Exactly -Scope It -ParameterFilter {
-            $Uri -eq 'https://login.microsoftonline.com/common/login?sso_reload=true' -and
+            $Uri -eq 'https://login.microsoftonline.com/post?sso_reload=true' -and
             $Body.ctx -eq 'context' -and
             $Body.canary -eq 'canary' -and
             $Body.flowToken -eq 'credential-flow-token'
@@ -212,7 +271,9 @@ Describe 'Invoke-EntraIDPasskeyAssertionLogin' {
         Should -Invoke -ModuleName TokenTactics Get-EntraIDTokenFromESTSCookie -Times 1 -Exactly -Scope It -ParameterFilter {
             $CookieValue -eq $script:EstsCookieValue -and
             $ESTSCookieType -eq 'ESTSAUTH' -and
-            $Client -eq 'MSTeams'
+            $Client -eq 'Custom' -and
+            $ClientID -eq 'd3590ed6-52b3-4102-aeff-aad2292ab01c' -and
+            $Scope -eq 'https://graph.microsoft.com/.default offline_access openid'
         }
     }
 
@@ -226,7 +287,7 @@ Describe 'Invoke-EntraIDPasskeyAssertionLogin' {
             if ($Uri -eq 'https://login.microsoft.com/common/fido/get?uiflavor=Web') {
                 return [PSCustomObject]@{ Content = $script:ResponseInformation; StatusCode = 200 }
             }
-            if ($Uri -like 'https://login.microsoftonline.com/common/login*') {
+            if ($Uri -like 'https://login.microsoftonline.com/post*') {
                 throw $script:RedirectMessage
             }
             return [PSCustomObject]@{ Content = '{}'; StatusCode = 200; Error = $null }
@@ -249,7 +310,7 @@ Describe 'Invoke-EntraIDPasskeyAssertionLogin' {
     }
 
     It 'throws when no web session is available' {
-        Remove-Variable -Scope Global -Name Fido2WebSession -ErrorAction SilentlyContinue
+        Remove-Variable -Scope Global -Name Fido2WebSession, Fido2FlowState -ErrorAction SilentlyContinue
 
         { Invoke-EntraIDPasskeyAssertionLogin -Assertion $script:Assertion } | Should -Throw '*Get-EntraIDFido2Challenge*'
     }

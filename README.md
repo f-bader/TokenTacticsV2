@@ -107,27 +107,40 @@ Get-EntraIDTokenFromESTSCookie -CookieValue $Global:ESTSAUTH
 The passkey sign-in is also available as separate cmdlets, which allows the assertion to be signed on a different machine than the one running the login flow — for example with a Windows Hello for Business credential (based on [ROADtools](https://github.com/dirkjanm/ROADtools) by Dirk-jan Mollema, MIT licensed).
 
 ```powershell
-# 1. Retrieve a FIDO2 challenge (saves the web session as $global:Fido2WebSession)
-$challenge = Get-EntraIDFido2Challenge -UserPrincipalName "user@contoso.com"
+# 1. Retrieve structured FIDO2 flow state (also saves $global:Fido2FlowState and
+#    the web session as $global:Fido2WebSession)
+$flow = Get-EntraIDFido2Challenge -UserPrincipalName "user@contoso.com" -Client MSGraph
 
 # 2. Create a signed assertion with the Windows Hello for Business key (Windows only)
 #    The object ID is derived from the certificate's user SID; pass -UserId to override it.
 #    The assertion is returned as a JSON string, e.g. for transfer via clipboard:
-#    Get-WindowsHelloFidoAssertion -Challenge $challenge | Set-Clipboard
-$assertion = Get-WindowsHelloFidoAssertion -Challenge $challenge -UserId "00000000-0000-0000-0000-000000000002"
+#    Get-WindowsHelloFidoAssertion -Challenge $flow.Challenge | Set-Clipboard
+$assertion = Get-WindowsHelloFidoAssertion -Challenge $flow.Challenge -UserId "00000000-0000-0000-0000-000000000002"
 
 # 3. Complete the sign-in. Returns an access token and refresh token by default.
-Invoke-EntraIDPasskeyAssertionLogin -Assertion $assertion
+Invoke-EntraIDPasskeyAssertionLogin -FlowState $flow -Assertion $assertion
 
 # Alternatively, return the ESTSAUTH cookie value instead of tokens
 Invoke-EntraIDPasskeyAssertionLogin -Assertion $assertion -OutputType ESTSAUTHCookie
 ```
+
+The challenge cmdlet builds the authorization URL from the same client names used by the
+refresh-token cmdlets, such as `MSGraph`, `Graph`, `MSTeams`, `AzureManagement`, `SharePoint`,
+and `DeviceRegistration`. OAuth options include `-Tenant`, `-Authority`, `-RedirectUrl`,
+`-Scope`, `-Resource`, `-UseV1Endpoint`, `-UseCAE`, `-UseCodeVerifier`, and `-CodeVerifier`.
+When `-RedirectUrl` is omitted, the helper selects the preferred registered redirect URI for the
+effective client ID using its maintained first-party client mapping; an explicit value overrides it.
+Use `-AuthUrl` when a complete custom authorization URL is required. Unknown/custom client IDs
+must provide `-RedirectUrl` because a generic native redirect may not be registered for that app.
 
 If you need the FIDO2 user handle of a user (e.g. for the software-based passkey flow), you can calculate it from the tenant ID and the user's object ID:
 
 ```powershell
 New-EntraIDUserHandle -TenantId "00000000-0000-0000-0000-000000000001" -UserId "00000000-0000-0000-0000-000000000002"
 ```
+
+Use the returned `UserHandle` or `UserHandleBase64Url` property in an assertion. The legacy
+`UserHandleBase64` property remains padded standard Base64 for compatibility.
 
 ### Get access tokens using the SCCAUTH cookie
 

@@ -7,9 +7,9 @@
     Entra ID and completes the sign-in flow, including interrupt handling (CMSI, KMSI and
     ConvergedSignIn).
 
-    The command relies on the web session previously created by Get-EntraIDFido2Challenge in
-    the same PowerShell session ($global:Fido2WebSession, with the session information
-    attached as property Fido2SessionInfo). Both can be overridden with parameters.
+    The command accepts the structured flow state returned by Get-EntraIDFido2Challenge or falls
+    back to the legacy $global:Fido2WebSession state. Postback URLs are taken from the Entra flow
+    state instead of being hard-coded.
 
     By default the resulting ESTSAUTH cookie is exchanged for an access token and refresh
     token (OutputType 'Token'). Use -OutputType ESTSAUTHCookie to return the raw ESTSAUTH
@@ -27,6 +27,10 @@
     The parsed session information created by Get-EntraIDFido2Challenge.
     Defaults to the Fido2SessionInfo property of the web session.
 
+.PARAMETER FlowState
+    Structured flow state returned by Get-EntraIDFido2Challenge. Its session, OAuth settings and
+    session information take precedence over global state.
+
 .PARAMETER UserPrincipalName
     The user principal name of the target user.
     Defaults to the value stored in the session information.
@@ -36,7 +40,7 @@
     'ESTSAUTHCookie' returns the raw ESTSAUTH cookie value.
 
 .PARAMETER Client
-    The client used for the token exchange. Defaults to "MSTeams".
+    The built-in client used for the OAuth/token exchange. Names mirror Invoke-RefreshToToken.ps1.
 
 .PARAMETER ClientID
     A custom client ID used for the token exchange (Client 'Custom').
@@ -48,15 +52,34 @@
     The scope for the token exchange. Defaults to "openid offline_access".
 
 .PARAMETER RedirectUrl
-    The redirect URL for the token exchange.
+    The redirect URL for the token exchange. When omitted, the preferred registered redirect URI
+    for the effective client ID is selected; an explicit value overrides it.
+
+.PARAMETER Tenant
+    Tenant segment used by the OAuth flow.
+
+.PARAMETER Authority
+    Login authority host. Defaults to login.microsoftonline.com.
+
+.PARAMETER UseV1Endpoint
+    Use the v1 OAuth token model and resource parameter.
+
+.PARAMETER UseCAE
+    Request the CAE cp1 claim for v2 OAuth.
+
+.PARAMETER UseCodeVerifier
+    Enable PKCE for the OAuth flow.
+
+.PARAMETER CodeVerifier
+    PKCE verifier to use when redeeming an authorization code.
 
 .PARAMETER Proxy
     Optional proxy URL used for all web requests.
 
 .EXAMPLE
-    $challenge = Get-EntraIDFido2Challenge -UserPrincipalName "user@contoso.com"
-    $assertion = Get-WindowsHelloFidoAssertion -Challenge $challenge -UserId "00000000-0000-0000-0000-000000000002"
-    Invoke-EntraIDPasskeyAssertionLogin -Assertion $assertion
+    $flow = Get-EntraIDFido2Challenge -UserPrincipalName "user@contoso.com"
+    $assertion = Get-WindowsHelloFidoAssertion -Challenge $flow.Challenge -UserId "00000000-0000-0000-0000-000000000002"
+    Invoke-EntraIDPasskeyAssertionLogin -FlowState $flow -Assertion $assertion
     Completes the passkey sign-in and returns an access token and refresh token.
 
 .EXAMPLE
@@ -74,10 +97,13 @@ function Invoke-EntraIDPasskeyAssertionLogin {
         $Assertion,
 
         [Parameter(Mandatory = $false)]
-        [Microsoft.PowerShell.Commands.WebRequestSession]$WebSession = $global:Fido2WebSession,
+        [Microsoft.PowerShell.Commands.WebRequestSession]$WebSession,
 
         [Parameter(Mandatory = $false)]
         $SessionInfo,
+
+        [Parameter(Mandatory = $false)]
+        $FlowState,
 
         [Alias('UserName')]
         [Parameter(Mandatory = $false)]
@@ -88,8 +114,8 @@ function Invoke-EntraIDPasskeyAssertionLogin {
         [string]$OutputType = 'Token',
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet("MSTeams", "MSEdge", "AzurePowershell", "AzureManagement", "DeviceComplianceBypass", "Custom")]
-        [string]$Client = "MSTeams",
+        [ValidateSet('Substrate','MSManage','MSTeams','OfficeManagement','Outlook','MSGraph','Graph','OfficeApps','AzureCoreManagement','AzureStorage','AzureKeyVault','AzureManagement','MAM','DODMSGraph','SharePoint','OneDrive','Yammer','DeviceRegistration','Custom')]
+        [string]$Client = "MSGraph",
 
         [Parameter(Mandatory = $false)]
         [string]$ClientID,
@@ -98,10 +124,28 @@ function Invoke-EntraIDPasskeyAssertionLogin {
         [string]$Resource = "https://graph.microsoft.com",
 
         [Parameter(Mandatory = $false)]
-        [string]$Scope = "openid offline_access",
+        [string]$Scope,
 
         [Parameter(Mandatory = $false)]
-        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient",
+        [string]$RedirectUrl,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Tenant = 'organizations',
+
+        [Parameter(Mandatory = $false)]
+        [string]$Authority = 'login.microsoftonline.com',
+
+        [Parameter(Mandatory = $false)]
+        [switch]$UseV1Endpoint,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$UseCAE,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$UseCodeVerifier,
+
+        [Parameter(Mandatory = $false)]
+        [string]$CodeVerifier,
 
         [Parameter(Mandatory = $false)]
         [string]$Proxy
@@ -123,14 +167,50 @@ function Invoke-EntraIDPasskeyAssertionLogin {
         }
         $assertionJson = $Assertion | ConvertTo-Json -Compress -Depth 10
 
+        if ($FlowState) {
+            if (-not $WebSession) { $WebSession = $FlowState.WebSession }
+            if (-not $SessionInfo) { $SessionInfo = $FlowState.SessionInformation }
+            if (-not $SessionInfo) { $SessionInfo = $FlowState.SessionInfo }
+            if ($FlowState.OAuth) {
+                if ([string]::IsNullOrWhiteSpace($ClientID)) { $ClientID = $FlowState.OAuth.ClientID }
+                if ([string]::IsNullOrWhiteSpace($Scope)) { $Scope = $FlowState.OAuth.Scope }
+                if ($FlowState.OAuth.Resource) { $Resource = $FlowState.OAuth.Resource }
+                if ([string]::IsNullOrWhiteSpace($RedirectUrl)) { $RedirectUrl = $FlowState.OAuth.RedirectUrl }
+                if ($FlowState.OAuth.UseV1Endpoint) { $UseV1Endpoint = $true }
+                if ($FlowState.OAuth.UseCAE) { $UseCAE = $true }
+                if ($FlowState.OAuth.UseCodeVerifier) { $UseCodeVerifier = $true }
+                if ([string]::IsNullOrWhiteSpace($CodeVerifier)) { $CodeVerifier = $FlowState.OAuth.CodeVerifier }
+            }
+        }
+        if (-not $WebSession) { $WebSession = $global:Fido2WebSession }
+        if (-not $SessionInfo -and $WebSession) { $SessionInfo = $WebSession.Fido2SessionInfo }
+
         if (-not $WebSession) {
             throw "No web session available. Run Get-EntraIDFido2Challenge first or provide -WebSession."
         }
         if (-not $SessionInfo) {
-            $SessionInfo = $WebSession.Fido2SessionInfo
-        }
-        if (-not $SessionInfo) {
             throw "No session information available. Run Get-EntraIDFido2Challenge first or provide -SessionInfo."
+        }
+
+        $effectiveClient = $Client
+        if ($FlowState -and $FlowState.OAuth -and $FlowState.OAuth.Client) {
+            $effectiveClient = $FlowState.OAuth.Client
+        }
+        $resolvedOAuth = Resolve-TTEntraOAuthClient `
+            -Client $effectiveClient `
+            -ClientID $ClientID `
+            -Scope $Scope `
+            -Resource $Resource `
+            -RedirectUrl $RedirectUrl `
+            -UseV1Endpoint:$UseV1Endpoint
+        if ([string]::IsNullOrWhiteSpace($ClientID)) { $ClientID = $resolvedOAuth.ClientID }
+        if ([string]::IsNullOrWhiteSpace($Scope)) { $Scope = $resolvedOAuth.Scope }
+        if ([string]::IsNullOrWhiteSpace($Scope)) { $Scope = 'openid offline_access' }
+        if ($resolvedOAuth.Resource) { $Resource = $resolvedOAuth.Resource }
+        if ($resolvedOAuth.UseV1Endpoint) { $UseV1Endpoint = $true }
+        if ([string]::IsNullOrWhiteSpace($RedirectUrl)) { $RedirectUrl = $resolvedOAuth.RedirectUrl }
+        if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
+            throw "No redirect URI is known for client ID '$ClientID'. Provide -RedirectUrl for this app registration."
         }
 
         # Note: an unbound [string] parameter is an empty string, not $null, so ?? cannot be used here
@@ -152,6 +232,10 @@ function Invoke-EntraIDPasskeyAssertionLogin {
         }
 
         $session = $WebSession
+        $flowAuthority = $Authority
+        if ($FlowState -and $FlowState.OAuth -and $FlowState.OAuth.Authority) {
+            $flowAuthority = $FlowState.OAuth.Authority
+        }
         $credentialsJson = $SessionInfo.oGetCredTypeResult.Credentials.FidoParams.AllowList -join ','
 
         Write-Host "$([char]0x2718) Get required pre-information from microsoft.com..." -ForegroundColor Cyan
@@ -186,7 +270,9 @@ function Invoke-EntraIDPasskeyAssertionLogin {
             throw "Verification request failed: $($_.Exception.Message)"
         }
 
-        $LoginUri = "https://login.microsoftonline.com/common/login"
+        $postbackUrl = $SessionInfo.urlPost
+        if ($FlowState -and $FlowState.PostbackUrl) { $postbackUrl = $FlowState.PostbackUrl }
+        $LoginUri = Resolve-TTEntraPostbackUri -PostbackUrl $postbackUrl -Authority $flowAuthority
         $Payload = @{
             type         = 23
             ps           = 23
@@ -218,7 +304,7 @@ function Invoke-EntraIDPasskeyAssertionLogin {
             Write-Verbose "$([char]0x2714) Assertion accepted (server responded with a redirect)."
         }
 
-        $LoginUri = "https://login.microsoftonline.com/common/login?sso_reload=true"
+        $LoginUri = Add-TTUriQueryParameter -Uri $LoginUri -Name 'sso_reload' -Value 'true'
         $Payload = @{
             type         = 23
             ps           = 23
@@ -393,12 +479,17 @@ function Invoke-EntraIDPasskeyAssertionLogin {
             }
 
             # Default: exchange the ESTSAUTH cookie for an access token and refresh token
+            $exchangeClient = $Client
+            $supportedCookieClients = @('MSTeams', 'MSEdge', 'AzurePowershell', 'AzureManagement', 'DeviceComplianceBypass', 'Custom')
+            if ($FlowState -or $exchangeClient -notin $supportedCookieClients) {
+                $exchangeClient = 'Custom'
+            }
             $TokenParameters = @{
                 CookieValue = $ests.Value
                 Resource    = $Resource
                 Scope       = $Scope
                 RedirectUrl = $RedirectUrl
-                Client      = $Client
+                Client      = $exchangeClient
                 Verbose     = $VerbosePreference
             }
             if ($ests.Name -in @('ESTSAUTH', 'ESTSAUTHPERSISTENT')) {
@@ -409,6 +500,12 @@ function Invoke-EntraIDPasskeyAssertionLogin {
             }
             if ($Proxy) {
                 $TokenParameters.Add('Proxy', $Proxy)
+            }
+            if ($UseV1Endpoint) { $TokenParameters.Add('UseV1Endpoint', $true) }
+            if ($UseCAE) { $TokenParameters.Add('UseCAE', $true) }
+            if ($UseCodeVerifier) {
+                $TokenParameters.Add('UseCodeVerifier', $true)
+                if ($CodeVerifier) { $TokenParameters.Add('CodeVerifier', $CodeVerifier) }
             }
             Get-EntraIDTokenFromESTSCookie @TokenParameters
             return $global:response

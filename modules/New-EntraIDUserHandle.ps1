@@ -65,14 +65,17 @@ function New-EntraIDUserHandle {
     [System.Buffer]::BlockCopy($tenantBytes, 0, $userHandleBytes, $onBytes.Length, $tenantBytes.Length)
     [System.Buffer]::BlockCopy($userHashBytes, 0, $userHandleBytes, ($onBytes.Length + $tenantBytes.Length), $userHashBytes.Length)
 
-    # 6. Encode the final output (Base64 is standard for JSON/Auth tokens, Hex provided as backup)
+    # 6. Encode the final output. WebAuthn assertion fields use unpadded Base64URL.
     $userHandleBase64 = [Convert]::ToBase64String($userHandleBytes)
+    $userHandleBase64Url = $userHandleBase64.Replace('+', '-').Replace('/', '_').TrimEnd('=')
     $userHandleHex = [System.BitConverter]::ToString($userHandleBytes).Replace("-", "").ToLower()
 
     # Output the results
     [PSCustomObject]@{
         TenantId         = $TenantId
         UserId           = $UserId
+        UserHandle       = $userHandleBase64Url
+        UserHandleBase64Url = $userHandleBase64Url
         UserHandleBase64 = $userHandleBase64
         UserHandleHex    = $userHandleHex
     }

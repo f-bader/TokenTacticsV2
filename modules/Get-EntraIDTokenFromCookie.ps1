@@ -42,6 +42,8 @@ function Get-EntraIDTokenFromCookie {
         [Parameter(Mandatory = $false)]
         [switch]$UseCodeVerifier,
         [Parameter(Mandatory = $false)]
+        [string]$CodeVerifier,
+        [Parameter(Mandatory = $false)]
         [switch]$UseV1Endpoint,
         [Parameter(Mandatory = $false)]
         [switch]$UseCAE,
@@ -103,7 +105,9 @@ function Get-EntraIDTokenFromCookie {
         $Uri = "https://login.microsoftonline.com/common/oauth2/v2.0/authorize?response_type=code&client_id=$($ClientID)&scope=$($Scope)&redirect_uri=$($redirect_uri)&state=$($state)"
     }
     if ($UseCodeVerifier) {
-        $CodeVerifier = Get-TTCodeVerifier
+        if ([string]::IsNullOrWhiteSpace($CodeVerifier)) {
+            $CodeVerifier = Get-TTCodeVerifier
+        }
         $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
         $Uri += "&code_challenge=$CodeChallenge&code_challenge_method=S256"
     }
@@ -311,6 +315,14 @@ function Get-EntraIDTokenFromESTSCookie {
         [Parameter(Mandatory = $False)]
         [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient",
         [Parameter(Mandatory = $false)]
+        [switch]$UseCodeVerifier,
+        [Parameter(Mandatory = $false)]
+        [string]$CodeVerifier,
+        [Parameter(Mandatory = $false)]
+        [switch]$UseV1Endpoint,
+        [Parameter(Mandatory = $false)]
+        [switch]$UseCAE,
+        [Parameter(Mandatory = $false)]
         [string]$Proxy
     )
 
@@ -343,6 +355,10 @@ function Get-EntraIDTokenFromESTSCookie {
         "Scope"       = $Scope
         "RedirectUrl" = $RedirectUrl
         "Verbose"     = $VerbosePreference
+        "UseCodeVerifier" = $UseCodeVerifier
+        "CodeVerifier" = $CodeVerifier
+        "UseV1Endpoint" = $UseV1Endpoint
+        "UseCAE" = $UseCAE
     }
     if ($Proxy) {
         $Parameters.Add("Proxy", $Proxy)
