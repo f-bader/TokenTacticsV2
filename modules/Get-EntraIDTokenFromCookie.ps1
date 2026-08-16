@@ -1,3 +1,72 @@
+function Invoke-TTNativeRedirectWebRequest {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri,
+        [Parameter(Mandatory)]
+        [Microsoft.PowerShell.Commands.WebRequestSession]$WebSession,
+        [System.Collections.IDictionary]$Headers,
+        [string]$Proxy
+    )
+
+    # Invoke-WebRequest validates the Location scheme even with
+    # MaximumRedirection=0. Use the .NET request directly for registered
+    # native/URN redirects so the 302 can be inspected without following it.
+    $request = [System.Net.HttpWebRequest]::Create($Uri)
+    $request.AllowAutoRedirect = $false
+    $request.CookieContainer = $WebSession.Cookies
+    $request.UserAgent = $WebSession.UserAgent
+    if ($Proxy) {
+        $request.Proxy = [System.Net.WebProxy]::new($Proxy)
+    }
+    foreach ($header in @($Headers.GetEnumerator())) {
+        if ($header.Key -ieq 'User-Agent') {
+            $request.UserAgent = [string]$header.Value
+        } else {
+            $request.Headers[$header.Key] = [string]$header.Value
+        }
+    }
+
+    $response = $null
+    try {
+        $response = $request.GetResponse()
+    } catch [System.Net.WebException] {
+        if ($_.Exception.Response) {
+            $response = $_.Exception.Response
+        } else {
+            throw
+        }
+    }
+
+    try {
+        $rawContent = ''
+        $responseStream = $response.GetResponseStream()
+        if ($responseStream) {
+            $reader = [System.IO.StreamReader]::new($responseStream)
+            try {
+                $rawContent = $reader.ReadToEnd()
+            } finally {
+                $reader.Dispose()
+            }
+        }
+
+        $responseHeaders = $response.Headers
+        $location = $responseHeaders['Location']
+        if ($location) {
+            Add-Member -InputObject $responseHeaders -MemberType NoteProperty -Name Location -Value $location -Force
+        }
+
+        return [PSCustomObject]@{
+            StatusCode = [int]$response.StatusCode
+            RawContent = $rawContent
+            Content    = $rawContent
+            Headers    = $responseHeaders
+        }
+    } finally {
+        $response.Dispose()
+    }
+}
+
 function Get-EntraIDTokenFromCookie {
 
     <#
@@ -31,13 +100,13 @@ function Get-EntraIDTokenFromCookie {
         [Parameter(Mandatory = $False)]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [string]$Browser,
-        [Parameter(Mandatory = $true)]
-        [string]$ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264", # Microsoft Teams
+        [Parameter(Mandatory = $false)]
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$Resource = "https://graph.microsoft.com",
         [Parameter(Mandatory = $true)]
         [string]$Scope = "openid offline_access",
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string]$RedirectUrl,
         [Parameter(Mandatory = $false)]
         [switch]$UseCodeVerifier,
@@ -50,6 +119,16 @@ function Get-EntraIDTokenFromCookie {
         [Parameter(Mandatory = $false)]
         [string]$Proxy
     )
+
+    if ([string]::IsNullOrWhiteSpace($ClientID)) {
+        $ClientID = (Resolve-TTEntraOAuthClient -Client MSTeams).ClientID
+    }
+    if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
+        $RedirectUrl = $script:TTClientRedirectUris[$ClientID]
+    }
+    if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
+        throw "No redirect URI is known for client ID '$ClientID'. Provide -RedirectUrl."
+    }
 
     # Configure Default Parameters
     $PSDefaultParameterValues = @{}
@@ -117,7 +196,10 @@ function Get-EntraIDTokenFromCookie {
     }
     Write-Verbose "Requesting URL: $Uri"
     Write-Output "$([char]0x2718)  Calling authorization endpoint with $CookieType cookie"
-    if ($PSVersionTable.PSEdition -ne "Core") {
+    $redirectScheme = ([System.Uri]$RedirectUrl).Scheme
+    if ($redirectScheme -notin @('http', 'https')) {
+        $sts_response = Invoke-TTNativeRedirectWebRequest -Uri $Uri -WebSession $session -Headers $Headers -Proxy $Proxy
+    } elseif ($PSVersionTable.PSEdition -ne "Core") {
         $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
     } else {
         $sts_response = Invoke-WebRequest -UseBasicParsing -SkipHttpErrorCheck -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $Uri -Headers $Headers
@@ -192,42 +274,53 @@ function Get-EntraIDTokenFromCookie {
 
 
     Write-Debug "Response: $($sts_response.RawContent)"
-    #region Manual sign-in required
-    if ($sts_response.StatusCode -eq 302 -and $sts_response.Headers.Location -notmatch "code=") {
-        Write-Verbose "$([char]0x2718)  Single sign-on failed. Redirected to $($sts_response.Headers.Location)"
-        $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri "$($sts_response.Headers.Location)" -Headers $Headers
-        if ( $sts_response.RawContent -match "\`$Config=(.*);") {
-            $AppConfig = $Matches[1] | ConvertFrom-Json
-            Write-Debug "AppConfig: $($AppConfig | ConvertTo-Json -Depth 99 )"
-            Invoke-EntraErrorHandling -AppConfig $AppConfig
-        } else {
-            Write-Output "$([char]0x2718)  Could not find AppConfig in response"
-            Write-Output "    Unknown error occurred"
-            Write-Debug "Response: $($sts_response.RawContent)"
-        }
-        return
-    }
-    #endregion
-
     if ($sts_response.StatusCode -eq 302) {
-        if ($PSVersionTable.PSEdition -ne "Core") {
-            $RequestURL = $sts_response.Headers.Location
-        } else {
-            $RequestURL = $sts_response.Headers.Location[0]
+        # Header adapters return either a string or a string array across
+        # PowerShell editions. Normalize both forms before parsing the code.
+        $RequestURL = [string](@($sts_response.Headers.Location)[0])
+        try {
+            $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
+        } catch {
+            $queryParams = @{}
         }
-        $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
 
-        # When code is present, we have a valid refresh token and can use it to request a new token
-        if ($queryParams.ContainsKey('code')) {
-            $AuthorizationCode = $queryParams['code']
-            Write-Verbose "Authorization Code: $($AuthorizationCode[0..10] -join '' )..."
-        } else {
-            Write-Output "$([char]0x2718)  Code not found in redirected URL path"
-            Write-Output "    Requested URL: $($RequestURL)"
-            Write-Output "    Response Code: $($sts_response.StatusCode)"
-            Write-Output "    Response URI:  $($sts_response.Headers.Location)"
+        #region Manual sign-in required
+        if (-not $queryParams.ContainsKey('code')) {
+            # Native and URN redirects are OAuth callback targets, not URLs
+            # that Invoke-WebRequest can request. Report the failed flow
+            # without sending an unsupported scheme to PowerShell.
+            $locationUri = $null
+            $isAbsoluteLocation = [System.Uri]::TryCreate(
+                $RequestURL,
+                [System.UriKind]::Absolute,
+                [ref]$locationUri
+            )
+            if ($isAbsoluteLocation -and $locationUri.Scheme -notin @('http', 'https')) {
+                Write-Verbose "$([char]0x2718)  Single sign-on failed; received a native redirect ($($locationUri.Scheme)) without an authorization code"
+                Write-Output "$([char]0x2718)  Could not find an authorization code in the native redirect"
+                Write-Output "    Redirect scheme: $($locationUri.Scheme)"
+                return
+            }
+
+            Write-Verbose "$([char]0x2718)  Single sign-on failed; received an HTTP redirect without an authorization code"
+
+            $sts_response = Invoke-WebRequest -UseBasicParsing -MaximumRedirection 0 -ErrorAction SilentlyContinue -WebSession $session -Method Get -Uri $RequestURL -Headers $Headers
+            if ( $sts_response.RawContent -match "\`$Config=(.*);") {
+                $AppConfig = $Matches[1] | ConvertFrom-Json
+                Write-Debug "AppConfig: $($AppConfig | ConvertTo-Json -Depth 99 )"
+                Invoke-EntraErrorHandling -AppConfig $AppConfig
+            } else {
+                Write-Output "$([char]0x2718)  Could not find AppConfig in response"
+                Write-Output "    Unknown error occurred"
+                Write-Debug "Response: $($sts_response.RawContent)"
+            }
             return
         }
+        #endregion
+
+        # When code is present, we have a valid refresh token and can use it to request a new token
+        $AuthorizationCode = $queryParams['code']
+        Write-Verbose "Authorization Code: $($AuthorizationCode[0..10] -join '' )..."
     } else {
         $sts_response.RawContent -match "\`$Config=(.*);" | Out-Null
         $AppConfig = $Matches[1] | ConvertFrom-Json
@@ -313,7 +406,7 @@ function Get-EntraIDTokenFromESTSCookie {
         [Parameter(Mandatory = $False)]
         [string]$Scope = "openid offline_access",
         [Parameter(Mandatory = $False)]
-        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient",
+        [string]$RedirectUrl,
         [Parameter(Mandatory = $false)]
         [switch]$UseCodeVerifier,
         [Parameter(Mandatory = $false)]
@@ -326,34 +419,14 @@ function Get-EntraIDTokenFromESTSCookie {
         [string]$Proxy
     )
 
-    if ($Client -eq "MSTeams") {
-        $ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
-    } elseif ($Client -eq "MSEdge") {
-        $ClientID = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
-    } elseif ($Client -eq "AzurePowershell") {
-        $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
-    } elseif ($Client -eq "DeviceComplianceBypass") {
-        $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
-        $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
-    } elseif ($Client -eq "AzureManagement") {
-        $ClientID = "84070985-06ea-473d-82fe-eb82b4011c9d"
-    } elseif ($Client -eq "Custom") {
-        if ([string]::IsNullOrWhiteSpace($ClientID)) {
-            Write-Error "ClientID must be provided for Custom client"
-            return
-        }
-        if ([string]::IsNullOrWhiteSpace($Scope)) {
-            Write-Error "Scope must be provided for Custom client"
-            return
-        }
-    }
+    $legacyClient = Resolve-TTLegacyOAuthClient -Client $Client -ClientID $ClientID -RedirectUrl $RedirectUrl
 
     $Parameters = @{
         "CookieType"  = $ESTSCookieType
         "CookieValue" = $CookieValue
-        "ClientID"    = $ClientID
+        "ClientID"    = $legacyClient.ClientID
         "Scope"       = $Scope
-        "RedirectUrl" = $RedirectUrl
+        "RedirectUrl" = $legacyClient.RedirectUrl
         "Verbose"     = $VerbosePreference
         "UseCodeVerifier" = $UseCodeVerifier
         "CodeVerifier" = $CodeVerifier
@@ -421,39 +494,18 @@ function Get-EntraIDTokenFromRefreshTokenCredentialCookie {
         [Parameter(Mandatory = $False)]
         [string]$Scope = "openid offline_access",
         [Parameter(Mandatory = $False)]
-        [string]$RedirectUrl = "https://login.microsoftonline.com/common/oauth2/nativeclient",
+        [string]$RedirectUrl,
         [Parameter(Mandatory = $false)]
         [string]$Proxy
     )
 
-
-    if ($Client -eq "MSTeams") {
-        $ClientID = "1fec8e78-bce4-4aaf-ab1b-5451cc387264"
-    } elseif ($Client -eq "MSEdge") {
-        $ClientID = "ecd6b820-32c2-49b6-98a6-444530e5a77a"
-    } elseif ($Client -eq "AzurePowershell") {
-        $ClientID = "1950a258-227b-4e31-a9cf-717495945fc2"
-    } elseif ($Client -eq "DeviceComplianceBypass") {
-        $ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223"
-        $RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
-    } elseif ($Client -eq "AzureManagement") {
-        $ClientID = "84070985-06ea-473d-82fe-eb82b4011c9d"
-    } elseif ($Client -eq "Custom") {
-        if ([string]::IsNullOrWhiteSpace($ClientID)) {
-            Write-Error "ClientID must be provided for Custom client"
-            return
-        }
-        if ([string]::IsNullOrWhiteSpace($Scope)) {
-            Write-Error "Scope must be provided for Custom client"
-            return
-        }
-    }
+    $legacyClient = Resolve-TTLegacyOAuthClient -Client $Client -ClientID $ClientID -RedirectUrl $RedirectUrl
     $Parameters = @{
         "CookieType"  = "x-ms-RefreshTokenCredential"
         "CookieValue" = $RefreshTokenCredential
-        "ClientID"    = $ClientID
+        "ClientID"    = $legacyClient.ClientID
         "Scope"       = $Scope
-        "RedirectUrl" = $RedirectUrl
+        "RedirectUrl" = $legacyClient.RedirectUrl
         "Verbose"     = $VerbosePreference
     }
     if ($Proxy) {

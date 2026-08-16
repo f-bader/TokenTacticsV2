@@ -24,7 +24,7 @@ if ( $OutputMessages ) {
 
 # Load the .ps1 scripts
 #$scripts = @(Get-ChildItem -Path $PSScriptRoot\*.ps1 -ErrorAction SilentlyContinue)
-$scripts = @(Get-ChildItem -Path $PSScriptRoot\modules\*.ps1 -ErrorAction SilentlyContinue)
+$scripts = @(Get-ChildItem -Path $PSScriptRoot\modules\*.ps1 -ErrorAction SilentlyContinue | Sort-Object -Property Name)
 $c = 0
 foreach ($script in $scripts) {
     if ( $OutputMessages ) {

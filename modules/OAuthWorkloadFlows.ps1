@@ -278,8 +278,9 @@ function Get-EntraIDTokenFromClientSecret {
         [Parameter(Mandatory = $true)][string]$ClientId,
         [Parameter(Mandatory = $true, ParameterSetName = 'PlaintextSecret')][string]$ClientSecret,
         [Parameter(Mandatory = $true, ParameterSetName = 'SecureStringSecret')][securestring]$ClientSecretSecureString,
-        [string]$Scope = 'https://graph.microsoft.com/.default'
+        [string]$Scope
     )
+    if ([string]::IsNullOrWhiteSpace($Scope)) { $Scope = Get-TTEntraOAuthDefaultScope -Client MSGraph }
     Write-Verbose ("Starting client-credentials flow: tenant={0}; client_id={1}; scope={2}; credential_input={3}" -f $TenantId, $ClientId, $Scope, $PSCmdlet.ParameterSetName)
     Assert-TTDefaultScope -Scope $Scope
     $secret = if ($PSCmdlet.ParameterSetName -eq 'SecureStringSecret') { ConvertFrom-TTSecureValue $ClientSecretSecureString } else { $ClientSecret }
@@ -434,8 +435,9 @@ function Get-EntraIDTokenFromFederatedCredential {
         [Parameter(Mandatory = $true, ParameterSetName = 'PlaintextToken')][string]$FederatedToken,
         [Parameter(Mandatory = $true, ParameterSetName = 'SecureStringToken')][securestring]$FederatedTokenSecureString,
         [Parameter(Mandatory = $true, ParameterSetName = 'TokenFile')][string]$FederatedTokenPath,
-        [string]$Scope = 'https://graph.microsoft.com/.default'
+        [string]$Scope
     )
+    if ([string]::IsNullOrWhiteSpace($Scope)) { $Scope = Get-TTEntraOAuthDefaultScope -Client MSGraph }
     Write-Verbose ("Starting federated-credential flow: tenant={0}; client_id={1}; scope={2}; assertion_input={3}" -f $TenantId, $ClientId, $Scope, $PSCmdlet.ParameterSetName)
     Assert-TTDefaultScope -Scope $Scope
     $assertion = switch ($PSCmdlet.ParameterSetName) {
@@ -495,9 +497,10 @@ function Get-EntraIDTokenFromGitHubActions {
     param(
         [Parameter(Mandatory = $true)][string]$TenantId,
         [Parameter(Mandatory = $true)][string]$ClientId,
-        [string]$Scope = 'https://graph.microsoft.com/.default',
+        [string]$Scope,
         [string]$Audience = 'api://AzureADTokenExchange'
     )
+    if ([string]::IsNullOrWhiteSpace($Scope)) { $Scope = Get-TTEntraOAuthDefaultScope -Client MSGraph }
     Write-Verbose ("Starting GitHub Actions OIDC flow: tenant={0}; client_id={1}; scope={2}; audience={3}" -f $TenantId, $ClientId, $Scope, $Audience)
     if ([string]::IsNullOrWhiteSpace($env:ACTIONS_ID_TOKEN_REQUEST_URL) -or [string]::IsNullOrWhiteSpace($env:ACTIONS_ID_TOKEN_REQUEST_TOKEN)) {
         throw 'GitHub Actions OIDC environment variables are unavailable. Run this command in a workflow with id-token: write permission.'

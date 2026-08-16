@@ -144,7 +144,7 @@ Describe 'Get-EntraIDFido2Challenge' {
             -CodeVerifier 'fixed-verifier'
 
         $result.OAuth.Client | Should -Be 'AzureManagement'
-        $result.OAuth.ClientID | Should -Be 'd3590ed6-52b3-4102-aeff-aad2292ab01c'
+        $result.OAuth.ClientID | Should -Be '1950a258-227b-4e31-a9cf-717495945fc2'
         $result.OAuth.CodeVerifier | Should -Be 'fixed-verifier'
         $result.OAuth.RedirectUrl | Should -Be 'https://app.example/callback'
         $script:CapturedUri | Should -Match 'organizations|contoso\.onmicrosoft\.com'

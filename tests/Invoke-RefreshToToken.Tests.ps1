@@ -346,7 +346,9 @@ Describe "Invoke-RefreshToAzureManagementToken" {
     It "Uses the AzureManagement (management.azure.com) scope" {
         Invoke-RefreshToAzureManagementToken -Domain "contoso.com" -RefreshToken $script:FakeRefreshToken
         Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
-            $Body -is [hashtable] -and $Body["scope"] -match "management\.azure\.com"
+            $Body -is [hashtable] -and
+            $Body["client_id"] -eq "1950a258-227b-4e31-a9cf-717495945fc2" -and
+            $Body["scope"] -match "management\.azure\.com"
         } -Times 1
     }
 }

@@ -1,32 +1,20 @@
 function Get-EntraIDTokenFromAuthorizationCode {
     <#
     .DESCRIPTION
-        Authenticate to an application (default graph.microsoft.com) using Authorization Code flow.
-        Authenticates to MSGraph as Teams FOCI client by default.
-        https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
-
-    .EXAMPLE
-        Get-EntraIDTokenFromAuthorizationCode -Client MSGraph -AuthorizationCode "1.AXkAT2xo4yev..."
-
-    .AUTHOR
-        Adapted for TokenTactics from the original code by
-        @gladstomych https://github.com/JumpsecLabs/TokenSmith and
-        @zh54321 https://github.com/zh54321/PoCEntraDeviceComplianceBypass/blob/main/poc_entra_compliance_bypass.ps1
-
-        First published by @_dirkjan: https://bsky.app/profile/dirkjanm.io/post/3ld4nbbhqd222
+        Exchange an authorization code for a token.
     #>
     [CmdletBinding()]
     param(
-        [ValidateSet("MSGraph", "Graph", "DeviceRegistration", "Custom")]
-        [string]$Client = "MSGraph",
+        [ValidateSet('Substrate', 'MSManage', 'MSTeams', 'OfficeManagement', 'Outlook', 'MSGraph', 'Graph', 'OfficeApps', 'AzureCoreManagement', 'AzureStorage', 'AzureKeyVault', 'AzureManagement', 'AzurePowerShell', 'AzureCLI', 'MAM', 'DODMSGraph', 'SharePoint', 'OneDrive', 'Yammer', 'DeviceRegistration', 'Custom')]
+        [string]$Client = 'MSGraph',
         [Parameter(Mandatory = $True, ParameterSetName = 'Default')]
         [string]$AuthorizationCode,
-        [Parameter(ParameterSetName = 'Default')]
-        [string]$RedirectUrl = "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113",
         [Parameter(Mandatory = $True, ParameterSetName = 'RequestURL')]
         [string]$RequestURL,
+        [Parameter(ParameterSetName = 'Default')]
+        [string]$RedirectUrl,
         [Parameter(Mandatory = $False)]
-        [string]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$Scope,
         [Parameter(Mandatory = $False)]
@@ -47,7 +35,6 @@ function Get-EntraIDTokenFromAuthorizationCode {
         [string]$Resource
     )
 
-    #region Set Headers
     if ($CustomUserAgent) {
         $UserAgent = $CustomUserAgent
     } elseif ($Device) {
@@ -61,87 +48,66 @@ function Get-EntraIDTokenFromAuthorizationCode {
     } else {
         $UserAgent = Get-ForgedUserAgent
     }
-    $Headers = @{}
-    $Headers["User-Agent"] = $UserAgent
-    #endregion
+    $Headers = @{ 'User-Agent' = $UserAgent }
 
-    #region Extract values from RequestURL
+    $profile = if ($Client -eq 'MSGraph') { Get-TTEntraOAuthProfile -Name AuthorizationCode } else { $null }
+    if ([string]::IsNullOrWhiteSpace($ClientID) -and $profile) { $ClientID = $profile.ClientID }
     if ($RequestURL) {
         $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
-        # When code is present, we have a valid authorization code and can use it to request a new token
         if ($queryParams.ContainsKey('code')) {
             $AuthorizationCode = $queryParams['code']
             Write-Verbose "Code: $($AuthorizationCode[0..10])..."
             Write-Debug "Code: $AuthorizationCode"
         } else {
-            Write-Warning "Code not found in redirected URL path. Aborting..."
+            Write-Warning 'Code not found in redirected URL path. Aborting...'
             return
         }
         $uri = [System.Uri]::new($RequestURL)
         $RedirectUrl = $uri.GetLeftPart([System.UriPartial]::Path)
         if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
-            Write-Warning "Redirect URL not found in redirected URL path. Aborting..."
+            Write-Warning 'Redirect URL not found in redirected URL path. Aborting...'
             return
-        } else {
-            Write-Verbose "Redirect URL: $RedirectUrl"
         }
+        Write-Verbose "Redirect URL: $RedirectUrl"
+    } elseif ([string]::IsNullOrWhiteSpace($RedirectUrl) -and $profile) {
+        $RedirectUrl = $profile.RedirectUrl
     }
-    #endregion
 
-    #region Create Body based on Client selected
+    if ($Client -ne 'Custom' -and -not [string]::IsNullOrWhiteSpace($Scope)) {
+        Write-Warning 'Custom scope is set but client is not set to Custom. Ignoring scope.'
+        $Scope = $null
+    }
+    $resolved = Resolve-TTEntraOAuthClient `
+        -Client $Client `
+        -ClientID $ClientID `
+        -Scope $Scope `
+        -Resource $Resource `
+        -RedirectUrl $RedirectUrl `
+        -UseV1Endpoint:$UseV1Endpoint
+    if ([string]::IsNullOrWhiteSpace($RedirectUrl)) { $RedirectUrl = $resolved.RedirectUrl }
+    if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
+        throw "No redirect URI is known for client ID '$($resolved.ClientID)'. Provide -RedirectUrl."
+    }
+
     $body = @{
-        "grant_type"   = "authorization_code"
-        "redirect_uri" = $RedirectUrl
-        "code"         = $AuthorizationCode
+        grant_type = 'authorization_code'
+        redirect_uri = $RedirectUrl
+        code = $AuthorizationCode
+        client_id = $resolved.ClientID
     }
+    $body.scope = $resolved.Scope
+    if ($resolved.UseV1Endpoint) { $body.resource = $resolved.Resource }
+    if ($UseCAE -and -not $resolved.UseV1Endpoint) {
+        $body.claims = (@{ access_token = @{ xms_cc = @{ values = @('cp1') } } } | ConvertTo-Json -Compress -Depth 99)
+    }
+    if ($CodeVerifier) { $body.code_verifier = $CodeVerifier }
 
-    if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
-        Write-Warning "Custom scope is set but client is not set to Custom. Ignoring scope."
-    }
-    if ($Client -eq "Graph") {
-        $body.Add("scope", "https://graph.windows.net/.default offline_access openid")
-    } elseif ($Client -eq "MSGraph") {
-        $body.Add("scope", "https://graph.microsoft.com/.default offline_access openid")
-    } elseif ($Client -eq "DeviceRegistration") {
-        # Device Registration Service
-        $body.Add("scope", "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9")
-    } elseif ($Client -eq "Custom") {
-        if ([string]::IsNullOrWhiteSpace($ClientID)) {
-            Write-Error "ClientID must be provided for Custom client"
-            return
-        }
-        if ([string]::IsNullOrWhiteSpace($Scope)) {
-            Write-Error "Scope must be provided for Custom client"
-            return
-        }
-        $body.Add("scope", $Scope)
-    }
-    $body.Add("client_id", $ClientID)
-
-    if ($UseCAE -and ( $UseV1Endpoint -eq $false )) {
-        # Add 'cp1' as client claim to get a access token valid for 24 hours
-        $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
-        $body.Add("claims", $Claims)
-    }
-
-    if ($CodeVerifier) {
-        $body.Add("code_verifier", $CodeVerifier)
-    }
-    if ($UseV1Endpoint) {
-        $body.Add("resource", $Resource)
-    }
-    Write-Verbose "Calling token endpoint with Authorization Code"
-    Write-Verbose ( $body | ConvertTo-Json -Depth 99 )
-    #endregion
-
-    #region Exchange authorization code for tokens
+    Write-Verbose 'Calling token endpoint with Authorization Code'
+    Write-Verbose ($body | ConvertTo-Json -Depth 99)
     try {
-        if ( $UseV1Endpoint ) {
-            $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/token"
-        } else {
-            $TokenEndpointUri = "https://login.microsoftonline.com/common/oauth2/v2.0/token"
-        }
-        $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri $TokenEndpointUri -Headers $Headers -Body $body
+        $authority = if ($resolved.Authority) { $resolved.Authority } else { 'login.microsoftonline.com' }
+        $endpoint = if ($resolved.UseV1Endpoint) { 'oauth2/token' } else { 'oauth2/v2.0/token' }
+        $global:response = Invoke-RestMethod -UseBasicParsing -Method Post -Uri "https://$authority/common/$endpoint" -Headers $Headers -Body $body
         $output = ConvertFrom-JWTtoken -token $response.access_token
         $global:TokenDomain = $output.upn -split '@' | Select-Object -Last 1
         $global:TokenUpn = $output.upn
@@ -149,41 +115,30 @@ function Get-EntraIDTokenFromAuthorizationCode {
     } catch {
         Write-Error "Could not get tokens $(Get-EntraErrorDescription -ErrorRecord $_)"
     }
-    #endregion
 }
 
 function Get-EntraIDAuthorizationCode {
     <#
     .DESCRIPTION
-
+        Build an authorization-code URL.
 
     .EXAMPLE
-        # Use Windows based Redirect URL
-        Get-EntraIDAuthorizationCode -RedirectUrl "ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113"
-
-        # Use Android based Redirect URL
-        Get-EntraIDAuthorizationCode -RedirectUrl "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE="
-
-    .AUTHOR
-        Adapted for TokenTactics from the original code by
-        @gladstomych https://github.com/JumpsecLabs/TokenSmith and
-        @zh54321 https://github.com/zh54321/PoCEntraDeviceComplianceBypass/blob/main/poc_entra_compliance_bypass.ps1
+        Get-EntraIDAuthorizationCode -RedirectUrl 'ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113'
     #>
-
     [CmdletBinding()]
     param(
-        [ValidateSet("MSGraph", "Graph", "Custom")]
-        [string]$Client = "MSGraph",
+        [ValidateSet('Substrate', 'MSManage', 'MSTeams', 'OfficeManagement', 'Outlook', 'MSGraph', 'Graph', 'OfficeApps', 'AzureCoreManagement', 'AzureStorage', 'AzureKeyVault', 'AzureManagement', 'AzurePowerShell', 'AzureCLI', 'MAM', 'DODMSGraph', 'SharePoint', 'OneDrive', 'Yammer', 'DeviceRegistration', 'Custom')]
+        [string]$Client = 'MSGraph',
         [Parameter(Mandatory = $False)]
-        [string]$ClientID = "9ba1a5c7-f17a-4de9-a1f1-6178c8d51223",
+        [string]$ClientID,
         [Parameter(Mandatory = $false)]
-        [string]$RedirectUrl = "msauth://com.microsoft.windowsintune.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE=",
+        [string]$RedirectUrl,
         [Parameter(Mandatory = $False)]
-        [string]$AuthorizationCodeState = "9gaPNizkzgtisKqA",
+        [string]$AuthorizationCodeState = '9gaPNizkzgtisKqA',
         [Parameter(Mandatory = $False)]
         [string]$Scope,
         [Parameter(Mandatory = $False)]
-        [Switch]$UseCAE,
+        [switch]$UseCAE,
         [Parameter(Mandatory = $False)]
         [switch]$UseCodeVerifier,
         [Parameter(Mandatory = $False)]
@@ -197,78 +152,68 @@ function Get-EntraIDAuthorizationCode {
         [Parameter(Mandatory = $False)]
         [switch]$OpenInBrowser
     )
-    if ( $UseV1Endpoint ) {
-        $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/authorize"
-    } else {
-        $BaseUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize"
+
+    $profile = if ($Client -eq 'MSGraph') { Get-TTEntraOAuthProfile -Name AuthorizationCodeMobile } else { $null }
+    if ([string]::IsNullOrWhiteSpace($ClientID) -and $profile) { $ClientID = $profile.ClientID }
+    if ([string]::IsNullOrWhiteSpace($RedirectUrl) -and $profile) { $RedirectUrl = $profile.RedirectUrl }
+
+    if ($Client -ne 'Custom' -and -not [string]::IsNullOrWhiteSpace($Scope)) {
+        Write-Warning 'Custom scope is set but client is not set to Custom. Ignoring scope.'
+        $Scope = $null
     }
-    $BaseUrl += "?response_type=code"
+    $resolved = Resolve-TTEntraOAuthClient `
+        -Client $Client `
+        -ClientID $ClientID `
+        -Scope $Scope `
+        -Resource $Resource `
+        -RedirectUrl $RedirectUrl `
+        -UseV1Endpoint:$UseV1Endpoint
+    if ([string]::IsNullOrWhiteSpace($RedirectUrl)) { $RedirectUrl = $resolved.RedirectUrl }
+    if ([string]::IsNullOrWhiteSpace($RedirectUrl)) {
+        throw "No redirect URI is known for client ID '$($resolved.ClientID)'. Provide -RedirectUrl."
+    }
+
+    $authority = if ($resolved.Authority) { $resolved.Authority } else { 'login.microsoftonline.com' }
+    $endpoint = if ($resolved.UseV1Endpoint) { 'oauth2/authorize' } else { 'oauth2/v2.0/authorize' }
+    $BaseUrl = "https://$authority/organizations/${endpoint}?response_type=code"
     $BaseUrl += "&redirect_uri=$RedirectUrl"
     $BaseUrl += "&state=$AuthorizationCodeState"
-    if ($UseV1Endpoint) {
-        $BaseUrl += "&resource=$Resource"
-    }
+    if ($resolved.UseV1Endpoint -and $resolved.Resource) { $BaseUrl += "&resource=$($resolved.Resource)" }
     if ($UseCodeVerifier) {
         $CodeVerifier = Get-TTCodeVerifier
         $CodeChallenge = Get-TTCodeChallenge -CodeVerifier $CodeVerifier
         $BaseUrl += "&code_challenge=$CodeChallenge"
-        $BaseUrl += "&code_challenge_method=S256"
+        $BaseUrl += '&code_challenge_method=S256'
     }
-    if ($Username) {
-        $BaseUrl += "&login_hint=$Username"
-    }
-
-    if ($Client -ne "Custom" -and -not ( [string]::IsNullOrWhiteSpace($Scope) )) {
-        Write-Warning "Custom scope is set but client is not set to Custom. Ignoring scope."
-    }
-    if ($Client -eq "Graph") {
-        $BaseUrl += "&scope=https://graph.windows.net/.default offline_access openid"
-    } elseif ($Client -eq "MSGraph") {
-        $BaseUrl += "&scope=https://graph.microsoft.com/.default offline_access openid"
-    } elseif ($Client -eq "Custom") {
-        if ([string]::IsNullOrWhiteSpace($ClientID)) {
-            Write-Error "ClientID must be provided for Custom client"
-            return
-        }
-        if ([string]::IsNullOrWhiteSpace($Scope)) {
-            Write-Error "Scope must be provided for Custom client"
-            return
-        }
-        $BaseUrl += "&scope=$($Scope)"
-    }
-    $BaseUrl += "&client_id=$ClientID"
-    if ($UseCAE) {
-        # Add 'cp1' as client claim to get a access token valid for 24 hours
-        $BaseUrl += "&claims=" + ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
+    if ($Username) { $BaseUrl += "&login_hint=$Username" }
+    if ($resolved.Scope) { $BaseUrl += "&scope=$($resolved.Scope)" }
+    $BaseUrl += "&client_id=$($resolved.ClientID)"
+    if ($UseCAE -and -not $resolved.UseV1Endpoint) {
+        $BaseUrl += '&claims=' + (@{ access_token = @{ xms_cc = @{ values = @('cp1') } } } | ConvertTo-Json -Compress -Depth 99)
     }
 
     Write-Output $([uri]::EscapeUriString($BaseUrl))
     if ($OpenInBrowser) {
         Start-Process $BaseUrl
-        Write-Output "1. The URL has been opened in your default browser"
+        Write-Output '1. The URL has been opened in your default browser'
     } else {
-        Write-Output "1. Copy and paste the URL into a browser"
+        Write-Output '1. Copy and paste the URL into a browser'
     }
-    Write-Output "2. Enable the developer tools and switch to the network tab"
-    Write-Output "3. Authenticate using your credentials"
-    Write-Output "4. Copy either the Request URL from the header tab or the code value from the payload tab"
-    Write-Output "5. Use the code value (-AuthorizationCode) or complete Request URL (-RequestURL) to get a token:"
-    Write-Output ""
-    Write-Output "   `$AuthCode = Get-Clipboard"
-    if ($UseCodeVerifier) {
-        $CodeVerifierString = "-CodeVerifier `"$CodeVerifier`""
-    }
-    if ($UseV1Endpoint) {
-        $V1EndpointString = "-Resource `"$Resource`" -UseV1Endpoint"
-    }
-    if ($Client -eq "Custom") {
-        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$ClientID`" -Scope `"$Scope`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
+    Write-Output '2. Enable the developer tools and switch to the network tab'
+    Write-Output '3. Authenticate using your credentials'
+    Write-Output '4. Copy either the Request URL from the header tab or the code value from the payload tab'
+    Write-Output '5. Use the code value (-AuthorizationCode) or complete Request URL (-RequestURL) to get a token:'
+    Write-Output ''
+    Write-Output '   `$AuthCode = Get-Clipboard'
+    if ($UseCodeVerifier) { $CodeVerifierString = "-CodeVerifier `"$CodeVerifier`"" }
+    if ($resolved.UseV1Endpoint) { $V1EndpointString = "-Resource `"$($resolved.Resource)`" -UseV1Endpoint" }
+    if ($Client -eq 'Custom') {
+        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$($resolved.ClientID)`" -Scope `"$($resolved.Scope)`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
     } else {
         Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
     }
-
     if ($CopyToClipboard) {
         $BaseUrl | Set-Clipboard
-        Write-Output "   The URL has been copied to your clipboard"
+        Write-Output '   The URL has been copied to your clipboard'
     }
 }

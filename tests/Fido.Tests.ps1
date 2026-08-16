@@ -134,10 +134,61 @@ Describe 'Invoke-EntraIDPasskeyLogin' {
             $Body.canary -eq 'canary' -and
             $Body.flowToken -eq 'credential-flow-token'
         }
+        Should -Invoke -ModuleName TokenTactics Invoke-WebRequest -Times 1 -Exactly -Scope It -ParameterFilter {
+            $Uri -match 'redirect_uri=https%3A%2F%2Flogin.microsoftonline.com%2Fcommon%2Foauth2%2Fnativeclient' -and
+            $Uri -match 'client_id=04b07795-8ddb-461a-bbee-02f9e1bf7b46'
+        }
     }
 
     It 'throws instead of terminating the PowerShell host when the key file is missing' {
         { Invoke-EntraIDPasskeyLogin -KeyFilePath (Join-Path $TestDrive 'missing.json') } | Should -Throw '*not found*'
         Should -Invoke -ModuleName TokenTactics Invoke-WebRequest -Times 0 -Exactly -Scope It
+    }
+
+    It 'continues quietly when finalization reaches the intentional redirect limit' {
+        Mock -ModuleName TokenTactics Invoke-WebRequest {
+            param($Uri, $WebSession)
+            $cookie = [System.Net.Cookie]::new('ESTSAUTH', 'redirect-limit-cookie-value-1234567890')
+            $WebSession.Cookies.Add('https://login.microsoftonline.com/', $cookie)
+            throw [System.InvalidOperationException]::new('The maximum redirection count has been exceeded. To increase the number of redirections allowed, supply a higher value to the -MaximumRedirection parameter.')
+        } -ParameterFilter {
+            $Uri -like 'https://login.microsoftonline.com/common/login*'
+        }
+
+        { Invoke-EntraIDPasskeyLogin -UserPrincipalName 'user@contoso.com' -UserHandle 'user-handle' -CredentialId 'credential-id' -PrivateKey 'raw-key' -ErrorAction Stop } | Should -Not -Throw
+        $global:ESTSAUTH | Should -Be 'redirect-limit-cookie-value-1234567890'
+        Remove-Variable -Name ESTSAUTH, webSession -Scope Global -ErrorAction SilentlyContinue
+    }
+
+    It 'continues quietly when PowerShell reports the redirect stop as an invalid state' {
+        Mock -ModuleName TokenTactics Invoke-WebRequest {
+            param($Uri, $WebSession)
+            $cookie = [System.Net.Cookie]::new('ESTSAUTH', 'invalid-state-cookie-value-1234567890')
+            $WebSession.Cookies.Add('https://login.microsoftonline.com/', $cookie)
+            throw [System.InvalidOperationException]::new('Operation is not valid due to the current state of the object.')
+        } -ParameterFilter {
+            $Uri -like 'https://login.microsoftonline.com/common/login*'
+        }
+
+        { Invoke-EntraIDPasskeyLogin -UserPrincipalName 'user@contoso.com' -UserHandle 'user-handle' -CredentialId 'credential-id' -PrivateKey 'raw-key' -ErrorAction Stop } | Should -Not -Throw
+        $global:ESTSAUTH | Should -Be 'invalid-state-cookie-value-1234567890'
+        Remove-Variable -Name ESTSAUTH, webSession -Scope Global -ErrorAction SilentlyContinue
+    }
+
+    It 'does not index missing ConvergedSignIn session metadata' {
+        Mock -ModuleName TokenTactics Invoke-WebRequest {
+            [PSCustomObject]@{
+                Content  = '{"pgid":"ConvergedSignIn","urlLogin":null}'
+                StatusCode = 200
+                Error = $null
+            }
+        } -ParameterFilter {
+            $Uri -like 'https://login.microsoftonline.com/common/login*'
+        }
+
+        { Invoke-EntraIDPasskeyLogin -UserPrincipalName 'user@contoso.com' -UserHandle 'user-handle' -CredentialId 'credential-id' -PrivateKey 'raw-key' -ErrorAction Stop } | Should -Not -Throw
+        Should -Invoke -ModuleName TokenTactics Invoke-WebRequest -Times 0 -Exactly -Scope It -ParameterFilter {
+            $Uri -like '*sessionid=*'
+        }
     }
 }
