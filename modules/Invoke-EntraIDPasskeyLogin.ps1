@@ -1,3 +1,93 @@
+function Invoke-TTPasskeyWebRequest {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory)]
+        [string]$Uri,
+
+        [Parameter(Mandatory)]
+        [ValidateSet('Get', 'Post')]
+        [string]$Method,
+
+        [Parameter(Mandatory)]
+        $WebSession,
+
+        [Parameter()]
+        $Body,
+
+        [Parameter()]
+        [int]$MaximumRedirection = 0,
+
+        [Parameter()]
+        [switch]$SkipHttpErrorCheck
+    )
+
+    $requestParameters = @{
+        UseBasicParsing      = $true
+        Uri                  = $Uri
+        Method               = $Method
+        WebSession           = $WebSession
+        MaximumRedirection   = $MaximumRedirection
+        # Invoke-WebRequest reports the intentional redirect stop as a
+        # non-terminating error. Silently capture it so PowerShell does not
+        # turn the redirect handling into an unrelated InvalidOperation error.
+        ErrorAction          = 'SilentlyContinue'
+        ErrorVariable        = 'requestErrors'
+    }
+    if ($PSBoundParameters.ContainsKey('Body')) {
+        $requestParameters.Body = $Body
+    }
+    if ($SkipHttpErrorCheck) {
+        $requestParameters.SkipHttpErrorCheck = $true
+    }
+
+    $response = $null
+    $terminatingError = $null
+    try {
+        $response = Invoke-WebRequest @requestParameters
+    } catch {
+        $terminatingError = $_
+    }
+
+    $requestErrors = @($requestErrors) + @($terminatingError)
+    $requestErrors = @($requestErrors | Where-Object { $_ })
+    if ($requestErrors.Count -eq 0) {
+        return $response
+    }
+
+    $errorText = ($requestErrors | ForEach-Object {
+        "$($_.Exception.Message) $($_.ToString())"
+    }) -join ' '
+    if ($errorText -notmatch 'maximum redirection count has been exceeded' -and
+        $errorText -notmatch 'operation is not valid due to the current state of the object') {
+        throw $requestErrors[0].Exception
+    }
+
+    # With MaximumRedirection=0, PowerShell raises this expected condition
+    # after updating the WebRequestSession cookies. Keep the flow quiet and
+    # provide the redirect location when the underlying response exposes it.
+    $errorRecord = $requestErrors[0]
+    $redirectResponse = $errorRecord.Exception.Response
+    if (-not $redirectResponse -and $errorRecord.Exception.InnerException) {
+        $redirectResponse = $errorRecord.Exception.InnerException.Response
+    }
+
+    $redirectUri = $null
+    if ($redirectResponse -and $redirectResponse.Headers) {
+        $redirectUri = $redirectResponse.Headers.Location
+        if (-not $redirectUri) {
+            $redirectUri = $redirectResponse.Headers['Location']
+        }
+    }
+
+    Write-Verbose "Request reached the redirect limit; continuing with the current session. URI: $Uri"
+    return [PSCustomObject]@{
+        Content               = $null
+        Error                 = $null
+        RedirectLimitExceeded = $true
+        RedirectUri           = $redirectUri
+    }
+}
+
 function Invoke-EntraIDPasskeyLogin {
     [CmdletBinding()]
     param (
@@ -22,7 +112,7 @@ function Invoke-EntraIDPasskeyLogin {
         $RelyingParty = "login.microsoft.com",
 
         [Parameter(Mandatory = $false)]
-        $authUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?response_type=code&redirect_uri=msauth.com.msauth.unsignedapp://auth&scope=https://graph.microsoft.com/.default&client_id=04b07795-8ddb-461a-bbee-02f9e1bf7b46",
+        [string]$authUrl,
 
         [Parameter(Mandatory = $false)]
         $UserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36 Edg/142.0.0.0',
@@ -35,13 +125,18 @@ function Invoke-EntraIDPasskeyLogin {
         throw "This function requires PowerShell 7 (Core) for ECDsa PEM support."
     }
 
+    if ([string]::IsNullOrWhiteSpace($authUrl)) {
+        $passkeyProfile = Get-TTEntraOAuthProfile -Name LegacyPasskey
+        $authUrl = "https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?response_type=code&redirect_uri=$([uri]::EscapeDataString($passkeyProfile.RedirectUrl))&scope=$([uri]::EscapeDataString($passkeyProfile.Scope))&client_id=$($passkeyProfile.ClientID)"
+    }
+
     if ($PSCmdlet.ParameterSetName -eq 'Path') {
         if (-not (Test-Path $KeyFilePath)) {
             throw "Key file '$KeyFilePath' not found."
         }
 
         # Load Key Data
-        Write-Host "$([char]0x2718) Loading key data from file: $KeyFilePath" -ForegroundColor Cyan
+        Write-Host "$([char]0x2139) Loading key data from file: $KeyFilePath" -ForegroundColor Cyan
         try {
             $keyData = Get-Content $KeyFilePath -Raw | ConvertFrom-Json
         } catch {
@@ -244,10 +339,11 @@ function Invoke-EntraIDPasskeyLogin {
     try {
         Write-Host "$([char]0x2718) Submitting FIDO2 assertion to microsoftonline.com ..." -ForegroundColor Cyan
         Write-Debug ($Payload | ConvertTo-Json -Depth 10)
-        $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $LoginUri -Method Post -Body $Payload -WebSession $session -MaximumRedirection 0 -SkipHttpErrorCheck
-        $respFinalize.Content -match '{(.*)}' | Out-Null
-        $Debug = $Matches[0] | ConvertFrom-Json | ConvertTo-Json -Depth 10
-        Write-Debug "$([char]0x2718) Finalization Response: $Debug"
+        $respFinalize = Invoke-TTPasskeyWebRequest -Uri $LoginUri -Method Post -Body $Payload -WebSession $session -MaximumRedirection 0 -SkipHttpErrorCheck
+        if ($respFinalize.Content -match '{(.*)}') {
+            $Debug = $Matches[0] | ConvertFrom-Json | ConvertTo-Json -Depth 10
+            Write-Debug "$([char]0x2718) Finalization Response: $Debug"
+        }
     } catch {
         throw "Finalization request failed: $($_.Exception.Message)"
     }
@@ -266,13 +362,15 @@ function Invoke-EntraIDPasskeyLogin {
 
     try {
         Write-Host "$([char]0x2718) Submitting FIDO2 assertion to microsoftonline.com with sso_reload=true ..." -ForegroundColor Cyan
-        $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $LoginUri -Method Post -Body $Payload -WebSession $session -MaximumRedirection 0 -SkipHttpErrorCheck
+        $respFinalize = Invoke-TTPasskeyWebRequest -Uri $LoginUri -Method Post -Body $Payload -WebSession $session -MaximumRedirection 0 -SkipHttpErrorCheck
     } catch {
         throw "Finalization request failed: $($_.Exception.Message)"
     }
 
-    $respFinalize.Content -match '{(.*)}' | Out-Null
-    $Debug = $Matches[0] | ConvertFrom-Json
+    $Debug = $null
+    if ($respFinalize.Content -match '{(.*)}') {
+        $Debug = $Matches[0] | ConvertFrom-Json
+    }
     if ($Debug.pgid) {
         Write-Host "$([char]0x2718) PageID: $($Debug.pgid)"
         $CurrentPageId = $Debug.pgid
@@ -363,14 +461,27 @@ function Invoke-EntraIDPasskeyLogin {
         # ConvergedSignIn interrupt
         if ($Debug.pgid -eq "ConvergedSignIn") {
             Write-Output "$([char]0x2718)  ConvergedSignIn - Attempting to continue sign-in flow"
-            $SessionId = $($Debug.arrSessions[0].id) ?? $Debug.sessionId
+            $SessionId = $null
+            $arrSessions = @($Debug.arrSessions)
+            if ($arrSessions.Count -gt 0) {
+                $SessionId = $arrSessions[0].id
+            }
+            if ([string]::IsNullOrWhiteSpace($SessionId)) {
+                $SessionId = $Debug.sessionId
+            }
+            if ([string]::IsNullOrWhiteSpace($SessionId) -or [string]::IsNullOrWhiteSpace($Debug.urlLogin)) {
+                Write-Verbose "ConvergedSignIn response did not include a usable login URL and session ID; continuing with the existing session."
+                break
+            }
+
+            $rawUri = "$($Debug.urlLogin)&sessionid=$($SessionId)"
             try {
-                $Uri = $Debug.urlLogin + "&sessionid=$($SessionId)"
+                $Uri = ([uri]$rawUri).AbsoluteUri
                 Write-Host "$([char]0x2718) Submitting ConvergedSignIn request to microsoftonline.com ..." -ForegroundColor Cyan
                 Write-Verbose "$([char]0x2718) ConvergedSignIn URL: $Uri"
-                $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $Uri -Method Get -WebSession $session
+                $respFinalize = Invoke-WebRequest -UseBasicParsing -Uri $Uri -Method Get -WebSession $session -ErrorAction Stop
             } catch {
-                Write-Warning "ConvergedSignIn request failed; checking previous response for success. Error: $($_.Exception.Message)"
+                Write-Verbose "ConvergedSignIn request failed; checking previous response for success. Error: $($_.Exception.Message)"
             }
         }
 
@@ -410,21 +521,22 @@ function Invoke-EntraIDPasskeyLogin {
             $global:webSession = $session
         }
         try {
-            $OneFinalResponse = Invoke-WebRequest -UseBasicParsing -Uri $authUrl -Method Get -WebSession $session -MaximumRedirection 0 -ErrorVariable RedirectError
+            $OneFinalResponse = Invoke-TTPasskeyWebRequest -Uri $authUrl -Method Get -WebSession $session -MaximumRedirection 0
             Write-Debug "$([char]0x2718) Last response: $($OneFinalResponse)"
-            if ($RedirectError) {
-                $RedirectUri = $RedirectError[0].InnerException.Response.Headers.Location
+            if ($OneFinalResponse.RedirectUri) {
+                $RedirectUri = $OneFinalResponse.RedirectUri
             }
         } catch {
-            $RedirectUri = $_.Exception.Response.Headers.Location
+            Write-Verbose "Authorization code redirect could not be read after login: $($_.Exception.Message)"
         }
         if ($RedirectUri) {
             Write-Verbose "$([char]0x2714) Authorization Code Flow completed. Redirect URI: $RedirectUri"
         }
     } else {
         Write-Warning "Flow finished but success state is unclear. Saved session for inspection as `$global:webSession."
-        $respFinalize.Content -match '{(.*)}' | Out-Null
-        $Matches[0] | ConvertFrom-Json | ConvertTo-Json -Depth 10
+        if ($respFinalize.Content -match '{(.*)}') {
+            $Matches[0] | ConvertFrom-Json | ConvertTo-Json -Depth 10
+        }
         $global:webSession = $session
     }
 }
