@@ -348,6 +348,13 @@ TokenTactic's methods are highly influenced by the great research of Dr Nestori 
 
 ## Changelog
 
+### 0.6.0 (2026-08-16)
+
+* Centralize Entra first-party OAuth client IDs, scopes, authorities, endpoint versions, and redirect URIs in a shared registry.
+* Preserve required legacy clients and redirect URIs while routing device-code, authorization-code, cookie, passkey, and refresh flows through the registry.
+* Fix v1 device-code polling, native/URN redirect handling, passkey completion edge cases, and refresh-token verbose logging.
+* Add regression coverage for the OAuth registry, native redirects, device-code contracts, passkey flows, and refresh commandlets.
+
 ### 0.5.0 (2026-08-13)
 
 * Add OAuth 2.0 client-credentials, on-behalf-of, and implicit-flow compatibility cmdlets, including secure-string credential support and state validation.
