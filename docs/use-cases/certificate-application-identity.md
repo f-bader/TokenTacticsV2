@@ -3,6 +3,19 @@
 Use this scenario when a daemon or API needs a confidential-client credential without
 storing a shared client secret.
 
+```mermaid
+sequenceDiagram
+    participant A as Application or daemon
+    participant K as Certificate store or PFX
+    participant E as Microsoft Entra ID
+    participant API as Resource provider
+
+    A->>K: Access RSA private key
+    A->>E: Submit signed client assertion
+    E-->>A: App-only access token
+    A->>API: Call resource with token
+```
+
 ## Windows certificate store
 
 The existing Get-EntraIDTokenFromCertificate command looks up an RSA private key by
@@ -30,5 +43,6 @@ Before requesting a token, verify the certificate is valid, has an RSA private k
 matches the public certificate registered on the app, and is available to the process.
 Rotate by registering the new public certificate before removing the old one.
 
-See the [existing TPM certificate example](../../README.md#authenticate-an-application-with-a-tpm-backed-certificate)
-and [OBO guide](./delegated-api-obo.md).
+See the [certificate-token command reference](../commands/Get-EntraIDTokenFromCertificate.md),
+[TPM command reference](../commands/New-TPMCertificate.md), and
+[OBO guide](./delegated-api-obo.md).

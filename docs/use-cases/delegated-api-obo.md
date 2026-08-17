@@ -6,7 +6,19 @@ unless API A is Graph; its audience must be the middle-tier application.
 
 ## Architecture
 
-    user client -> middle-tier API (aud=middle-tier) -> Entra token endpoint -> downstream API (delegated token)
+```mermaid
+sequenceDiagram
+    participant U as Signed-in user client
+    participant A as Middle-tier API
+    participant E as Microsoft Entra ID
+    participant B as Downstream API
+
+    U->>A: Access token aud=middle-tier
+    A->>E: User assertion plus client authentication
+    E-->>A: Delegated token for downstream API
+    A->>B: Downstream token with user's delegated identity
+    B-->>A: User-authorized response
+```
 
 The middle tier authenticates itself with either a client secret or a registered
 certificate. The user assertion proves the delegated user context.

@@ -2,19 +2,6 @@ BeforeAll {
     . "$PSScriptRoot/fixtures/TestData.ps1"
     Import-Module $script:ModulePath -Force
 
-    $script:OriginalOS = $env:OS
-    $env:OS = 'Windows_NT'
-    $script:PrivateKey = [System.Security.Cryptography.RSA]::Create(2048)
-    $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
-        'CN=TokenTactics-Test',
-        $script:PrivateKey,
-        [System.Security.Cryptography.HashAlgorithmName]::SHA256,
-        [System.Security.Cryptography.RSASignaturePadding]::Pkcs1
-    )
-    $script:Certificate = $request.CreateSelfSigned(
-        [DateTimeOffset]::UtcNow.AddMinutes(-1),
-        [DateTimeOffset]::UtcNow.AddMinutes(30)
-    )
     $script:TokenResponse = [PSCustomObject]@{
         access_token = $script:FakeAccessToken
         token_type   = 'Bearer'
@@ -33,13 +20,26 @@ BeforeAll {
     }
 }
 
-AfterAll {
-    $script:Certificate.Dispose()
-    $script:PrivateKey.Dispose()
-    $env:OS = $script:OriginalOS
-}
+Describe 'Get-EntraIDTokenFromCertificate on Windows' -Skip:(-not $IsWindows) {
+    BeforeAll {
+        $script:PrivateKey = [System.Security.Cryptography.RSA]::Create(2048)
+        $request = [System.Security.Cryptography.X509Certificates.CertificateRequest]::new(
+            'CN=TokenTactics-Test',
+            $script:PrivateKey,
+            [System.Security.Cryptography.HashAlgorithmName]::SHA256,
+            [System.Security.Cryptography.RSASignaturePadding]::Pkcs1
+        )
+        $script:Certificate = $request.CreateSelfSigned(
+            [DateTimeOffset]::UtcNow.AddMinutes(-1),
+            [DateTimeOffset]::UtcNow.AddMinutes(30)
+        )
+    }
 
-Describe 'Get-EntraIDTokenFromCertificate' {
+    AfterAll {
+        $script:Certificate.Dispose()
+        $script:PrivateKey.Dispose()
+    }
+
     BeforeEach {
         $script:LastTokenRequest = $null
         Mock -ModuleName TokenTactics Get-Item { $script:Certificate }
@@ -148,16 +148,14 @@ Describe 'Get-EntraIDTokenFromCertificate' {
             Should -Throw '*network error*'
     }
 
+}
+
+Describe 'Get-EntraIDTokenFromCertificate on non-Windows systems' -Skip:$IsWindows {
     It 'rejects non-Windows certificate stores' {
-        $env:OS = 'Unix'
-        try {
-            { Get-EntraIDTokenFromCertificate `
-                    -TenantId 'contoso.onmicrosoft.com' `
-                    -ClientId '11111111-2222-3333-4444-555555555555' `
-                    -CertificateThumbprint $script:Certificate.Thumbprint } |
-                Should -Throw '*requires a Windows certificate store*'
-        } finally {
-            $env:OS = 'Windows_NT'
-        }
+        { Get-EntraIDTokenFromCertificate `
+                -TenantId 'contoso.onmicrosoft.com' `
+                -ClientId '11111111-2222-3333-4444-555555555555' `
+                -CertificateThumbprint '0123456789ABCDEF0123456789ABCDEF01234567' } |
+            Should -Throw '*requires a Windows certificate store*'
     }
 }

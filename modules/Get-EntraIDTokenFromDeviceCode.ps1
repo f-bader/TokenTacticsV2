@@ -7,13 +7,14 @@ function Get-EntraIDTokenFromDeviceCode {
     .EXAMPLE
         Get-EntraIDTokenFromDeviceCode -Client Substrate
     #>
+    [CmdletBinding(DefaultParameterSetName = 'PredefinedUserAgent')]
     param(
-        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
+        [Parameter(Mandatory = $False)]
         [ValidateSet('Substrate', 'MSManage', 'MSTeams', 'OfficeManagement', 'Outlook', 'MSGraph', 'Graph', 'OfficeApps', 'AzureCoreManagement', 'AzureStorage', 'AzureKeyVault', 'AzureManagement', 'AzurePowerShell', 'AzureCLI', 'MAM', 'DODMSGraph', 'SharePoint', 'OneDrive', 'Yammer', 'DeviceRegistration', 'Custom')]
         [string]$Client = 'MSGraph',
-        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
+        [Parameter(Mandatory = $False)]
         [string]$ClientID,
-        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
+        [Parameter(Mandatory = $False)]
         [string]$Scope,
         [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent')]
         [string]$CustomUserAgent,
@@ -23,15 +24,15 @@ function Get-EntraIDTokenFromDeviceCode {
         [Parameter(Mandatory = $False, ParameterSetName = 'PredefinedUserAgent')]
         [ValidateSet('Android', 'IE', 'Chrome', 'Firefox', 'Edge', 'Safari')]
         [string]$Browser,
-        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
+        [Parameter(Mandatory = $False)]
         [switch]$UseCAE,
-        [Parameter(Mandatory = $false, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
+        [Parameter(Mandatory = $false)]
         [string]$SharePointTenantName,
         [Alias('UseAdmin')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
+        [Parameter(Mandatory = $false)]
         [switch]$SharePointUseAdmin,
         [Alias('Domain')]
-        [Parameter(Mandatory = $False, ParameterSetName = 'CustomUserAgent,PredefinedUserAgent')]
+        [Parameter(Mandatory = $False)]
         [string]$ResourceTenant = 'common'
     )
 

@@ -15,7 +15,7 @@
     Copyright         = 'BSD 3-Clause'
 
     # Description of the functionality provided by this module
-    Description       = 'Azure JSON Web Token ("JWT") Token Manipulation Toolset'
+    Description       = 'Microsoft Entra ID OAuth, token, and workload authentication toolkit'
 
     # Functions to export from this module, for best performance, do not use wildcards and do not delete the entry, use an empty array if there are no functions to export.
     FunctionsToExport = @(
