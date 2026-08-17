@@ -50,12 +50,16 @@ function Get-EntraIDTokenFromCertificate {
 
         [Parameter()]
         [ValidateNotNullOrEmpty()]
-        [string]$Scope = 'https://graph.microsoft.com/.default',
+        [string]$Scope,
 
         [Parameter()]
         [ValidateSet('Cert:\CurrentUser\My', 'Cert:\LocalMachine\My')]
         [string]$CertStoreLocation = 'Cert:\CurrentUser\My'
     )
+
+    if ([string]::IsNullOrWhiteSpace($Scope)) {
+        $Scope = Get-TTEntraOAuthDefaultScope -Client MSGraph
+    }
 
     if ($env:OS -ne 'Windows_NT') {
         throw 'Get-EntraIDTokenFromCertificate requires a Windows certificate store.'

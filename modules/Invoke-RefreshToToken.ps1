@@ -1,3 +1,43 @@
+function Invoke-TTRefreshToBuiltInClient {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Client,
+        [Parameter(Mandatory)]
+        [string]$Domain,
+        [string]$RefreshToken,
+        [string]$ClientID,
+        [string]$CustomUserAgent,
+        [string]$Device,
+        [string]$Browser,
+        [switch]$UseCAE,
+        [string]$SharePointTenantName,
+        [switch]$SharePointUseAdmin
+    )
+
+    $resolved = Resolve-TTEntraOAuthClient `
+        -Client $Client `
+        -ClientID $ClientID `
+        -SharePointTenantName $SharePointTenantName `
+        -SharePointUseAdmin:$SharePointUseAdmin
+
+    $parameters = @{
+        Domain          = $Domain
+        refreshToken    = $RefreshToken
+        ClientID        = $resolved.ClientID
+        Scope           = $resolved.Scope
+        CustomUserAgent = $CustomUserAgent
+        Device          = $Device
+        Browser         = $Browser
+        UseCAE          = $UseCAE
+    }
+    if ($resolved.Resource) { $parameters.Resource = $resolved.Resource }
+    if ($resolved.UseV1Endpoint) { $parameters.UseV1Endpoint = $true }
+    if ($resolved.Authority -eq 'login.microsoftonline.us') { $parameters.UseDoD = $true }
+
+    return Invoke-RefreshToToken @parameters
+}
+
 function Invoke-RefreshToSubstrateToken {
     <#
     .DESCRIPTION
@@ -15,7 +55,7 @@ function Invoke-RefreshToSubstrateToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -28,19 +68,8 @@ function Invoke-RefreshToSubstrateToken {
         [switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://substrate.office.com/.default offline_access openid"
-    }
-
     try {
-        $global:SubstrateToken = Invoke-RefreshToToken @Parameters
+        $global:SubstrateToken = Invoke-TTRefreshToBuiltInClient -Client Substrate -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$SubstrateToken"
         $SubstrateToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -64,7 +93,7 @@ function Invoke-RefreshToMSManageToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -77,19 +106,8 @@ function Invoke-RefreshToMSManageToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://enrollment.manage.microsoft.com/.default offline_access openid"
-    }
-
     try {
-        $global:MSManageToken = Invoke-RefreshToToken @Parameters
+        $global:MSManageToken = Invoke-TTRefreshToBuiltInClient -Client MSManage -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MSManageToken"
         $MSManageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -113,7 +131,7 @@ function Invoke-RefreshToMSTeamsToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "1fec8e78-bce4-4aaf-ab1b-5451cc387264",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -126,19 +144,8 @@ function Invoke-RefreshToMSTeamsToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://api.spaces.skype.com/.default offline_access openid"
-    }
-
     try {
-        $global:MSTeamsToken = Invoke-RefreshToToken @Parameters
+        $global:MSTeamsToken = Invoke-TTRefreshToBuiltInClient -Client MSTeams -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MSTeamsToken"
         $MSTeamsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -162,7 +169,7 @@ function Invoke-RefreshToOfficeManagementToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "00b41c95-dab0-4487-9791-b9d2c32c80f2",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -175,19 +182,8 @@ function Invoke-RefreshToOfficeManagementToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://manage.office.com/.default offline_access openid"
-    }
-
     try {
-        $global:OfficeManagementToken = Invoke-RefreshToToken @Parameters
+        $global:OfficeManagementToken = Invoke-TTRefreshToBuiltInClient -Client OfficeManagement -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeManagementToken"
         $OfficeManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -211,7 +207,7 @@ function Invoke-RefreshToOutlookToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -224,19 +220,8 @@ function Invoke-RefreshToOutlookToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://outlook.office365.com/.default offline_access openid"
-    }
-
     try {
-        $global:OutlookToken = Invoke-RefreshToToken @Parameters
+        $global:OutlookToken = Invoke-TTRefreshToBuiltInClient -Client Outlook -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OutlookToken"
         $OutlookToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -260,7 +245,7 @@ function Invoke-RefreshToMSGraphToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -273,19 +258,8 @@ function Invoke-RefreshToMSGraphToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://graph.microsoft.com/.default offline_access openid"
-    }
-
     try {
-        $global:MSGraphToken = Invoke-RefreshToToken @Parameters
+        $global:MSGraphToken = Invoke-TTRefreshToBuiltInClient -Client MSGraph -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MSGraphToken"
         $MSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -309,7 +283,7 @@ function Invoke-RefreshToGraphToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -322,19 +296,8 @@ function Invoke-RefreshToGraphToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://graph.windows.net/.default offline_access openid"
-    }
-
     try {
-        $global:GraphToken = Invoke-RefreshToToken @Parameters
+        $global:GraphToken = Invoke-TTRefreshToBuiltInClient -Client Graph -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$GraphToken"
         $GraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -358,7 +321,7 @@ function Invoke-RefreshToOfficeAppsToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientID = "ab9b8c07-8f02-4f72-87fa-80105867a763",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -371,19 +334,8 @@ function Invoke-RefreshToOfficeAppsToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://officeapps.live.com/.default offline_access openid"
-    }
-
     try {
-        $global:OfficeAppsToken = Invoke-RefreshToToken @Parameters
+        $global:OfficeAppsToken = Invoke-TTRefreshToBuiltInClient -Client OfficeApps -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OfficeAppsToken"
         $OfficeAppsToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -407,7 +359,7 @@ function Invoke-RefreshToAzureCoreManagementToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -420,19 +372,8 @@ function Invoke-RefreshToAzureCoreManagementToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://management.core.windows.net/.default offline_access openid"
-    }
-
     try {
-        $global:AzureCoreManagementToken = Invoke-RefreshToToken @Parameters
+        $global:AzureCoreManagementToken = Invoke-TTRefreshToBuiltInClient -Client AzureCoreManagement -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureCoreManagementToken"
         $AzureCoreManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -456,7 +397,7 @@ function Invoke-RefreshToAzureStorageToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -469,19 +410,8 @@ function Invoke-RefreshToAzureStorageToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://storage.azure.com/.default offline_access openid"
-    }
-
     try {
-        $global:AzureStorageToken = Invoke-RefreshToToken @Parameters
+        $global:AzureStorageToken = Invoke-TTRefreshToBuiltInClient -Client AzureStorage -Domain $Domain -RefreshToken $RefreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureStorageToken"
         $AzureStorageToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -505,7 +435,7 @@ function Invoke-RefreshToAzureKeyVaultToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -518,19 +448,8 @@ function Invoke-RefreshToAzureKeyVaultToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $RefreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://vault.azure.net/.default offline_access openid"
-    }
-
     try {
-        $global:AzureKeyVaultToken = Invoke-RefreshToToken @Parameters
+        $global:AzureKeyVaultToken = Invoke-TTRefreshToBuiltInClient -Client AzureKeyVault -Domain $Domain -RefreshToken $RefreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureKeyVaultToken"
         $AzureKeyVaultToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -554,7 +473,7 @@ function Invoke-RefreshToAzureManagementToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -567,19 +486,8 @@ function Invoke-RefreshToAzureManagementToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://management.azure.com/.default offline_access openid"
-    }
-
     try {
-        $global:AzureManagementToken = Invoke-RefreshToToken @Parameters
+        $global:AzureManagementToken = Invoke-TTRefreshToBuiltInClient -Client AzureManagement -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$AzureManagementToken"
         $AzureManagementToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -603,7 +511,7 @@ function Invoke-RefreshToMAMToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "6c7e8096-f593-4d72-807f-a5f86dcc9c77",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -616,19 +524,8 @@ function Invoke-RefreshToMAMToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://intunemam.microsoftonline.com/.default offline_access openid"
-    }
-
     try {
-        $global:MAMToken = Invoke-RefreshToToken @Parameters
+        $global:MAMToken = Invoke-TTRefreshToBuiltInClient -Client MAM -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$MamToken"
         $MamToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -652,7 +549,7 @@ function Invoke-RefreshToDODMSGraphToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientID = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -665,20 +562,8 @@ function Invoke-RefreshToDODMSGraphToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        UseDoD          = $true
-        Scope           = "https://dod-graph.microsoft.us/.default offline_access openid"
-    }
-
     try {
-        $global:DODMSGraphToken = Invoke-RefreshToToken @Parameters
+        $global:DODMSGraphToken = Invoke-TTRefreshToBuiltInClient -Client DODMSGraph -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$DODMSGraphToken"
         $DODMSGraphToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -707,7 +592,7 @@ function Invoke-RefreshToSharePointToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientID = "9bc3ab49-b65d-410a-85ad-de819febfddc",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -720,25 +605,8 @@ function Invoke-RefreshToSharePointToken {
         [Switch]$UseCAE
     )
 
-    if ($SharePointUseAdmin) {
-        $AdminSuffix = "-admin"
-    } else {
-        $AdminSuffix = ""
-    }
-
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://$SharePointTenantName$AdminSuffix.sharepoint.com/Sites.FullControl.All offline_access openid"
-    }
-
     try {
-        $global:SharePointToken = Invoke-RefreshToToken @Parameters
+        $global:SharePointToken = Invoke-TTRefreshToBuiltInClient -Client SharePoint -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE -SharePointTenantName $SharePointTenantName -SharePointUseAdmin:$SharePointUseAdmin
         Write-Output "$([char]0x2713)  Token acquired and saved as `$SharePointToken"
         $SharePointToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -761,7 +629,7 @@ function Invoke-RefreshToOneDriveToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        [string]$ClientID = "ab9b8c07-8f02-4f72-87fa-80105867a763",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -774,19 +642,8 @@ function Invoke-RefreshToOneDriveToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://officeapps.live.com/.default offline_access openid"
-    }
-
     try {
-        $global:OneDriveToken = Invoke-RefreshToToken @Parameters
+        $global:OneDriveToken = Invoke-TTRefreshToBuiltInClient -Client OneDrive -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$OneDriveToken"
         $OneDriveToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -810,7 +667,7 @@ function Invoke-RefreshToYammerToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "d3590ed6-52b3-4102-aeff-aad2292ab01c",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -823,19 +680,8 @@ function Invoke-RefreshToYammerToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "https://www.yammer.com/.default offline_access openid"
-    }
-
     try {
-        $global:YammerToken = Invoke-RefreshToToken @Parameters
+        $global:YammerToken = Invoke-TTRefreshToBuiltInClient -Client Yammer -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$YammerToken"
         $YammerToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -859,7 +705,7 @@ function Invoke-RefreshToDeviceRegistrationToken {
         [Parameter(Mandatory = $false)]
         [string]$RefreshToken = $response.refresh_token,
         [Parameter(Mandatory = $false)]
-        $ClientId = "1b730954-1685-4b74-9bfd-dac224a7b894",
+        [string]$ClientID,
         [Parameter(Mandatory = $False)]
         [string]$CustomUserAgent,
         [Parameter(Mandatory = $False)]
@@ -872,21 +718,8 @@ function Invoke-RefreshToDeviceRegistrationToken {
         [Switch]$UseCAE
     )
 
-    $Parameters = @{
-        Domain          = $Domain
-        refreshToken    = $refreshToken
-        ClientID        = $ClientID
-        CustomUserAgent = $CustomUserAgent
-        Device          = $Device
-        Browser         = $Browser
-        UseCAE          = $UseCAE
-        Scope           = "openid"
-        Resource        = "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9"
-        UseV1Endpoint   = $true
-    }
-
     try {
-        $global:DeviceRegistrationToken = Invoke-RefreshToToken @Parameters
+        $global:DeviceRegistrationToken = Invoke-TTRefreshToBuiltInClient -Client DeviceRegistration -Domain $Domain -RefreshToken $refreshToken -ClientID $ClientID -CustomUserAgent $CustomUserAgent -Device $Device -Browser $Browser -UseCAE:$UseCAE
         Write-Output "$([char]0x2713)  Token acquired and saved as `$DeviceRegistrationToken"
         $DeviceRegistrationToken | Select-Object token_type, scope, expires_in, ext_expires_in | Format-List
     } catch {
@@ -950,7 +783,8 @@ function Invoke-RefreshToToken {
     }
 
 
-    Write-Verbose $refreshToken
+    # Never write refresh-token material to verbose logs.
+    Write-Verbose 'Refresh token supplied.'
 
     $body = @{
         "scope"         = $Scope

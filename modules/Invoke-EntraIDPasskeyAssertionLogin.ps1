@@ -114,7 +114,7 @@ function Invoke-EntraIDPasskeyAssertionLogin {
         [string]$OutputType = 'Token',
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('Substrate','MSManage','MSTeams','OfficeManagement','Outlook','MSGraph','Graph','OfficeApps','AzureCoreManagement','AzureStorage','AzureKeyVault','AzureManagement','MAM','DODMSGraph','SharePoint','OneDrive','Yammer','DeviceRegistration','Custom')]
+        [ValidateSet('Substrate','MSManage','MSTeams','OfficeManagement','Outlook','MSGraph','Graph','OfficeApps','AzureCoreManagement','AzureStorage','AzureKeyVault','AzureManagement','AzurePowerShell','AzureCLI','MAM','DODMSGraph','SharePoint','OneDrive','Yammer','DeviceRegistration','Custom')]
         [string]$Client = "MSGraph",
 
         [Parameter(Mandatory = $false)]

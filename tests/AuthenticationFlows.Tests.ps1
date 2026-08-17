@@ -436,6 +436,113 @@ Describe 'Cookie convenience wrappers' {
             $null -eq $Browser
         }
     }
+
+    It 'keeps the legacy Azure Management cookie client' {
+        Mock -ModuleName TokenTactics Get-EntraIDTokenFromCookie { throw 'Unexpected delegation arguments' }
+        Mock -ModuleName TokenTactics Get-EntraIDTokenFromCookie {} -ParameterFilter {
+            $CookieType -eq 'ESTSAUTHPERSISTENT' -and
+            $ClientID -eq '84070985-06ea-473d-82fe-eb82b4011c9d' -and
+            $RedirectUrl -eq 'https://login.microsoftonline.com/common/oauth2/nativeclient'
+        }
+
+        Get-EntraIDTokenFromESTSCookie -CookieValue 'legacy-cookie' -Client AzureManagement
+
+        Should -Invoke Get-EntraIDTokenFromCookie -ModuleName TokenTactics -Exactly -Scope It -Times 1 -ParameterFilter {
+            $ClientID -eq '84070985-06ea-473d-82fe-eb82b4011c9d' -and
+            $RedirectUrl -eq 'https://login.microsoftonline.com/common/oauth2/nativeclient'
+        }
+    }
+}
+
+Describe 'Cookie flow native redirect handling' {
+    BeforeEach {
+        foreach ($name in 'response', 'TokenDomain', 'TokenUpn') {
+            Remove-Variable -Scope Global -Name $name -ErrorAction SilentlyContinue
+        }
+    }
+
+    AfterEach {
+        foreach ($name in 'response', 'TokenDomain', 'TokenUpn') {
+            Remove-Variable -Scope Global -Name $name -ErrorAction SilentlyContinue
+        }
+    }
+
+    It 'captures URN redirects without asking PowerShell to follow the unsupported scheme' {
+        $redirectUrl = 'urn:ietf:wg:oauth:2.0:oob'
+
+        Mock -ModuleName TokenTactics Invoke-WebRequest {
+            [PSCustomObject]@{
+                StatusCode = 200
+                RawContent = ''
+                Content    = ''
+                Headers    = @{}
+            }
+        } -ParameterFilter {
+            "$Uri" -eq 'https://login.microsoftonline.com/error'
+        }
+        Mock -ModuleName TokenTactics Invoke-TTNativeRedirectWebRequest {
+            [PSCustomObject]@{
+                StatusCode = 302
+                RawContent = ''
+                Headers    = @{ Location = 'urn:ietf:wg:oauth:2.0:oob?code=native-authorization-code&state=native-state' }
+            }
+        }
+        Mock -ModuleName TokenTactics Invoke-RestMethod { $script:TokenResponse } -ParameterFilter {
+            "$Uri" -eq 'https://login.microsoftonline.com/common/oauth2/v2.0/token' -and
+            $Body['client_id'] -eq '6c7e8096-f593-4d72-807f-a5f86dcc9c77' -and
+            $Body['redirect_uri'] -eq $redirectUrl -and
+            $Body['code'] -eq 'native-authorization-code'
+        }
+
+        Get-EntraIDTokenFromCookie `
+            -CookieType ESTSAUTH `
+            -CookieValue 'native-redirect-cookie' `
+            -ClientID '6c7e8096-f593-4d72-807f-a5f86dcc9c77' `
+            -Scope 'https://intunemam.microsoftonline.com/.default offline_access openid' `
+            -RedirectUrl $redirectUrl `
+            -CustomUserAgent $script:TestUserAgent
+
+        $global:response.access_token | Should -Be $script:FakeAccessToken
+        Should -Invoke Invoke-TTNativeRedirectWebRequest -ModuleName TokenTactics -Exactly -Scope It -Times 1
+        Should -Invoke Invoke-WebRequest -ModuleName TokenTactics -Exactly -Scope It -Times 1
+        Should -Invoke Invoke-RestMethod -ModuleName TokenTactics -Exactly -Scope It -Times 1
+    }
+
+    It 'does not follow a native redirect when the authorization code is absent' {
+        $redirectUrl = 'urn:ietf:wg:oauth:2.0:oob'
+
+        Mock -ModuleName TokenTactics Invoke-WebRequest {
+            [PSCustomObject]@{
+                StatusCode = 200
+                RawContent = ''
+                Content    = ''
+                Headers    = @{}
+            }
+        } -ParameterFilter {
+            "$Uri" -eq 'https://login.microsoftonline.com/error'
+        }
+        Mock -ModuleName TokenTactics Invoke-TTNativeRedirectWebRequest {
+            [PSCustomObject]@{
+                StatusCode = 302
+                RawContent = ''
+                Headers    = @{ Location = $redirectUrl }
+            }
+        }
+        Mock -ModuleName TokenTactics Invoke-RestMethod { throw 'Unexpected token exchange' }
+
+        $output = @(Get-EntraIDTokenFromCookie `
+            -CookieType ESTSAUTH `
+            -CookieValue 'native-redirect-cookie' `
+            -ClientID '6c7e8096-f593-4d72-807f-a5f86dcc9c77' `
+            -Scope 'https://intunemam.microsoftonline.com/.default offline_access openid' `
+            -RedirectUrl $redirectUrl `
+            -CustomUserAgent $script:TestUserAgent)
+
+        ($output -join "`n") | Should -Match 'Could not find an authorization code in the native redirect'
+        Should -Invoke Invoke-TTNativeRedirectWebRequest -ModuleName TokenTactics -Exactly -Scope It -Times 1
+        Should -Invoke Invoke-WebRequest -ModuleName TokenTactics -Exactly -Scope It -Times 1
+        Should -Invoke Invoke-RestMethod -ModuleName TokenTactics -Exactly -Scope It -Times 0
+    }
 }
 
 Describe 'Get-EntraIDAuthorizationCode URL construction' {
@@ -464,6 +571,13 @@ Describe 'Get-EntraIDAuthorizationCode URL construction' {
                 -AuthorizationCodeState 'fixed-state')
 
         $output[0] | Should -Be 'https://login.microsoftonline.com/organizations/oauth2/v2.0/authorize?response_type=code&redirect_uri=https://app.example/callback&state=fixed-state&scope=api://custom/.default%20offline_access&client_id=custom-client'
+    }
+
+    It 'keeps the Company Portal client and mobile redirect by default' {
+        $output = @(Get-EntraIDAuthorizationCode)
+
+        $output[0] | Should -Match 'redirect_uri=msauth://com\.microsoft\.windowsintune\.companyportal/1L4Z9FJCgn5c0VLhyAxC5O9LdlE='
+        $output[0] | Should -Match 'client_id=9ba1a5c7-f17a-4de9-a1f1-6178c8d51223'
     }
 
     It 'constructs the exact v1 URL with its resource' {
