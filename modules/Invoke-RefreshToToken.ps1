@@ -793,10 +793,12 @@ function Invoke-RefreshToToken {
         "refresh_token" = $refreshToken
     }
 
-    if ($UseCAE) {
-        # Add 'cp1' as client claim to get a access token valid for 24 hours
+    if ($UseCAE -and -not $UseV1Endpoint) {
+        # Add the cp1 client capability only to v2 token requests.
         $Claims = ( @{"access_token" = @{ "xms_cc" = @{ "values" = @("cp1") } } } | ConvertTo-Json -Compress -Depth 99 )
         $body.Add("claims", $Claims)
+    } elseif ($UseCAE) {
+        Write-Warning 'CAE claims are not supported by the v1 token endpoint. Ignoring -UseCAE.'
     }
 
     if ($Resource) {

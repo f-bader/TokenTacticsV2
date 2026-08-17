@@ -21,8 +21,8 @@ sequenceDiagram
     C->>K: Sign challenge with passkey private key
     K-->>C: WebAuthn assertion
     C->>E: Submit assertion
-    E-->>C: ESTSAUTH cookie or token response
-    C-->>R: Tokens in $response or cookie in $global:ESTSAUTH
+    E-->>C: ESTSAUTH cookie and web session
+    C-->>R: Cookie in $global:ESTSAUTH
 ```
 
 Using a KeePassXC-compatible file:
@@ -59,7 +59,7 @@ sequenceDiagram
     L->>E: Request authorization and FIDO challenge
     E-->>L: FlowState and WebRequestSession
     L->>W: Transfer only the challenge and required context
-    W->>W: Sign with TPM-backed Windows Hello key
+    W->>W: Sign with the Windows Hello key provider
     W-->>L: WebAuthn assertion JSON
     L->>E: Submit assertion with original session
     E-->>L: ESTSAUTH cookie or exchanged tokens
@@ -85,18 +85,22 @@ $assertion = Get-WindowsHelloFidoAssertion `
     -UserId '00000000-0000-0000-0000-000000000002'
 ```
 
-The assertion can be transferred as JSON. The private key remains in the Windows
-Hello/TPM provider. `Get-WindowsHelloFidoAssertion` requires Windows, a usable
-Windows Hello for Business certificate, and the current user's access to its key.
+The assertion can be transferred as JSON. The command signs through the Windows
+key provider and does not export the private key. Hardware or TPM backing depends
+on the Windows Hello for Business deployment. `Get-WindowsHelloFidoAssertion`
+requires Windows, a usable Windows Hello for Business certificate, and the current
+user's access to its key.
 The `-UserId` value is the Entra object ID, not the UPN. If omitted, the command
 derives it from the certificate subject's user SID.
 
 Back on the login host:
 
 ```powershell
-$token = Invoke-EntraIDPasskeyAssertionLogin `
+Invoke-EntraIDPasskeyAssertionLogin `
     -FlowState $flow `
     -Assertion $assertion
+
+$token = $response
 
 # Or return only the resulting cookie for a separate exchange.
 $cookie = Invoke-EntraIDPasskeyAssertionLogin `
@@ -131,8 +135,8 @@ Use the unpadded `UserHandleBase64Url` value in WebAuthn assertion JSON. The pad
 - Never export or transmit a private passkey key unless the test authorization
   explicitly requires it and the transfer channel is controlled.
 - Verify the relying-party ID, origin, challenge, credential ID, and user handle.
-- Treat `$global:Fido2WebSession`, `$global:Fido2FlowState`, and `$global:ESTSAUTH`
-  as secrets and clear them after testing.
+- Treat `$global:webSession`, `$global:Fido2WebSession`, `$global:Fido2FlowState`,
+  and `$global:ESTSAUTH` as secrets and clear them after testing.
 - Test an expired challenge, an unknown credential, a wrong user handle, and a
   missing session.
 

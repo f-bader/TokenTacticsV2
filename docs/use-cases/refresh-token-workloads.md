@@ -15,7 +15,7 @@ sequenceDiagram
     R->>C: Supply refresh token and tenant
     C->>E: grant_type=refresh_token with workload scope
     E-->>C: Resource-specific access token
-    C-->>R: Workload token object and global variable
+    C-->>R: Summary; raw response saved globally
     R->>W: Call only the named workload
     W-->>R: Authorized workload response or claims challenge
 ```
@@ -33,12 +33,14 @@ $graphToken = $MSGraphToken
 
 `-Domain` is the required tenant parameter name on the wrappers; `-TenantId` and
 `-ResourceTenant` are compatibility aliases. If `-RefreshToken` is omitted, the
-wrapper reads `$response.refresh_token`. Each wrapper saves its response to a
-workload-specific global variable and returns a short token summary.
+wrapper reads `$response.refresh_token`. Each wrapper saves its raw response to a
+workload-specific global variable and emits a short token summary.
 
 All wrappers accept `-ClientId`, `-CustomUserAgent`, `-Device`, `-Browser`, and
 `-UseCAE`. User-agent selection is only request metadata; it is not a device-trust
 mechanism. `-UseCAE` requests the `cp1` client capability on the v2 endpoint.
+The Device Registration wrapper uses the v1 endpoint, so it ignores `-UseCAE`
+with a warning and does not send CAE claims.
 
 ## Workload matrix
 

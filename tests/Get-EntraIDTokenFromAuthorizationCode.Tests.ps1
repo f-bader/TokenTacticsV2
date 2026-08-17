@@ -50,6 +50,32 @@ Describe "Get-EntraIDTokenFromAuthorizationCode" {
         } -Times 1
     }
 
+    It "validates an expected state before exchanging a RequestURL" {
+        $requestUrl = "https://app.example/callback?code=state-code&state=ExactState"
+
+        Get-EntraIDTokenFromAuthorizationCode -RequestURL $requestUrl -ExpectedState 'ExactState'
+
+        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 1
+    }
+
+    It "rejects a mismatched state without calling the token endpoint" {
+        $requestUrl = "https://app.example/callback?code=state-code&state=ExactState"
+
+        { Get-EntraIDTokenFromAuthorizationCode -RequestURL $requestUrl -ExpectedState 'exactstate' } |
+            Should -Throw '*state value did not match*'
+
+        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 0
+    }
+
+    It "rejects a missing state without calling the token endpoint" {
+        $requestUrl = "https://app.example/callback?code=state-code"
+
+        { Get-EntraIDTokenFromAuthorizationCode -RequestURL $requestUrl -ExpectedState 'expected' } |
+            Should -Throw '*does not contain a state value*'
+
+        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -Times 0
+    }
+
     It "Sets `$global:TokenDomain from the token's upn" {
         Get-EntraIDTokenFromAuthorizationCode -AuthorizationCode "auth-code-123"
         $global:TokenDomain | Should -Be "contoso.com"

@@ -43,5 +43,6 @@ Before requesting a token, verify the certificate is valid, has an RSA private k
 matches the public certificate registered on the app, and is available to the process.
 Rotate by registering the new public certificate before removing the old one.
 
-See the [TPM command reference](../commands/New-TPMCertificate.md) and
+See the [certificate-token command reference](../commands/Get-EntraIDTokenFromCertificate.md),
+[TPM command reference](../commands/New-TPMCertificate.md), and
 [OBO guide](./delegated-api-obo.md).

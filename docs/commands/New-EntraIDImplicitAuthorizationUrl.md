@@ -7,7 +7,7 @@ Builds an Entra OAuth 2.0 implicit-flow authorization URL and returns both the U
 ## Syntax
 
 ```powershell
-New-EntraIDImplicitAuthorizationUrl -TenantId <string> -ClientId <string> \
+New-EntraIDImplicitAuthorizationUrl -TenantId <string> -ClientId <string> `
   -RedirectUri <string> -Scope <string> [-State <string>] [-IncludeIdToken]
 ```
 

@@ -2,6 +2,11 @@ function Get-EntraIDTokenFromAuthorizationCode {
     <#
     .DESCRIPTION
         Exchange an authorization code for a token.
+
+    .PARAMETER ExpectedState
+        Optional expected state for the RequestURL parameter set. When supplied,
+        the redirected URL must contain an exact, case-sensitive match before the
+        authorization code is exchanged.
     #>
     [CmdletBinding()]
     param(
@@ -11,6 +16,9 @@ function Get-EntraIDTokenFromAuthorizationCode {
         [string]$AuthorizationCode,
         [Parameter(Mandatory = $True, ParameterSetName = 'RequestURL')]
         [string]$RequestURL,
+        [Parameter(ParameterSetName = 'RequestURL')]
+        [ValidateNotNullOrEmpty()]
+        [string]$ExpectedState,
         [Parameter(ParameterSetName = 'Default')]
         [string]$RedirectUrl,
         [Parameter(Mandatory = $False)]
@@ -54,6 +62,15 @@ function Get-EntraIDTokenFromAuthorizationCode {
     if ([string]::IsNullOrWhiteSpace($ClientID) -and $profile) { $ClientID = $profile.ClientID }
     if ($RequestURL) {
         $queryParams = ConvertTo-URLParameters -RequestURL $RequestURL
+        if ($PSBoundParameters.ContainsKey('ExpectedState')) {
+            if (-not $queryParams.ContainsKey('state')) {
+                throw 'The redirected URL does not contain a state value.'
+            }
+            if ($queryParams['state'] -cne $ExpectedState) {
+                throw 'The authorization-code state value did not match the expected value.'
+            }
+            Write-Verbose 'Authorization-code state matches the expected value.'
+        }
         if ($queryParams.ContainsKey('code')) {
             $AuthorizationCode = $queryParams['code']
             Write-Verbose "Code: $($AuthorizationCode[0..10])..."
@@ -122,6 +139,10 @@ function Get-EntraIDAuthorizationCode {
     .DESCRIPTION
         Build an authorization-code URL.
 
+    .PARAMETER AuthorizationCodeState
+        State value included in the authorization URL. A fresh random value is
+        generated for each invocation when this parameter is omitted.
+
     .EXAMPLE
         Get-EntraIDAuthorizationCode -RedirectUrl 'ms-appx-web://Microsoft.AAD.BrokerPlugin/S-1-15-2-2666988183-1750391847-2906264630-3525785777-2857982319-3063633125-1907478113'
     #>
@@ -134,7 +155,7 @@ function Get-EntraIDAuthorizationCode {
         [Parameter(Mandatory = $false)]
         [string]$RedirectUrl,
         [Parameter(Mandatory = $False)]
-        [string]$AuthorizationCodeState = '9gaPNizkzgtisKqA',
+        [string]$AuthorizationCodeState = ([guid]::NewGuid().ToString('N')),
         [Parameter(Mandatory = $False)]
         [string]$Scope,
         [Parameter(Mandatory = $False)]
@@ -201,17 +222,18 @@ function Get-EntraIDAuthorizationCode {
     }
     Write-Output '2. Enable the developer tools and switch to the network tab'
     Write-Output '3. Authenticate using your credentials'
-    Write-Output '4. Copy either the Request URL from the header tab or the code value from the payload tab'
-    Write-Output '5. Use the code value (-AuthorizationCode) or complete Request URL (-RequestURL) to get a token:'
+    Write-Output '4. Copy the complete Request URL from the header tab'
+    Write-Output '5. Exchange the complete Request URL and validate its state value:'
     Write-Output ''
-    Write-Output '   `$AuthCode = Get-Clipboard'
+    Write-Output '   `$RedirectRequestUrl = Get-Clipboard'
     if ($UseCodeVerifier) { $CodeVerifierString = "-CodeVerifier `"$CodeVerifier`"" }
     if ($resolved.UseV1Endpoint) { $V1EndpointString = "-Resource `"$($resolved.Resource)`" -UseV1Endpoint" }
     if ($Client -eq 'Custom') {
-        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client Custom -RedirectUrl `"$RedirectUrl`" -ClientID `"$($resolved.ClientID)`" -Scope `"$($resolved.Scope)`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
+        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client Custom -ClientID `"$($resolved.ClientID)`" -Scope `"$($resolved.Scope)`" -RequestURL `$RedirectRequestUrl -ExpectedState `"$AuthorizationCodeState`" $CodeVerifierString $V1EndpointString"
     } else {
-        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client $Client -RedirectUrl `"$RedirectUrl`" -AuthorizationCode `$AuthCode $CodeVerifierString $V1EndpointString"
+        Write-Output "   Get-EntraIDTokenFromAuthorizationCode -Client $Client -RequestURL `$RedirectRequestUrl -ExpectedState `"$AuthorizationCodeState`" $CodeVerifierString $V1EndpointString"
     }
+    Write-Output '   If you extract the code manually, validate the returned state before using -AuthorizationCode.'
     if ($CopyToClipboard) {
         $BaseUrl | Set-Clipboard
         Write-Output '   The URL has been copied to your clipboard'

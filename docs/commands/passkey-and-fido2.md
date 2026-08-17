@@ -44,7 +44,8 @@ Creates a signed WebAuthn assertion using the current user's Windows Hello for
 Business key. `-Challenge` is mandatory. `-UserId` overrides the object ID derived
 from the Windows certificate's user SID. `-RpId`, `-Origin`, and `-SignCount` are
 available for controlled protocol tests. The private key remains in the Windows
-key provider.
+key provider and is not exported by the command. TPM backing depends on the
+Windows Hello for Business deployment.
 
 ```powershell
 Get-WindowsHelloFidoAssertion `
@@ -71,13 +72,4 @@ Invoke-EntraIDPasskeyAssertionLogin -FlowState $flow -Assertion $assertion -Outp
 
 ## New-EntraIDUserHandle
 
-Calculates the Entra FIDO2 user handle from `-TenantId` and `-UserId`, both GUIDs.
-The result contains `UserHandle`, `UserHandleBase64Url`, `UserHandleBase64`, and
-`UserHandleHex`.
-
-```powershell
-New-EntraIDUserHandle -TenantId $tenantId -UserId $userObjectId
-```
-
-Use the unpadded `UserHandleBase64Url` value in WebAuthn JSON. The padded property
-is retained for compatibility.
+See the canonical [token and session utility reference](./token-and-session-utilities.md#new-entraiduserhandle).

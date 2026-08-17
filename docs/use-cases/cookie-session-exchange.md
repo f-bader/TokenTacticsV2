@@ -27,6 +27,7 @@ Get-EntraIDTokenFromCookie `
     -CookieType 'ESTSAUTH' `
     -CookieValue $estsAuth `
     -ClientID $clientId `
+    -Scope 'https://graph.microsoft.com/.default offline_access openid' `
     -RedirectUrl 'https://login.microsoftonline.com/common/oauth2/nativeclient'
 ```
 
@@ -50,9 +51,11 @@ Get-EntraIDTokenFromRefreshTokenCredentialCookie `
 
 The convenience commands support the client presets `MSTeams`, `MSEdge`,
 `AzurePowershell`, `AzureManagement`, and `DeviceComplianceBypass`, plus `Custom`
-with explicit `-ClientID` and `-Scope`. `-RedirectUrl`, `-Resource`, `-Proxy`,
-`-UseCodeVerifier`, `-UseV1Endpoint`, and `-UseCAE` are available where supported
-by the underlying request.
+with explicit `-ClientID`, `-Scope`, and the exact registered `-RedirectUrl` when
+the client ID is not in the built-in registry. `-Resource`, `-Proxy`,
+`-UseCodeVerifier`, and `-UseV1Endpoint` are available where supported.
+`-UseCAE` is available on the generic and ESTS cookie flows, but not on
+`Get-EntraIDTokenFromRefreshTokenCredentialCookie`.
 
 `ESTSAUTHPERSISTENT` should be used only when the authorized session actually
 received that cookie. The cookie name is not interchangeable with `ESTSAUTH`.

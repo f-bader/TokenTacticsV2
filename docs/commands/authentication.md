@@ -11,7 +11,7 @@ saves the resulting token response in `$response`.
 
 | Parameter | Purpose |
 | --- | --- |
-| `-Client` | Preset resource: `Yammer`, `Outlook`, `MSTeams`, `Graph`, `AzureCoreManagement`, `AzureManagement`, `MSGraph`, `DODMSGraph`, `Substrate`, `SharePoint`, or `OneDrive`. |
+| `-Client` | Preset resource: `Substrate`, `MSManage`, `MSTeams`, `OfficeManagement`, `Outlook`, `MSGraph`, `Graph`, `OfficeApps`, `AzureCoreManagement`, `AzureStorage`, `AzureKeyVault`, `AzureManagement`, `AzurePowerShell`, `AzureCLI`, `MAM`, `DODMSGraph`, `SharePoint`, `OneDrive`, `Yammer`, `DeviceRegistration`, or `Custom`. |
 | `-ClientID` | Override the preset public-client ID. |
 | `-Scope` | Scope for `-Client Custom`. |
 | `-ResourceTenant` | Tenant authority segment; `-Domain` is a compatibility alias. |
@@ -34,7 +34,7 @@ not itself exchange the code.
 | --- | --- |
 | `-Client`, `-ClientID`, `-Scope` | Select the application and resource contract. |
 | `-RedirectUrl` | Exact registered redirect URI. |
-| `-AuthorizationCodeState` | State value printed into the URL. |
+| `-AuthorizationCodeState` | State value printed into the URL; defaults to a fresh random value per invocation. |
 | `-Username` | Optional `login_hint`. |
 | `-UseCodeVerifier` | Generate a PKCE verifier and print it in the exchange command. |
 | `-UseV1Endpoint`, `-Resource` | Use the legacy resource-based authorization contract. |
@@ -42,11 +42,16 @@ not itself exchange the code.
 | `-CopyToClipboard` | Copy the URL when clipboard support is available. |
 
 ```powershell
+$state = [guid]::NewGuid().ToString('N')
 Get-EntraIDAuthorizationCode `
     -Client MSGraph `
-    -RedirectUrl 'https://app.example/callback' `
+    -AuthorizationCodeState $state `
     -UseCodeVerifier
 ```
+
+The MSGraph preset uses its registered redirect URI. For a custom registration,
+use `-Client Custom` and supply its client ID, exact registered redirect URI, and
+scope.
 
 ## Get-EntraIDTokenFromAuthorizationCode
 
@@ -56,6 +61,7 @@ Exchanges either `-RequestURL` or an explicit `-AuthorizationCode` and
 ```powershell
 Get-EntraIDTokenFromAuthorizationCode `
     -RequestURL $finalRedirectUrl `
+    -ExpectedState $state `
     -Client MSGraph
 
 Get-EntraIDTokenFromAuthorizationCode `
@@ -68,7 +74,9 @@ Get-EntraIDTokenFromAuthorizationCode `
 
 Use `-CodeVerifier` to complete a PKCE exchange and `-UseV1Endpoint -Resource` for
 a legacy resource request. `-Browser`, `-Device`, and `-CustomUserAgent` affect
-request metadata only.
+request metadata only. `-ExpectedState` performs an exact, case-sensitive check
+before a request-URL exchange. If a caller extracts the code manually, it must
+validate the returned state before invoking the explicit-code parameter set.
 
 ## Get-EntraIDTokenFromCookie
 
@@ -82,8 +90,12 @@ Get-EntraIDTokenFromCookie `
     -CookieType ESTSAUTH `
     -CookieValue $cookieValue `
     -ClientID $clientId `
+    -Scope 'https://graph.microsoft.com/.default offline_access openid' `
     -RedirectUrl 'https://login.microsoftonline.com/common/oauth2/nativeclient'
 ```
+
+For an arbitrary custom client ID, the redirect URI must exactly match one
+registered for that application; only known presets can supply a default.
 
 ## Get-EntraIDTokenFromESTSCookie
 

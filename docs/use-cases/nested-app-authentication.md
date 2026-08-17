@@ -65,4 +65,4 @@ controlled compatibility testing.
 - Test an invalid broker preset, mismatched redirect URI, wrong tenant, missing
   anchor mailbox where the target workload requires it, and insufficient consent.
 
-See the [NAA command reference](../commands/Get-EntraIDTokenFromNestedAppAuth.md).
+See the [NAA command reference](../commands/authentication.md#get-entraidtokenfromnestedappauth).

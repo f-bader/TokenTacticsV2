@@ -31,10 +31,17 @@ Clear-Token -Token All
 ```
 
 `Clear-Token` removes the module's known global token variables. Use the specific
-token selection when the test needs to retain other values. Also remove variables
-you created yourself and clear `$global:response`, `$global:ESTSAUTH`,
-`$global:Fido2FlowState`, and `$global:Fido2WebSession` when those artifacts are no
-longer needed.
+token selection when the test needs to retain other values. `-Token All` includes
+`$global:response`, but it intentionally does not remove session metadata, cookies,
+or passkey state. Clear those separately when they are no longer needed:
+
+```powershell
+Remove-Variable -Scope Global -Name `
+    TokenDomain, TokenUpn, ESTSAUTH, webSession, Fido2FlowState, Fido2WebSession `
+    -ErrorAction SilentlyContinue
+```
+
+Also remove any variables created by the caller.
 
 ## Convert a private key to PEM
 

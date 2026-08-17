@@ -4,7 +4,8 @@ All commands in this page call the shared refresh-token contract. Each requires
 `-Domain` and accepts `-TenantId`/`-ResourceTenant` aliases. `-RefreshToken`
 defaults to `$response.refresh_token`; provide it explicitly in automation. Each
 command accepts `-ClientId`, `-CustomUserAgent`, `-Device`, `-Browser`, and
-`-UseCAE`, then saves a workload-specific response variable.
+`-UseCAE`, then saves a workload-specific response variable. Device Registration
+uses a v1 resource contract and therefore ignores `-UseCAE` with a warning.
 
 ## Command matrix
 
@@ -38,9 +39,10 @@ Invoke-RefreshToMSGraphToken `
     -UseCAE
 ```
 
-The wrappers return a token response and print a summary containing token type,
-scope, and expiration. Do not pass the printed summary as a bearer token; use the
-`.access_token` property.
+The wrappers save the raw response in the workload-specific global variable and
+emit a summary containing token type, scope, and expiration. The summary is not a
+bearer token; use the global variable's `.access_token` property, for example
+`$MSGraphToken.access_token`.
 
 ## Service-specific parameters
 
@@ -57,7 +59,8 @@ Invoke-RefreshToSharePointToken `
 
 `Invoke-RefreshToDODMSGraphToken` uses the DoD cloud endpoint and should be used
 only with the corresponding authorized tenant. `Invoke-RefreshToDeviceRegistrationToken`
-uses the device-registration resource contract and is not a general Graph token.
+uses the v1 device-registration resource contract, is not a general Graph token,
+and cannot request CAE claims.
 
 ## Compatibility aliases
 

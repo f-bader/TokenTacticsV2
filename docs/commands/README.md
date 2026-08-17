@@ -26,7 +26,7 @@ See [passkey and FIDO2 commands](./passkey-and-fido2.md).
 - [Get-EntraIDFido2Challenge](./passkey-and-fido2.md#get-entraidfido2challenge)
 - [Get-WindowsHelloFidoAssertion](./passkey-and-fido2.md#get-windowshellofidoassertion)
 - [Invoke-EntraIDPasskeyAssertionLogin](./passkey-and-fido2.md#invoke-entraidpasskeyassertionlogin)
-- [New-EntraIDUserHandle](./passkey-and-fido2.md#new-entraiduserhandle)
+- [New-EntraIDUserHandle](./token-and-session-utilities.md#new-entraiduserhandle)
 
 ## Application and workload authentication
 

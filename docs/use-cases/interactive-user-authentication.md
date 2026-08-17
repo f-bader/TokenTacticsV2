@@ -38,11 +38,13 @@ Invoke-RestMethod -Headers @{ Authorization = "Bearer $($graphToken.access_token
     -Uri 'https://graph.microsoft.com/v1.0/me'
 ```
 
-The `-Client` presets are `Yammer`, `Outlook`, `MSTeams`, `Graph`,
-`AzureCoreManagement`, `AzureManagement`, `MSGraph`, `DODMSGraph`, `Substrate`,
-`SharePoint`, and `OneDrive`. Use `-Client Custom` with `-ClientID` and `-Scope`
-for an application-specific request. `SharePoint` additionally requires
-`-SharePointTenantName`; use `-SharePointUseAdmin` for the admin host.
+The `-Client` presets are `Substrate`, `MSManage`, `MSTeams`, `OfficeManagement`,
+`Outlook`, `MSGraph`, `Graph`, `OfficeApps`, `AzureCoreManagement`, `AzureStorage`,
+`AzureKeyVault`, `AzureManagement`, `AzurePowerShell`, `AzureCLI`, `MAM`,
+`DODMSGraph`, `SharePoint`, `OneDrive`, `Yammer`, and `DeviceRegistration`. Use
+`-Client Custom` with `-ClientID` and `-Scope` for an application-specific request.
+`SharePoint` additionally requires `-SharePointTenantName`; use
+`-SharePointUseAdmin` for the admin host.
 
 Use `-ResourceTenant` for a tenant or resource tenant other than `common`. The
 parameter also has the compatibility alias `-Domain`. `-UseCAE` requests the
@@ -79,9 +81,10 @@ sequenceDiagram
 Generate an authorization URL and follow the printed capture instructions:
 
 ```powershell
+$state = [guid]::NewGuid().ToString('N')
 Get-EntraIDAuthorizationCode `
     -Client MSGraph `
-    -RedirectUrl 'https://app.example/callback' `
+    -AuthorizationCodeState $state `
     -Username 'user@contoso.com' `
     -UseCodeVerifier
 ```
@@ -89,10 +92,9 @@ Get-EntraIDAuthorizationCode `
 The command prints the verifier and a complete follow-up exchange command when
 PKCE is enabled; copy that command after capturing the redirect. For a browser
 that can be opened by PowerShell, add `-OpenInBrowser`. For a controlled state
-value, use `-AuthorizationCodeState`; otherwise the command's
-default state is only a convenience and should be replaced with an application-
-managed value in a production design. `-CopyToClipboard` copies the generated URL
-when supported by the host.
+value, use `-AuthorizationCodeState`; otherwise the command generates a fresh
+random value for each invocation. Preserve that value for the exchange.
+`-CopyToClipboard` copies the generated URL when supported by the host.
 
 Exchange either the complete redirect URL:
 
@@ -100,19 +102,23 @@ Exchange either the complete redirect URL:
 $codeVerifier = '<verifier printed by Get-EntraIDAuthorizationCode>'
 Get-EntraIDTokenFromAuthorizationCode `
     -RequestURL $finalRedirectUrl `
+    -ExpectedState $state `
     -Client MSGraph `
     -CodeVerifier $codeVerifier
 
 $token = $response
 ```
 
-or provide the code and exact redirect URI:
+or, after validating the returned state yourself, provide the code and exact
+registered redirect URI for a custom application:
 
 ```powershell
 Get-EntraIDTokenFromAuthorizationCode `
     -AuthorizationCode $authorizationCode `
     -RedirectUrl 'https://app.example/callback' `
-    -Client MSGraph `
+    -Client Custom `
+    -ClientID $clientId `
+    -Scope 'api://app/.default offline_access' `
     -CodeVerifier $codeVerifier
 
 $token = $response
@@ -132,6 +138,6 @@ the v1 resource contract.
 - Test denied consent, an incorrect redirect URI, an expired code, and an invalid
   state or verifier as negative cases.
 
-See the [device-code command reference](../commands/Get-EntraIDTokenFromDeviceCode.md),
-[authorization URL reference](../commands/Get-EntraIDAuthorizationCode.md), and
-[authorization-code exchange reference](../commands/Get-EntraIDTokenFromAuthorizationCode.md).
+See the [device-code command reference](../commands/authentication.md#get-entraidtokenfromdevicecode),
+[authorization URL reference](../commands/authentication.md#get-entraidauthorizationcode), and
+[authorization-code exchange reference](../commands/authentication.md#get-entraidtokenfromauthorizationcode).

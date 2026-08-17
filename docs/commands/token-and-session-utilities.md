@@ -9,7 +9,10 @@ token family accepted by the implementation.
 Clear-Token -Token All
 ```
 
-Also clear caller-created variables and passkey/session globals when the test ends.
+`-Token All` includes `$global:response`. It does not clear `$global:TokenDomain`,
+`$global:TokenUpn`, `$global:ESTSAUTH`, `$global:webSession`,
+`$global:Fido2FlowState`, or `$global:Fido2WebSession`; remove those and any
+caller-created variables separately when the test ends.
 
 ## ConvertFrom-JWTtoken
 

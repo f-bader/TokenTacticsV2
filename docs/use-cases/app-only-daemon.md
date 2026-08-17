@@ -21,7 +21,12 @@ sequenceDiagram
 | --- | --- | --- |
 | Prototype or controlled local job | Get-EntraIDTokenFromClientSecret | Plaintext or SecureString secret |
 | Windows production host | Get-EntraIDTokenFromCertificate | Registered certificate in the Windows store |
-| Portable host or CI job | Get-EntraIDTokenFromClientSecret or Get-EntraIDTokenFromFederatedCredential | Secret, PFX assertion, or external OIDC JWT |
+| Portable host or CI job | Get-EntraIDTokenFromClientSecret or Get-EntraIDTokenFromFederatedCredential | Secret or external OIDC JWT |
+
+For a PFX-backed custom issuer, first create a JWT with
+`New-EntraIDFederatedClientAssertion`, then exchange that JWT with
+`Get-EntraIDTokenFromFederatedCredential`. The exchange command does not accept a
+PFX directly.
 
 Client credentials produce an app-only token. Delegated permissions such as User.Read
 do not apply; configure application permissions and grant admin consent.

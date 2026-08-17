@@ -43,13 +43,15 @@ location changes, but support varies by resource provider and client.
 The following commands expose `-UseCAE` or a claims parameter that can request the
 `cp1` capability where the endpoint supports it:
 
-- Device code, authorization code, cookie, passkey assertion, and refresh-token
-  flows accept `-UseCAE`.
+- Device code, authorization code, generic/ESTS cookie, passkey assertion, and v2
+  refresh-token flows accept `-UseCAE`. The refresh-token-credential cookie and
+  Device Registration v1 flows do not request CAE claims.
 - `Get-EntraIDTokenFromNestedAppAuth` accepts `-UseCAE` and also supports explicit
   `-Claims`.
 - `Get-EntraIDTokenFromFederatedCredential` and client-credential commands do not
-  turn a workload into a CAE-capable client merely by obtaining a token; use the
-  resource provider's workload-identity CAE requirements.
+  expose `-UseCAE`. Microsoft documents workload-identity CAE for eligible
+  single-tenant service principals calling Microsoft Graph; managed identities
+  are not supported. Follow the resource provider's workload CAE requirements.
 
 Requesting CAE is not a guarantee that the client or resource provider will issue
 or enforce a CAE token. Inspect the token and test the resource-provider behavior.
@@ -96,4 +98,5 @@ be in scope for a Universal CAE assessment.
 
 See the [refresh-token workload guide](./refresh-token-workloads.md) and the
 [Microsoft Learn CAE article](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-continuous-access-evaluation)
+and [workload identity CAE article](https://learn.microsoft.com/en-us/entra/identity/conditional-access/concept-continuous-access-evaluation-workload)
 for current support and limitations.
