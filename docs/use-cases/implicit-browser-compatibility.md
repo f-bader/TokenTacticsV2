@@ -3,6 +3,20 @@
 Use this only when an existing Entra app cannot yet migrate to authorization code
 flow with PKCE. Microsoft recommends authorization code + PKCE for new applications.
 
+```mermaid
+sequenceDiagram
+    participant C as Browser client
+    participant E as Microsoft Entra ID
+    participant R as Registered redirect URI
+    participant API as Resource provider
+
+    C->>E: Implicit authorization request
+    E-->>R: Redirect with tokens in URL fragment
+    R-->>C: Final redirect URL
+    C->>C: ConvertFrom-EntraIDImplicitRedirect
+    C->>API: Use returned access token
+```
+
 ## Entra setup
 
 1. Register the exact HTTPS redirect URI.

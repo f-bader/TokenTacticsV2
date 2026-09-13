@@ -12,7 +12,11 @@ Get-EntraIDTokenFromAzureArcManagedIdentity [-Resource <String>] [-ApiVersion <S
 
 ## Prerequisites and setup
 
-Use this command on an Azure Arc-enabled Windows or Linux server with a system-assigned or user-assigned managed identity enabled. The Arc agent provides the `IDENTITY_ENDPOINT` environment variable. Assign Azure RBAC roles and/or resource-specific permissions to that managed identity before requesting a token.
+Use this command on an Azure Arc-enabled Windows or Linux server with its
+system-assigned managed identity enabled. Azure Arc-enabled servers currently
+support a system-assigned identity for this endpoint. The Arc agent provides the
+`IDENTITY_ENDPOINT` environment variable. Assign Azure RBAC roles and/or
+resource-specific permissions to that identity before requesting a token.
 
 No tenant ID, client ID, secret, certificate, or federated credential is supplied: identity selection is performed by the Arc endpoint. This command is not an OAuth federation exchange and is not designed for macOS or non-Arc hosts.
 

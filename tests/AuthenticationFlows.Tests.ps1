@@ -205,6 +205,28 @@ Describe 'Get-EntraIDTokenFromDeviceCode device-code flow' {
     }
 }
 
+Describe 'Get-EntraIDTokenFromDeviceCode parameter sets' {
+    It 'supports common client parameters with predefined user-agent options' {
+        $parameterSet = (Get-Command Get-EntraIDTokenFromDeviceCode).ParameterSets |
+            Where-Object Name -eq 'PredefinedUserAgent'
+
+        $parameterSet.Parameters.Name | Should -Contain 'Client'
+        $parameterSet.Parameters.Name | Should -Contain 'Device'
+        $parameterSet.Parameters.Name | Should -Contain 'Browser'
+        $parameterSet.Parameters.Name | Should -Not -Contain 'CustomUserAgent'
+    }
+
+    It 'supports common client parameters with a custom user agent' {
+        $parameterSet = (Get-Command Get-EntraIDTokenFromDeviceCode).ParameterSets |
+            Where-Object Name -eq 'CustomUserAgent'
+
+        $parameterSet.Parameters.Name | Should -Contain 'Client'
+        $parameterSet.Parameters.Name | Should -Contain 'CustomUserAgent'
+        $parameterSet.Parameters.Name | Should -Not -Contain 'Device'
+        $parameterSet.Parameters.Name | Should -Not -Contain 'Browser'
+    }
+}
+
 Describe 'Get-EntraIDTokenFromCookie authorization-code flow' {
     BeforeEach {
         foreach ($name in 'response', 'TokenDomain', 'TokenUpn') {
@@ -580,6 +602,19 @@ Describe 'Get-EntraIDAuthorizationCode URL construction' {
         $output[0] | Should -Match 'client_id=9ba1a5c7-f17a-4de9-a1f1-6178c8d51223'
     }
 
+    It 'generates a fresh random state for each invocation' {
+        $firstUrl = (@(Get-EntraIDAuthorizationCode))[0]
+        $secondUrl = (@(Get-EntraIDAuthorizationCode))[0]
+
+        $firstMatch = [regex]::Match($firstUrl, '&state=([0-9a-f]{32})&')
+        $secondMatch = [regex]::Match($secondUrl, '&state=([0-9a-f]{32})&')
+        $firstMatch.Success | Should -BeTrue
+        $secondMatch.Success | Should -BeTrue
+        $firstState = $firstMatch.Groups[1].Value
+        $secondState = $secondMatch.Groups[1].Value
+        $firstState | Should -Not -Be $secondState
+    }
+
     It 'constructs the exact v1 URL with its resource' {
         $output = @(Get-EntraIDAuthorizationCode `
                 -Client MSGraph `
@@ -590,7 +625,7 @@ Describe 'Get-EntraIDAuthorizationCode URL construction' {
                 -Resource 'https://resource.example')
 
         $output[0] | Should -Be 'https://login.microsoftonline.com/organizations/oauth2/authorize?response_type=code&redirect_uri=https://app.example/v1-callback&state=v1-state&resource=https://resource.example&scope=https://graph.microsoft.com/.default%20offline_access%20openid&client_id=v1-client'
-        $output[-1] | Should -Match 'Get-EntraIDTokenFromAuthorizationCode.*-Resource "https://resource\.example" -UseV1Endpoint$'
+        ($output -join "`n") | Should -Match 'Get-EntraIDTokenFromAuthorizationCode.*-ExpectedState "v1-state".*-Resource "https://resource\.example" -UseV1Endpoint'
     }
 
     It 'constructs the exact CAE URL with the cp1 claim' {

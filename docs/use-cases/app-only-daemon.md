@@ -3,13 +3,30 @@
 Use this scenario for a scheduled PowerShell job, service, migration, or automation
 that has no signed-in user and needs application permissions.
 
+```mermaid
+sequenceDiagram
+    participant D as Daemon or scheduled job
+    participant E as Microsoft Entra ID
+    participant API as Resource provider
+
+    D->>E: Client secret or certificate assertion
+    E-->>D: App-only access token with roles
+    D->>API: Bearer token for one resource
+    API-->>D: Application-authorized response
+```
+
 ## Choose the credential
 
 | Environment | Recommended command | Credential |
 | --- | --- | --- |
 | Prototype or controlled local job | Get-EntraIDTokenFromClientSecret | Plaintext or SecureString secret |
 | Windows production host | Get-EntraIDTokenFromCertificate | Registered certificate in the Windows store |
-| Portable host or CI job | Get-EntraIDTokenFromClientSecret or Get-EntraIDTokenFromFederatedCredential | Secret, PFX assertion, or external OIDC JWT |
+| Portable host or CI job | Get-EntraIDTokenFromClientSecret or Get-EntraIDTokenFromFederatedCredential | Secret or external OIDC JWT |
+
+For a PFX-backed custom issuer, first create a JWT with
+`New-EntraIDFederatedClientAssertion`, then exchange that JWT with
+`Get-EntraIDTokenFromFederatedCredential`. The exchange command does not accept a
+PFX directly.
 
 Client credentials produce an app-only token. Delegated permissions such as User.Read
 do not apply; configure application permissions and grant admin consent.

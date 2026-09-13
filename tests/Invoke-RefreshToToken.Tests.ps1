@@ -67,6 +67,24 @@ Describe "Invoke-RefreshToToken" {
         } -Times 1
     }
 
+    It "omits CAE claims and warns for a v1 request" {
+        $warnings = InModuleScope TokenTactics {
+            Invoke-RefreshToToken `
+                -Domain "contoso.com" `
+                -refreshToken "rt1" `
+                -ClientID "client1" `
+                -Scope "openid" `
+                -Resource "urn:ms-drs:enterpriseregistration.windows.net" `
+                -UseV1Endpoint `
+                -UseCAE 3>&1
+        }
+
+        ($warnings | Out-String) | Should -Match 'CAE claims are not supported by the v1 token endpoint'
+        Should -Invoke -ModuleName TokenTactics Invoke-RestMethod -ParameterFilter {
+            $Body -is [hashtable] -and -not $Body.ContainsKey("claims")
+        } -Times 1
+    }
+
     It "Uses the DoD login endpoint when -UseDoD is set" {
         InModuleScope TokenTactics {
             Invoke-RefreshToToken -Domain "contoso.com" -refreshToken "rt1" -ClientID "client1" -Scope "https://dod-graph.microsoft.us/.default" -UseDoD

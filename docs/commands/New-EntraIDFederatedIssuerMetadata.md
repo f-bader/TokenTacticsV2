@@ -2,9 +2,9 @@
 
 ## Synopsis
 
-Generates the public OpenID Connect discovery document, JWKS, and local issuer
-configuration required to make a certificate-backed custom federated credential
-provider discoverable by Entra ID.
+Generates the public OpenID Connect discovery document and JWKS required to make
+a certificate-backed custom federated credential provider discoverable by Entra
+ID. It can also generate an optional local issuer configuration file.
 
 ## Syntax
 
@@ -41,7 +41,7 @@ private key, or an unauthenticated signing API.
 | --- | --- | --- |
 | Issuer | Yes | Stable HTTPS issuer URL. The trailing slash is removed in generated metadata. |
 | Subject | Yes | Workload subject that must match the Entra federated credential and assertion. |
-| OutputPath | Yes | Directory to receive public metadata and local configuration. |
+| OutputPath | Yes | Directory to receive public metadata and, when requested, local configuration. |
 | Audience | No | Assertion audience. Defaults to api://AzureADTokenExchange. |
 | IncludeLocalConfig | No | Also write `issuer-config.json`, a local record of issuer, subject, audience, and key ID. The web host does not need it; do not publish it. |
 | CertificateThumbprint | One signing-key form | RSA certificate thumbprint from a Windows certificate store. |

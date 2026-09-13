@@ -3,6 +3,22 @@
 Use this scenario when a process runs directly on an Azure Arc-enabled Windows or
 Linux server and should authenticate as that server's managed identity.
 
+```mermaid
+sequenceDiagram
+    participant P as Arc-enabled process
+    participant L as Local Arc identity endpoint
+    participant E as Microsoft Entra ID
+    participant API as Azure resource
+
+    P->>L: Request token
+    L-->>P: Challenge file and WWW-Authenticate response
+    P->>L: Repeat request with local challenge
+    L->>E: Managed identity token request
+    E-->>L: Resource token
+    L-->>P: Access token
+    P->>API: Call Azure resource
+```
+
 ## Prerequisites
 
 1. Onboard the disposable test server to Azure Arc.
