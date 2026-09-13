@@ -41,7 +41,7 @@ The Teams preset also enables its current client-ID query and telemetry shape.
 ## Example
 
 ```powershell
-$nested = Get-EntraIDTokenFromNestedAppAuth `
+Get-EntraIDTokenFromNestedAppAuth `
     -BrokerPreset Defender `
     -TenantId $tenantId `
     -RefreshToken $response.refresh_token `

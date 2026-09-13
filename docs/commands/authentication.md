@@ -77,6 +77,9 @@ a legacy resource request. `-Browser`, `-Device`, and `-CustomUserAgent` affect
 request metadata only. `-ExpectedState` performs an exact, case-sensitive check
 before a request-URL exchange. If a caller extracts the code manually, it must
 validate the returned state before invoking the explicit-code parameter set.
+Supply `-RedirectUrl` with `-RequestURL` when the registered redirect URI contains
+query parameters; otherwise the command infers only the redirect's scheme, host,
+and path. The generated exchange command includes the original redirect URI.
 
 ## Get-EntraIDTokenFromCookie
 
